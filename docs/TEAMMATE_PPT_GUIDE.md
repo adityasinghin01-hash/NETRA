@@ -2,6 +2,32 @@
 
 You own everything the judges **read and watch**. In an async-judged round (no live demo on Jul 26), your deliverables are 50% of what wins this. This doc is everything you need — read it once fully, then work top to bottom.
 
+## 0. THE IDEA — read this first, you're selling it
+
+**What NETRA is, in one line:** an AI crime-intelligence engine that turns Karnataka Police's own FIR records into decisions — where crime is clustering, which crimes are connected, what happens next week, and what to do about it.
+
+**The problem (why KSP posted this challenge):** Karnataka has 1,100+ police stations, each filing FIRs (First Information Reports — the document that opens every criminal case) into a shared but siloed database. Today that data answers questions only through static dashboards and manual queries. Three real consequences:
+1. **Serial criminals are invisible across borders.** A burglar hitting shops in Tumakuru, Chitradurga, and Davanagere is investigated as 3 unrelated local cases by 3 officers who've never spoken. Nothing connects them.
+2. **Patterns are found late or never.** A spike in night-time vehicle theft is noticed when someone manually compiles a monthly report — weeks after it started.
+3. **Leadership reviews the past instead of shaping the future.** SPs see last month's totals; nobody tells them where next week's risk is.
+
+**What NETRA does about it — the 5 pillars:**
+1. **See** — Interactive Karnataka map: state → district → station drilldown, crime hotspots found by clustering algorithms (not just pins), and an honest data-quality indicator
+2. **Track** — Crime trends over time with automatic anomaly alerts ("vehicle theft in X up 40% in 6 weeks — here's the evidence")
+3. **Connect ⭐ (the headline)** — AI reads the free-text narrative of every FIR (English AND Kannada) and links serial crimes across district borders by modus operandi. Also: repeat-offender registry and a network graph of who's co-accused with whom across cases. **The live demo moment: paste a brand-new FIR, and NETRA answers "87% match with Serial Cluster #3" in under a second.**
+4. **Judge** — Case-outcome analytics: for every station, what % of cases end chargesheeted (A), declared false (B), or undetected (C) — the accountability view police leadership never gets easily
+5. **Act** — 7-day hotspot forecast with suggested patrol windows, and a 1-page AI-written daily briefing per district, in English or Kannada, downloadable as PDF
+
+**Why we beat 12,000 other teams (your selling angles):**
+- **Built on KSP's literal database schema.** They published their real FIR-system ER diagram; our tables match it field-for-field. Every other team will invent their own data model. Judges from SCRB will see their own column names → "this plugs in tomorrow" is a demonstrated fact, not a claim
+- **The headline feature is rare.** Everyone will bring maps and charts. Almost nobody will bring cross-district serial-crime linkage that reads Kannada FIR text — and we prove it works with a blind test (see your secret task, §5)
+- **Every AI claim has a number behind it.** Blind-test precision for linkage; a real-data benchmark (Chicago open crime data) for forecasting. No hand-waving
+- **Ethics by design.** Caste/religion/occupation are never used by any model and never shown on any screen; NETRA predicts places and patterns, never people; every AI output explains its reasons. Government judges probe this hard — we answer before they ask
+- **100% on Zoho Catalyst** (the mandatory platform), using their services end to end — sponsor alignment
+- **Team story:** 3 students, ₹0 infrastructure cost, 15 days
+
+**What NETRA is NOT (don't accidentally claim these):** not a chatbot (that's Challenge 1's problem statement), not predicting individuals or "pre-crime", not CCTV/facial recognition, not using any real crime data (all demo data is synthetic, generated to KSP's schema — always disclose this).
+
 ## Your 5 deliverables & deadlines
 
 | # | Deliverable | Deadline | Notes |
