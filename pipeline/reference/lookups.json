@@ -1,0 +1,56 @@
+{
+  "_meta": {
+    "description": "Small lookup tables for the KSP FIR schema. Values chosen to match the KSP ER-diagram document. crimeNoDigit = the leading Case Category Code digit in the CrimeNo format, taken verbatim from the KSP PDF examples (FIR 1..., UDR 3..., PAR 4..., Zero-FIR 8...)."
+  },
+  "caseCategories": [
+    { "caseCategoryId": 1, "lookupValue": "FIR",      "crimeNoDigit": 1, "description": "First Information Report", "weight": 82 },
+    { "caseCategoryId": 2, "lookupValue": "UDR",      "crimeNoDigit": 3, "description": "Unnatural Death Report",    "weight": 8 },
+    { "caseCategoryId": 3, "lookupValue": "PAR",      "crimeNoDigit": 4, "description": "Preliminary Assessment Report", "weight": 6 },
+    { "caseCategoryId": 4, "lookupValue": "Zero FIR", "crimeNoDigit": 8, "description": "Zero FIR (jurisdiction-agnostic registration)", "weight": 4 }
+  ],
+  "gravityOffence": [
+    { "gravityOffenceId": 1, "lookupValue": "Heinous",     "description": "Grave offences (murder, rape, dacoity, etc.)" },
+    { "gravityOffenceId": 2, "lookupValue": "Non-Heinous", "description": "Less grave offences" }
+  ],
+  "caseStatus": [
+    { "caseStatusId": 1, "caseStatusName": "Under Investigation", "isOpen": true,  "weight": 34 },
+    { "caseStatusId": 2, "caseStatusName": "Charge Sheeted",      "isOpen": false, "weight": 40 },
+    { "caseStatusId": 3, "caseStatusName": "Pending Trial",       "isOpen": false, "weight": 8 },
+    { "caseStatusId": 4, "caseStatusName": "Disposed",            "isOpen": false, "weight": 6 },
+    { "caseStatusId": 5, "caseStatusName": "Closed - Undetected", "isOpen": false, "weight": 9 },
+    { "caseStatusId": 6, "caseStatusName": "Closed - False",      "isOpen": false, "weight": 3 }
+  ],
+  "chargesheetType": [
+    { "cstype": "A", "meaning": "Chargesheet (offence made out, accused identified)", "weight": 62 },
+    { "cstype": "B", "meaning": "False Case (offence not made out)",                  "weight": 11 },
+    { "cstype": "C", "meaning": "Undetected (offence real, accused not traced)",      "weight": 27 }
+  ],
+  "gender": [
+    { "genderId": 1, "code": "M", "label": "Male" },
+    { "genderId": 2, "code": "F", "label": "Female" },
+    { "genderId": 3, "code": "T", "label": "Transgender" }
+  ],
+  "rank": [
+    { "rankId": 1,  "rankName": "Director General of Police", "abbr": "DGP",  "hierarchy": 1 },
+    { "rankId": 2,  "rankName": "Inspector General of Police","abbr": "IGP",  "hierarchy": 2 },
+    { "rankId": 3,  "rankName": "Superintendent of Police",   "abbr": "SP",   "hierarchy": 3 },
+    { "rankId": 4,  "rankName": "Deputy Superintendent of Police", "abbr": "DySP", "hierarchy": 4 },
+    { "rankId": 5,  "rankName": "Police Inspector",           "abbr": "PI",   "hierarchy": 5 },
+    { "rankId": 6,  "rankName": "Sub-Inspector",              "abbr": "SI",   "hierarchy": 6 },
+    { "rankId": 7,  "rankName": "Assistant Sub-Inspector",    "abbr": "ASI",  "hierarchy": 7 },
+    { "rankId": 8,  "rankName": "Head Constable",             "abbr": "HC",   "hierarchy": 8 },
+    { "rankId": 9,  "rankName": "Police Constable",           "abbr": "PC",   "hierarchy": 9 }
+  ],
+  "unitType": [
+    { "unitTypeId": 1, "unitTypeName": "State Headquarters", "cityDistState": "State",    "hierarchy": 1 },
+    { "unitTypeId": 2, "unitTypeName": "District Office",    "cityDistState": "District", "hierarchy": 2 },
+    { "unitTypeId": 3, "unitTypeName": "Sub-Division",       "cityDistState": "District", "hierarchy": 3 },
+    { "unitTypeId": 4, "unitTypeName": "Circle Office",      "cityDistState": "City",     "hierarchy": 4 },
+    { "unitTypeId": 5, "unitTypeName": "Police Station",     "cityDistState": "City",     "hierarchy": 5 }
+  ],
+  "roles": [
+    { "role": "hq",       "mapsTo": "DGP / SCRB HQ", "scope": "all Karnataka" },
+    { "role": "district", "mapsTo": "Superintendent of Police", "scope": "own district" },
+    { "role": "station",  "mapsTo": "Station House Officer", "scope": "own station" }
+  ]
+}
