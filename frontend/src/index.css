@@ -21,8 +21,8 @@
   --color-warn: #fbbf24;
   --color-ok: #34d399;
 
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+  --font-sans: "Inter Variable", "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SF Mono", monospace;
 }
 
 * {
@@ -38,17 +38,47 @@ body,
 
 body {
   background: var(--color-bg);
+  /* Subtle command-center ambient glow: faint cyan top-left, indigo top-right. */
+  background-image:
+    radial-gradient(900px 500px at 12% -8%, rgba(34, 211, 238, 0.06), transparent 60%),
+    radial-gradient(800px 500px at 100% -10%, rgba(99, 102, 241, 0.06), transparent 55%);
+  background-attachment: fixed;
   color: var(--color-text);
   font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.5;
+  letter-spacing: -0.006em;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Tabular numbers everywhere numbers appear */
 .tnum {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Interactive card: subtle lift + accent border on hover */
+.card-hover {
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-border-strong);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* Shimmer skeleton for loading states */
+.skeleton {
+  background: linear-gradient(90deg, #131f38 25%, #1b2b4a 50%, #131f38 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 8px;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 ::-webkit-scrollbar {

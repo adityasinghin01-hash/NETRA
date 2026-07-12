@@ -33,10 +33,11 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
 
 export function StatTile({ label, value, sub }: { label: string; value: ReactNode; sub?: string }) {
   return (
-    <Card className="p-4">
-      <div className="text-xs uppercase tracking-wide text-[var(--color-text-mute)]">{label}</div>
-      <div className="tnum mt-1 text-2xl font-semibold text-[var(--color-text)]">{value}</div>
-      {sub && <div className="mt-0.5 text-xs text-[var(--color-text-dim)]">{sub}</div>}
+    <Card className="card-hover relative overflow-hidden p-4">
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--color-accent)] to-transparent opacity-40" />
+      <div className="text-[11px] uppercase tracking-wider text-[var(--color-text-mute)]">{label}</div>
+      <div className="tnum mt-1.5 text-[26px] font-semibold leading-none text-[var(--color-text)]">{value}</div>
+      {sub && <div className="mt-1 text-xs text-[var(--color-text-dim)]">{sub}</div>}
     </Card>
   );
 }
@@ -53,7 +54,14 @@ export function Badge({ children, tone = "accent" }: { children: ReactNode; tone
 }
 
 export function State({ loading, error, empty, children }: { loading: boolean; error: string | null; empty?: boolean; children: ReactNode }) {
-  if (loading) return <div className="animate-pulse p-6 text-sm text-[var(--color-text-mute)]">Loading…</div>;
+  if (loading)
+    return (
+      <div className="space-y-2 p-1">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="skeleton h-4" style={{ width: `${90 - i * 12}%` }} />
+        ))}
+      </div>
+    );
   if (error) return <div className="p-6 text-sm text-[var(--color-danger)]">Couldn’t load data. {error}</div>;
   if (empty) return <div className="p-6 text-sm text-[var(--color-text-mute)]">No data for this view.</div>;
   return <>{children}</>;
