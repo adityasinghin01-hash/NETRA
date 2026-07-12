@@ -1,5 +1,6 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { IS_MOCK } from "@/api/client";
+import { getSession, clearSession } from "@/lib/auth";
 import { Badge } from "./ui";
 
 const NAV = [
@@ -10,6 +11,9 @@ const NAV = [
 ];
 
 export default function AppShell() {
+  const nav = useNavigate();
+  const session = getSession();
+  const initials = session.roleLabel.split(" · ")[0];
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Sidebar */}
@@ -46,11 +50,23 @@ export default function AppShell() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--color-border)] px-6">
           <div className="text-sm text-[var(--color-text-dim)]">
-            Jurisdiction: <span className="text-[var(--color-text)]">Karnataka (HQ)</span>
+            Jurisdiction: <span className="text-[var(--color-text)]">{session.label}</span>
+            <span className="ml-2 text-xs text-[var(--color-text-mute)]">· {session.roleLabel}</span>
           </div>
           <div className="flex items-center gap-3">
             {IS_MOCK && <Badge tone="warn">MOCK DATA</Badge>}
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-surface-2)] text-xs">SP</div>
+            <button
+              onClick={() => {
+                clearSession();
+                nav("/login");
+              }}
+              className="text-xs text-[var(--color-text-dim)] hover:text-[var(--color-accent)]"
+            >
+              Sign out
+            </button>
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-surface-2)] text-[10px] font-medium">
+              {initials}
+            </div>
           </div>
         </header>
         <main className="flex-1 overflow-y-auto p-6">

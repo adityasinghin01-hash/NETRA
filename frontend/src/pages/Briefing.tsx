@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card, PageHeader, State } from "@/components/ui";
+import { getSession } from "@/lib/auth";
 
 interface Brief {
   district: string;
@@ -12,7 +13,7 @@ interface Brief {
 export default function Briefing() {
   const [all, setAll] = useState<Record<string, Brief> | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [district, setDistrict] = useState<string>("Bengaluru Urban");
+  const [district, setDistrict] = useState<string>(getSession().district ?? "Bengaluru Urban");
   const [lang, setLang] = useState<"en" | "kn">("en");
 
   useEffect(() => {

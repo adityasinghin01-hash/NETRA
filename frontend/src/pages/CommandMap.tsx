@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useApi, StatTile, Card, PageHeader, State, Badge } from "@/components/ui";
 import CrimeMap from "@/components/CrimeMap";
+import { getSession } from "@/lib/auth";
 
 interface Summary {
   totalCases: number;
@@ -49,11 +50,34 @@ export default function CommandMap() {
   const d = useApi<District[]>("/geo/districts");
   const dq = useApi<DataQuality>("/data-quality");
   const a = useApi<Alert[]>("/alerts");
-  const top = (d.data ?? []).slice().sort((a, b) => b.caseCount - a.caseCount);
+  const oc = useApi<{ name: string; chargesheeted: number; false: number; undetected: number }[]>("/stats/outcomes");
   const [forecast, setForecast] = useState<Forecast | null>(null);
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}forecast.json`).then((r) => r.json()).then(setForecast).catch(() => {});
   }, []);
+
+  // Role-based scoping: HQ sees the whole state; District/Station see only their jurisdiction.
+  const scope = getSession().district; // null = HQ
+  const allDistricts = (d.data ?? []).slice().sort((x, y) => y.caseCount - x.caseCount);
+  const top = scope ? allDistricts.filter((x) => x.name === scope) : allDistricts;
+  const alerts = scope ? (a.data ?? []).filter((al) => al.district === scope) : (a.data ?? []);
+  const fcHotspots = scope ? (forecast?.hotspots ?? []).filter((h) => h.district === scope) : forecast?.hotspots ?? [];
+
+  const scopedRow = scope ? allDistricts.find((x) => x.name === scope) : null;
+  const scopedOc = scope ? (oc.data ?? []).find((x) => x.name === scope) : null;
+  const summary: Summary | null =
+    scope && scopedRow
+      ? {
+          totalCases: scopedRow.caseCount,
+          heinousCases: scopedRow.heinousCount,
+          detectionRatePct: scopedOc
+            ? Math.round((100 * scopedOc.chargesheeted) / (scopedOc.chargesheeted + scopedOc.false + scopedOc.undetected))
+            : (s.data?.detectionRatePct ?? 0),
+          activeHotspots: fcHotspots.length,
+          openAlerts: alerts.length,
+          linkedClusters: s.data?.linkedClusters ?? 0,
+        }
+      : s.data;
 
   return (
     <div>
@@ -64,21 +88,21 @@ export default function CommandMap() {
       />
 
       <State loading={s.loading} error={s.error}>
-        {s.data && (
+        {summary && (
           <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-            <StatTile label="Total FIRs" value={s.data.totalCases.toLocaleString()} />
-            <StatTile label="Heinous" value={s.data.heinousCases.toLocaleString()} />
-            <StatTile label="Detection" value={`${s.data.detectionRatePct}%`} />
-            <StatTile label="Hotspots" value={s.data.activeHotspots} />
-            <StatTile label="Open Alerts" value={s.data.openAlerts} />
-            <StatTile label="Linked Clusters" value={s.data.linkedClusters} />
+            <StatTile label="Total FIRs" value={summary.totalCases.toLocaleString()} />
+            <StatTile label="Heinous" value={summary.heinousCases.toLocaleString()} />
+            <StatTile label="Detection" value={`${summary.detectionRatePct}%`} />
+            <StatTile label="Hotspots" value={summary.activeHotspots} />
+            <StatTile label="Open Alerts" value={summary.openAlerts} />
+            <StatTile label={scope ? "State Clusters" : "Linked Clusters"} value={summary.linkedClusters} />
           </div>
         )}
       </State>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="h-[420px] overflow-hidden p-0 lg:col-span-2">
-          <CrimeMap districts={d.data ?? []} />
+          <CrimeMap districts={d.data ?? []} focusDistrict={scope} />
         </Card>
 
         <div className="flex h-[420px] flex-col gap-4">
@@ -87,9 +111,9 @@ export default function CommandMap() {
               <div className="text-sm font-medium text-[var(--color-text)]">Active alerts</div>
               <span className="text-xs text-[var(--color-text-mute)]">anomaly detection</span>
             </div>
-            <State loading={a.loading} error={a.error} empty={(a.data ?? []).length === 0}>
+            <State loading={a.loading} error={a.error} empty={alerts.length === 0}>
               <ul className="space-y-2">
-                {(a.data ?? []).map((al) => (
+                {alerts.map((al) => (
                   <li key={al.alertId} className="flex gap-2 text-xs">
                     <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${al.severity === "high" ? "bg-[var(--color-danger)]" : "bg-[var(--color-warn)]"}`} />
                     <div className="min-w-0">
@@ -101,7 +125,7 @@ export default function CommandMap() {
             </State>
           </Card>
           <Card className="min-h-0 flex-1 overflow-y-auto p-4">
-            <div className="mb-3 text-sm font-medium text-[var(--color-text)]">Districts by case volume</div>
+            <div className="mb-3 text-sm font-medium text-[var(--color-text)]">{scope ? "Your jurisdiction" : "Districts by case volume"}</div>
             <State loading={d.loading} error={d.error} empty={top.length === 0}>
               <ul className="space-y-1">
                 {top.map((row, i) => (
@@ -119,7 +143,7 @@ export default function CommandMap() {
         </div>
       </div>
 
-      {forecast && forecast.hotspots.length > 0 && (
+      {forecast && fcHotspots.length > 0 && (
         <Card className="mt-4 p-4">
           <div className="mb-1 flex items-center justify-between">
             <div className="text-sm font-medium text-[var(--color-text)]">
@@ -131,7 +155,7 @@ export default function CommandMap() {
             </span>
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            {forecast.hotspots.slice(0, 8).map((h, i) => (
+            {fcHotspots.slice(0, 8).map((h, i) => (
               <div key={i} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-[var(--color-text)]">{h.district}</span>

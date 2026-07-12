@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { MapContainer, TileLayer, GeoJSON, LayersControl } from "react-leaflet";
+import { MapContainer, TileLayer, GeoJSON, LayersControl, useMap } from "react-leaflet";
 import L, { type Layer, type PathOptions } from "leaflet";
 import type { Feature, FeatureCollection } from "geojson";
 import "leaflet/dist/leaflet.css";
@@ -34,7 +34,17 @@ function choroplethColor(count: number): string {
   return "#4ade80";
 }
 
-export default function CrimeMap({ districts }: { districts: DistrictDatum[] }) {
+function FocusDistrict({ geo, name }: { geo: FeatureCollection | null; name: string | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!geo || !name) return;
+    const f = geo.features.find((ft) => (ft.properties as { district?: string })?.district === name);
+    if (f) map.fitBounds(L.geoJSON(f).getBounds(), { padding: [30, 30] });
+  }, [geo, name, map]);
+  return null;
+}
+
+export default function CrimeMap({ districts, focusDistrict }: { districts: DistrictDatum[]; focusDistrict?: string | null }) {
   const [geo, setGeo] = useState<FeatureCollection | null>(null);
   const [pts, setPts] = useState<[number, number, number][] | null>(null);
   const counts = useMemo(() => new Map(districts.map((d) => [d.name, d.caseCount])), [districts]);
@@ -127,6 +137,7 @@ export default function CrimeMap({ districts }: { districts: DistrictDatum[] }) 
             )}
           </LayersControl.Overlay>
         </LayersControl>
+        <FocusDistrict geo={geo} name={focusDistrict ?? null} />
       </MapContainer>
 
       <div className="pointer-events-none absolute bottom-3 left-3 z-[1000] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]/90 p-2 text-[10px] text-[var(--color-text-dim)]">
