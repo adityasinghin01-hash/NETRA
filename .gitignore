@@ -56,3 +56,6 @@ pipeline/data/catalyst/
 
 # Function dependencies (reinstalled on deploy)
 functions/*/node_modules/
+
+# Blind-test secret patterns (never commit — keeps the test honest)
+pipeline/blindtest/patterns.txt
