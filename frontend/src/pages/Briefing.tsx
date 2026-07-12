@@ -28,6 +28,32 @@ export default function Briefing() {
   );
   const brief = all?.[district];
 
+  function downloadPdf() {
+    if (!brief) return;
+    const body = lang === "en" ? brief.en : brief.kn;
+    const w = window.open("", "_blank", "width=720,height=900");
+    if (!w) return;
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>NETRA Briefing — ${brief.district}</title>
+      <style>body{font-family:Inter,system-ui,-apple-system,sans-serif;max-width:640px;margin:48px auto;color:#111;line-height:1.7;padding:0 24px}
+      h1{font-size:19px;margin:0 0 2px} .meta{color:#666;font-size:13px;margin-bottom:18px}
+      .stats{display:flex;gap:12px;margin:0 0 18px} .stat{border:1px solid #ddd;border-radius:8px;padding:8px 14px;font-size:13px}
+      .stat b{display:block;font-size:17px} p{font-size:14px} .foot{color:#999;font-size:11px;margin-top:28px;border-top:1px solid #eee;padding-top:10px}</style>
+      </head><body>
+      <h1>NETRA — Daily Intelligence Briefing</h1>
+      <div class="meta">${brief.district} · ${brief.date}</div>
+      <div class="stats">
+        <div class="stat">30-day FIRs<b>${brief.stats.fir30d}</b></div>
+        <div class="stat">vs prev month<b>${brief.stats.changePct > 0 ? "+" : ""}${brief.stats.changePct}%</b></div>
+        <div class="stat">Detection<b>${brief.stats.detectionPct}%</b></div>
+      </div>
+      <p>${body}</p>
+      <div class="foot">Auto-generated from live district analytics · Karnataka State Police · decision support, human-in-the-loop · synthetic data</div>
+      </body></html>`);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 250);
+  }
+
   return (
     <div>
       <PageHeader
@@ -64,10 +90,10 @@ export default function Briefing() {
             <div className="mb-4 flex items-center justify-between">
               <div className="text-sm font-semibold">Morning Brief — {brief.district}</div>
               <button
-                onClick={() => window.print()}
+                onClick={downloadPdf}
                 className="rounded-lg border border-[var(--color-border-strong)] px-3 py-1 text-xs text-[var(--color-text-dim)] hover:text-[var(--color-accent)]"
               >
-                Download / Print
+                Download PDF
               </button>
             </div>
             <div className="mb-4 grid grid-cols-3 gap-3">

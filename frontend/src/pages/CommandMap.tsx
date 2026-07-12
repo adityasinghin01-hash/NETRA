@@ -21,6 +21,14 @@ interface DataQuality {
   fallback: string;
   kannadaPct: number;
 }
+interface Alert {
+  alertId: string;
+  district: string;
+  crimeType: string;
+  severity: string;
+  message: string;
+  caseCount: number;
+}
 interface Forecast {
   generatedFor: string;
   horizonDays: number;
@@ -40,6 +48,7 @@ export default function CommandMap() {
   const s = useApi<Summary>("/stats/summary");
   const d = useApi<District[]>("/geo/districts");
   const dq = useApi<DataQuality>("/data-quality");
+  const a = useApi<Alert[]>("/alerts");
   const top = (d.data ?? []).slice().sort((a, b) => b.caseCount - a.caseCount);
   const [forecast, setForecast] = useState<Forecast | null>(null);
   useEffect(() => {
@@ -72,22 +81,42 @@ export default function CommandMap() {
           <CrimeMap districts={d.data ?? []} />
         </Card>
 
-        <Card className="h-[420px] overflow-y-auto p-4">
-          <div className="mb-3 text-sm font-medium text-[var(--color-text)]">Districts by case volume</div>
-          <State loading={d.loading} error={d.error} empty={top.length === 0}>
-            <ul className="space-y-1">
-              {top.map((row, i) => (
-                <li key={row.districtId} className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-[var(--color-surface-2)]">
-                  <span className="text-[var(--color-text-dim)]">
-                    <span className="tnum mr-2 text-[var(--color-text-mute)]">{i + 1}</span>
-                    {row.name}
-                  </span>
-                  <span className="tnum text-[var(--color-text)]">{row.caseCount.toLocaleString()}</span>
-                </li>
-              ))}
-            </ul>
-          </State>
-        </Card>
+        <div className="flex h-[420px] flex-col gap-4">
+          <Card className="shrink-0 p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-sm font-medium text-[var(--color-text)]">Active alerts</div>
+              <span className="text-xs text-[var(--color-text-mute)]">anomaly detection</span>
+            </div>
+            <State loading={a.loading} error={a.error} empty={(a.data ?? []).length === 0}>
+              <ul className="space-y-2">
+                {(a.data ?? []).map((al) => (
+                  <li key={al.alertId} className="flex gap-2 text-xs">
+                    <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${al.severity === "high" ? "bg-[var(--color-danger)]" : "bg-[var(--color-warn)]"}`} />
+                    <div className="min-w-0">
+                      <div className="text-[var(--color-text-dim)]">{al.message}</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </State>
+          </Card>
+          <Card className="min-h-0 flex-1 overflow-y-auto p-4">
+            <div className="mb-3 text-sm font-medium text-[var(--color-text)]">Districts by case volume</div>
+            <State loading={d.loading} error={d.error} empty={top.length === 0}>
+              <ul className="space-y-1">
+                {top.map((row, i) => (
+                  <li key={row.districtId} className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-[var(--color-surface-2)]">
+                    <span className="text-[var(--color-text-dim)]">
+                      <span className="tnum mr-2 text-[var(--color-text-mute)]">{i + 1}</span>
+                      {row.name}
+                    </span>
+                    <span className="tnum text-[var(--color-text)]">{row.caseCount.toLocaleString()}</span>
+                  </li>
+                ))}
+              </ul>
+            </State>
+          </Card>
+        </div>
       </div>
 
       {forecast && forecast.hotspots.length > 0 && (

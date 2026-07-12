@@ -74,6 +74,12 @@ export default function CrimeMap({ districts }: { districts: DistrictDatum[] }) 
     layer.on({
       mouseover: (e) => e.target.setStyle({ weight: 2, color: "#22d3ee", fillOpacity: 0.7 }),
       mouseout: (e) => e.target.setStyle(districtStyle(feature)),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      click: (e: any) => {
+        if (e.target.getBounds && e.target._map) {
+          e.target._map.fitBounds(e.target.getBounds(), { padding: [24, 24] });
+        }
+      },
     });
   }
 
