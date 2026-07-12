@@ -5,6 +5,9 @@ import path from "node:path";
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Catalyst Web Client Hosting serves the client under /app/ — assets and
+  // router basename must match, or the built app 404s its own bundle.
+  base: "/app/",
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },
