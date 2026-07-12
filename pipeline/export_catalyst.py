@@ -87,9 +87,10 @@ def main():
     case_ids = {c["caseMasterId"] for c in cases}
     cs = {x["caseMasterId"]: x["cstype"] for x in jsonl("chargesheets.jsonl") if x["caseMasterId"] in case_ids}
 
-    fields = ["crimeNo", "registeredDate", "incidentDate", "districtName", "stationName",
-              "latitude", "longitude", "crimeHead", "crimeSubHead", "gravity", "category",
-              "status", "cstype", "briefFacts", "language", "clusterRef"]
+    # Lean column set for the Cases table (fewer console columns to create; enough
+    # for the case-search screen: filter by district/type/gravity/status + text search).
+    fields = ["crimeNo", "registeredDate", "districtName", "crimeSubHead",
+              "gravity", "status", "language", "briefFacts"]
     with open(f"{OUT}/Cases.csv", "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
         w.writeheader()
