@@ -1,6 +1,13 @@
-# NETRA — Frontend Owner: Complete Work Package
+# NETRA — Frontend BUILD Reference (for Aditya + Claude)
 
-You own everything the judges **see**. Every AI feature Aditya builds is invisible until your screens make it real. This doc is self-contained: the idea, stack, design system, all 5 screens specced with every button, the API shapes you code against, mock-data strategy, and deadlines.
+> **Role update (2026-07-12):** the frontend teammate is a **designer, not a coder**,
+> so the actual React coding is owned by **Aditya + Claude**. This doc is now the
+> **implementation reference** for whoever writes the code. The designer follows
+> **[TEAMMATE_DESIGNER_GUIDE.md](TEAMMATE_DESIGNER_GUIDE.md)** instead.
+> The 5-screen shell + design system are already built and deployed live — this doc
+> describes the target build; use it to flesh out maps, charts, and interactions.
+
+This doc is self-contained: the idea, stack, design system, all 5 screens specced with every button, the API shapes to code against, mock-data strategy, and deadlines.
 
 ## THE IDEA — what you're building and why each screen exists
 
