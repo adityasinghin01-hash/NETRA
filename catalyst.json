@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "targets": ["netra_api"],
+    "ignore": [".output"],
+    "source": "functions"
+  },
   "client": {
     "source": "client"
   }

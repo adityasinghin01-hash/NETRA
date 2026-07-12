@@ -4,7 +4,9 @@
 import seed from "@/mocks/seed.json";
 
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === "true";
-const BASE = "/api/v1";
+// Live API: the Catalyst Advanced I/O function, same origin as the hosted client.
+// Reads dashboard payloads from Data Store: /server/netra_api/data/<rkey>
+const BASE = "/server/netra_api/data";
 
 // Map an API path (without /api/v1) to a key in the mock seed.
 const MOCK_KEYS: Record<string, string> = {
