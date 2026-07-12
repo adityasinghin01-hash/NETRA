@@ -7,6 +7,7 @@ const NAV = [
   { to: "/map", label: "Command Map", icon: "🗺️" },
   { to: "/linkage", label: "Linkage", icon: "🕸️" },
   { to: "/analytics", label: "Analytics", icon: "📊" },
+  { to: "/cases", label: "Case Search", icon: "🔎" },
   { to: "/briefing", label: "Briefing", icon: "📄" },
 ];
 

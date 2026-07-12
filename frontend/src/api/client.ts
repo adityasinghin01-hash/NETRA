@@ -57,6 +57,32 @@ export interface MatchResult {
   matches: ClusterMatch[];
 }
 
+export interface CaseRow {
+  crimeNo: string;
+  registeredDate: string;
+  districtName: string;
+  crimeSubHead: string;
+  gravity: string;
+  status: string;
+  language: string;
+  briefFacts: string;
+}
+
+// Case search over the 50k Cases table (filters + FIR-number lookup, paginated).
+export async function searchCases(
+  params: Record<string, string>
+): Promise<{ items: CaseRow[]; hasMore: boolean; page: number }> {
+  if (USE_MOCKS) {
+    await new Promise((r) => setTimeout(r, 200));
+    const sample = ((seed as Record<string, unknown>)["cases/sample"] as CaseRow[]) ?? [];
+    return { items: sample, hasMore: false, page: 0 };
+  }
+  const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([, v]) => v))).toString();
+  const res = await fetch(`/server/netra_api/cases?${qs}`);
+  if (!res.ok) throw new Error(`search failed (${res.status})`);
+  return res.json();
+}
+
 // Live case-linkage match: POST a FIR narrative, get the best-matching serial cluster.
 export async function matchFir(text: string): Promise<MatchResult> {
   if (USE_MOCKS) {

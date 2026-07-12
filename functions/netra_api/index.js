@@ -71,6 +71,37 @@ app.post(/.*/, (req, res) => {
   });
 });
 
+// ---- case search over the 50k Cases table (ZCQL) ----
+app.get(/\/cases$/, async (req, res) => {
+  const clean = (v) => String(v || "").replace(/['";\\%]/g, "").slice(0, 60);
+  const district = clean(req.query.district);
+  const gravity = clean(req.query.gravity);
+  const type = clean(req.query.type);
+  const status = clean(req.query.status);
+  const q = clean(req.query.q); // FIR number lookup (LIKE works on VarChar, not Text)
+  const page = Math.max(0, parseInt(req.query.page, 10) || 0);
+  const size = 20;
+  const where = [];
+  if (district) where.push(`Cases.districtName = '${district}'`);
+  if (gravity) where.push(`Cases.gravity = '${gravity}'`);
+  if (type) where.push(`Cases.crimeSubHead = '${type}'`);
+  if (status) where.push(`Cases.status = '${status}'`);
+  if (q) where.push(`Cases.crimeNo like '%${q}%'`);
+  const clause = where.length ? "WHERE " + where.join(" AND ") : "";
+  try {
+    const app_ = catalyst.initialize(req);
+    const sql =
+      "SELECT Cases.crimeNo, Cases.registeredDate, Cases.districtName, Cases.crimeSubHead, " +
+      "Cases.gravity, Cases.status, Cases.language, Cases.briefFacts FROM Cases " +
+      `${clause} LIMIT ${page * size}, ${size}`;
+    const rows = await app_.zcql().executeZCQLQuery(sql);
+    const items = (rows || []).map((r) => r.Cases || r);
+    return res.json({ page, size, items, hasMore: items.length === size });
+  } catch (err) {
+    return res.status(500).json({ error: String(err && err.message ? err.message : err) });
+  }
+});
+
 // ---- dashboard payloads from Data Store ----
 app.get(/.*/, async (req, res) => {
   const m = req.path.match(/\/data\/(.+)$/);
