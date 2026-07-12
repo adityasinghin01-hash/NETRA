@@ -41,3 +41,35 @@ export async function api<T = unknown>(path: string, opts?: RequestInit): Promis
 }
 
 export const IS_MOCK = USE_MOCKS;
+
+export interface ClusterMatch {
+  clusterId: string;
+  label: string;
+  crimeType: string;
+  districts: string[];
+  memberCount: number;
+  confidence: number;
+  score: number;
+}
+export interface MatchResult {
+  method: string;
+  best: ClusterMatch;
+  matches: ClusterMatch[];
+}
+
+// Live case-linkage match: POST a FIR narrative, get the best-matching serial cluster.
+export async function matchFir(text: string): Promise<MatchResult> {
+  if (USE_MOCKS) {
+    await new Promise((r) => setTimeout(r, 500));
+    const clusters = (seed as Record<string, unknown>)["linkage/clusters"] as ClusterMatch[];
+    const best = { ...clusters[0], score: 82 };
+    return { method: "keyword", best, matches: clusters.slice(0, 5).map((c, i) => ({ ...c, score: 82 - i * 20 })) };
+  }
+  const res = await fetch("/server/netra_api/match", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) throw new Error(`match failed (${res.status})`);
+  return res.json();
+}
