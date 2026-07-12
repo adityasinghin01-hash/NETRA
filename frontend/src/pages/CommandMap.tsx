@@ -24,6 +24,8 @@ interface DataQuality {
 interface Forecast {
   generatedFor: string;
   horizonDays: number;
+  model?: string;
+  metrics?: { hitRateTop5: number; r2: number };
   hotspots: {
     district: string; crimeType: string; projectedWeek: number;
     momentumPct: number; riskLevel: string; patrolWindow: string;
@@ -95,7 +97,8 @@ export default function CommandMap() {
               7-Day Forecast &amp; Patrol Plan
             </div>
             <span className="text-xs text-[var(--color-text-mute)]">
-              next {forecast.horizonDays} days · AI momentum model
+              next {forecast.horizonDays} days · gradient-boosting model
+              {forecast.metrics && ` · top-5 hit-rate ${Math.round(forecast.metrics.hitRateTop5 * 100)}%`}
             </span>
           </div>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
