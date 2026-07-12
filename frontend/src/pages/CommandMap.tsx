@@ -1,4 +1,5 @@
 import { useApi, StatTile, Card, PageHeader, State, Badge } from "@/components/ui";
+import CrimeMap from "@/components/CrimeMap";
 
 interface Summary {
   totalCases: number;
@@ -48,11 +49,8 @@ export default function CommandMap() {
       </State>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="flex h-[420px] items-center justify-center lg:col-span-2">
-          <div className="text-center text-sm text-[var(--color-text-mute)]">
-            🗺️ Karnataka Leaflet map — district choropleth, hotspots &amp; forecast overlay
-            <div className="mt-1 text-xs">(map layer: frontend teammate builds on react-leaflet)</div>
-          </div>
+        <Card className="h-[420px] overflow-hidden p-0 lg:col-span-2">
+          <CrimeMap districts={d.data ?? []} />
         </Card>
 
         <Card className="h-[420px] overflow-y-auto p-4">

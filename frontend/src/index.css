@@ -63,6 +63,25 @@ body {
   background: transparent;
 }
 
+/* Leaflet dark tooltips to match the command-center theme */
+.leaflet-tooltip.netra-tip {
+  background: #111a2e;
+  border: 1px solid #2b3a55;
+  color: #e2e8f0;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+.leaflet-tooltip.netra-tip::before {
+  border-top-color: #2b3a55;
+  border-bottom-color: #2b3a55;
+}
+.leaflet-container {
+  font-family: var(--font-sans);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
