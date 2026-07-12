@@ -1,0 +1,11 @@
+{
+ "dataset": "City of Chicago open crime data (2022\u20132023)",
+ "records": 503468,
+ "areas": 77,
+ "model": "HistGradientBoostingRegressor",
+ "MAE": 8.943,
+ "baseline_MAE": 8.217,
+ "improvement_vs_baseline_pct": -8.8,
+ "R2": 0.944,
+ "hit_rate_top10_areas": 0.842
+}
