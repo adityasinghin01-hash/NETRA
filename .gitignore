@@ -42,3 +42,6 @@ scripts/*.local.js
 # Local AI session log — kept local so reusable-backend consumers don't
 # inherit project-specific session narration.
 history
+
+# NETRA generated dataset (reproducible via pipeline/generator; do not commit the bulk)
+pipeline/data/

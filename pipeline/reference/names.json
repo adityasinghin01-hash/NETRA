@@ -1,0 +1,71 @@
+{
+  "_meta": {
+    "description": "Name, locality and demographic pools for synthetic FIR generation. Names are Karnataka-appropriate across communities. Localities are REAL place/area names per district, used to name police stations (stations are named after their locality) and to label incident areas. Religion/caste buckets exist ONLY for KSP schema fidelity: they are populated INDEPENDENTLY of crime type (statistically uncorrelated) and are NEVER rendered in the UI or used by any model — see ethics-by-design in docs/SYSTEM_DESIGN.md.",
+    "ethics_note": "Caste uses coarse official category buckets only (never sub-caste names) and is mostly 'Not Recorded', mirroring real FIR data-quality. No demographic field influences crime type, gravity, or outcome in the generator."
+  },
+  "firstNamesMale": ["Manjunath","Suresh","Ramesh","Basavaraj","Shivakumar","Prakash","Mahesh","Ravi","Girish","Nagaraj","Santosh","Umesh","Vinod","Kiran","Chandrashekar","Prasad","Lokesh","Harish","Gopal","Vishwanath","Anand","Srinivas","Naveen","Rajesh","Mohan","Ashok","Venkatesh","Yogesh","Praveen","Darshan","Sandeep","Arun","Vijay","Sunil","Deepak","Imran","Abdul","Mohammed","Ismail","Riyaz","Feroz","Anthony","Joseph","David","Thomas","John","Prakasha","Basavaraju","Mallikarjuna","Channabasappa","Siddaraju"],
+  "firstNamesFemale": ["Lakshmi","Gowramma","Saraswathi","Parvathi","Shobha","Geetha","Roopa","Sunitha","Manjula","Bhagya","Nirmala","Vijayalakshmi","Kavitha","Padma","Rekha","Anitha","Divya","Pushpa","Sujatha","Ratna","Jayamma","Nagaratna","Shweta","Deepa","Ashwini","Chaitra","Sowmya","Vidya","Radha","Yashoda","Ayesha","Fathima","Nasreen","Shabana","Mary","Rani","Teresa","Grace","Lalitha","Bhavya"],
+  "surnames": ["Gowda","Reddy","Patil","Hegde","Shetty","Naik","Rao","Nayak","Kulkarni","Desai","Shastri","Bhat","Kamath","Pai","Achar","Gouda","Poojary","Acharya","Murthy","Setty","Hiremath","Angadi","Biradar","Yadav","Kori","Lamani","Banjara","Devadiga","Jain","Shaikh","Khan","Sayed","Pinto","D'Souza","Fernandes","Lobo","Kotian","Ballal","Chowdary","Gorur"],
+  "occupations": [
+    { "occupationId": 1,  "name": "Agriculturist / Farmer",   "weight": 20 },
+    { "occupationId": 2,  "name": "Daily Wage Labourer",      "weight": 16 },
+    { "occupationId": 3,  "name": "Business / Trader",        "weight": 12 },
+    { "occupationId": 4,  "name": "Private Employee",         "weight": 12 },
+    { "occupationId": 5,  "name": "Homemaker",                "weight": 10 },
+    { "occupationId": 6,  "name": "Student",                  "weight": 8 },
+    { "occupationId": 7,  "name": "Government Employee",       "weight": 5 },
+    { "occupationId": 8,  "name": "Driver",                   "weight": 5 },
+    { "occupationId": 9,  "name": "Skilled Worker",           "weight": 4 },
+    { "occupationId": 10, "name": "Self-Employed",            "weight": 4 },
+    { "occupationId": 11, "name": "IT Professional",          "weight": 2 },
+    { "occupationId": 12, "name": "Unemployed",               "weight": 2 }
+  ],
+  "religions": [
+    { "religionId": 1, "name": "Hindu",     "weight": 84 },
+    { "religionId": 2, "name": "Muslim",    "weight": 11 },
+    { "religionId": 3, "name": "Christian", "weight": 3 },
+    { "religionId": 4, "name": "Jain",      "weight": 1 },
+    { "religionId": 5, "name": "Other",     "weight": 1 }
+  ],
+  "castes": [
+    { "casteId": 1, "name": "Not Recorded", "weight": 55 },
+    { "casteId": 2, "name": "General",      "weight": 12 },
+    { "casteId": 3, "name": "OBC",          "weight": 18 },
+    { "casteId": 4, "name": "SC",           "weight": 11 },
+    { "casteId": 5, "name": "ST",           "weight": 4 }
+  ],
+  "localitiesByDistrict": {
+    "1":  ["Cubbon Park","Ulsoor","Koramangala","Whitefield","Electronic City","Jayanagar","Malleshwaram","Yeshwanthpur","KR Puram","Banashankari","HSR Layout","Indiranagar","Madiwala","Marathahalli","Rajajinagar","Basavanagudi","JP Nagar","BTM Layout","Hebbal","Yelahanka","Peenya","Vijayanagar","Shivajinagar","Bommanahalli","Mahadevapura","RT Nagar","Banaswadi","Kengeri","Kamakshipalya","Girinagar","Chickpet","Wilson Garden","Sadashivanagar","Ashok Nagar","Sampigehalli"],
+    "2":  ["Devanahalli","Doddaballapura","Nelamangala","Hoskote","Vijayapura Town"],
+    "3":  ["Ramanagara Town","Channapatna","Magadi","Kanakapura","Bidadi"],
+    "4":  ["Kolar Town","KGF","Malur","Mulbagal","Bangarpet","Srinivaspur"],
+    "5":  ["Chikkaballapura Town","Gauribidanur","Sidlaghatta","Chintamani","Bagepalli"],
+    "6":  ["Tumakuru Town","Sira","Tiptur","Madhugiri","Kunigal","Gubbi","Turuvekere"],
+    "7":  ["Devaraja","Nazarbad","Krishnaraja","Vidyaranyapuram","Saraswathipuram","Jayalakshmipuram","Hunsur","Nanjangud","T Narasipura","KR Nagar"],
+    "8":  ["Mandya Town","Maddur","Malavalli","Srirangapatna","Pandavapura","KR Pete","Nagamangala"],
+    "9":  ["Hassan Town","Arsikere","Channarayapatna","Holenarasipura","Sakleshpur","Belur","Hole Narsipur"],
+    "10": ["Chamarajanagar Town","Kollegal","Gundlupet","Yelandur","Hanur"],
+    "11": ["Madikeri","Virajpet","Somwarpet","Kushalnagar","Gonikoppal"],
+    "12": ["Mangaluru North","Mangaluru South","Barke","Kavoor","Ullal","Bantwal","Puttur","Surathkal","Belthangady","Moodabidri"],
+    "13": ["Udupi Town","Manipal","Kundapura","Karkala","Malpe","Brahmavara"],
+    "14": ["Karwar","Sirsi","Kumta","Bhatkal","Honnavar","Dandeli","Ankola"],
+    "15": ["Chikkamagaluru Town","Kadur","Tarikere","Mudigere","Koppa","Sringeri"],
+    "16": ["Shivamogga Town","Bhadravathi","Sagar","Shikaripura","Sorab","Thirthahalli","Hosanagara"],
+    "17": ["Davanagere Town","Harihar","Channagiri","Honnali","Jagalur","Mayakonda"],
+    "18": ["Chitradurga Town","Hiriyur","Challakere","Hosadurga","Holalkere","Molakalmuru"],
+    "19": ["Ballari Town","Hospet Road","Kampli","Sandur","Siruguppa","Kudligi"],
+    "20": ["Hosapete","Hampi","Kotturu","Hagaribommanahalli","Harapanahalli"],
+    "21": ["Koppal Town","Gangavathi","Yelburga","Kushtagi","Kanakagiri"],
+    "22": ["Raichur Town","Sindhanur","Manvi","Devadurga","Lingsugur","Maski"],
+    "23": ["Yadgir Town","Shahapur","Surpur","Shorapur","Gurmatkal"],
+    "24": ["Brahmpur","Station Bazar","Chowk","Sedam","Chittapur","Aland","Afzalpur","Jewargi"],
+    "25": ["Bidar Town","Basavakalyan","Humnabad","Bhalki","Aurad"],
+    "26": ["Vijayapura Town","Indi","Sindagi","Basavana Bagewadi","Muddebihal","Talikoti"],
+    "27": ["Bagalkot Town","Jamkhandi","Mudhol","Badami","Hungund","Bilgi"],
+    "28": ["Camp","Market","Tilakwadi","Shahapur","Gokak","Chikodi","Bailhongal","Athani","Ramdurg","Saundatti"],
+    "29": ["Hubli Town","Dharwad Town","Vidyanagar","Gokul Road","Keshwapur","Ghantikeri","Kalghatgi","Navalgund"],
+    "30": ["Gadag Town","Betageri","Ron","Naragund","Shirhatti","Mundargi"],
+    "31": ["Haveri Town","Ranebennur","Byadgi","Hangal","Savanur","Shiggaon"]
+  },
+  "genericLocalities": ["Town","Market","Extension","New Layout","Old Town","Rural","Cross","Main Road","Industrial Area"]
+}
