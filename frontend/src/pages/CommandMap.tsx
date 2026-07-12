@@ -52,8 +52,10 @@ export default function CommandMap() {
   const a = useApi<Alert[]>("/alerts");
   const oc = useApi<{ name: string; chargesheeted: number; false: number; undetected: number }[]>("/stats/outcomes");
   const [forecast, setForecast] = useState<Forecast | null>(null);
+  const [da, setDa] = useState<Record<string, { outcome: { detectionPct: number } }> | null>(null);
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}forecast.json`).then((r) => r.json()).then(setForecast).catch(() => {});
+    fetch(`${import.meta.env.BASE_URL}district-analytics.json`).then((r) => r.json()).then((d) => setDa(d.districts)).catch(() => {});
   }, []);
 
   // Role-based scoping: HQ sees the whole state; District/Station see only their jurisdiction.
@@ -70,9 +72,11 @@ export default function CommandMap() {
       ? {
           totalCases: scopedRow.caseCount,
           heinousCases: scopedRow.heinousCount,
-          detectionRatePct: scopedOc
-            ? Math.round((100 * scopedOc.chargesheeted) / (scopedOc.chargesheeted + scopedOc.false + scopedOc.undetected))
-            : (s.data?.detectionRatePct ?? 0),
+          detectionRatePct:
+            da?.[scope]?.outcome.detectionPct ??
+            (scopedOc
+              ? Math.round((100 * scopedOc.chargesheeted) / (scopedOc.chargesheeted + scopedOc.false + scopedOc.undetected))
+              : (s.data?.detectionRatePct ?? 0)),
           activeHotspots: fcHotspots.length,
           openAlerts: alerts.length,
           linkedClusters: s.data?.linkedClusters ?? 0,

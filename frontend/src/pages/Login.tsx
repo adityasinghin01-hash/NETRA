@@ -1,12 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { setSession, SESSIONS, type Role } from "@/lib/auth";
+import { setSession, DISTRICTS, type Role } from "@/lib/auth";
 
-const ROLE_EMAIL: Record<Role, string> = {
-  hq: "dgp@ksp.gov.in",
-  district: "sp.mysuru@ksp.gov.in",
-  station: "sho.whitefield@ksp.gov.in",
-};
 const ROLE_CHIP: { role: Role; label: string }[] = [
   { role: "hq", label: "HQ" },
   { role: "district", label: "District" },
@@ -16,14 +11,17 @@ const ROLE_CHIP: { role: Role; label: string }[] = [
 export default function Login() {
   const nav = useNavigate();
   const [role, setRole] = useState<Role>("hq");
-  const [email, setEmail] = useState(ROLE_EMAIL.hq);
+  const [district, setDistrict] = useState<string>("Mysuru");
+  const [email, setEmail] = useState("dgp@ksp.gov.in");
   const [pw, setPw] = useState("demo");
 
   function signIn(e: React.FormEvent) {
     e.preventDefault();
-    setSession(role);
+    setSession(role, role === "hq" ? null : district);
     nav("/map");
   }
+
+  const roleLabel = role === "hq" ? "DGP" : role === "district" ? "SP" : "SHO";
 
   return (
     <div className="flex h-screen items-center justify-center">
@@ -52,7 +50,7 @@ export default function Login() {
             type="submit"
             className="w-full rounded-lg bg-[var(--color-accent)] py-2 text-sm font-medium text-[var(--color-bg)] transition-opacity hover:opacity-90"
           >
-            Sign in as {SESSIONS[role].roleLabel.split(" · ")[0]}
+            Sign in as {roleLabel}
           </button>
         </form>
         <div className="mt-4">
@@ -61,10 +59,7 @@ export default function Login() {
             {ROLE_CHIP.map((r) => (
               <button
                 key={r.role}
-                onClick={() => {
-                  setRole(r.role);
-                  setEmail(ROLE_EMAIL[r.role]);
-                }}
+                onClick={() => setRole(r.role)}
                 className={`rounded-full border px-3 py-1 text-xs transition-colors ${
                   role === r.role
                     ? "border-[var(--color-accent)] text-[var(--color-accent)]"
@@ -75,7 +70,17 @@ export default function Login() {
               </button>
             ))}
           </div>
-          <div className="mt-2 text-center text-[10px] text-[var(--color-text-mute)]">{SESSIONS[role].label}</div>
+          {role !== "hq" && (
+            <select
+              value={district}
+              onChange={(e) => setDistrict(e.target.value)}
+              className="mt-2 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-accent)]"
+            >
+              {DISTRICTS.map((d) => (
+                <option key={d} value={d}>{d}{role === "station" ? " (station)" : " district"}</option>
+              ))}
+            </select>
+          )}
         </div>
         <div className="mt-5 text-center text-[10px] text-[var(--color-text-mute)]">
           KSP Datathon 2026 prototype — synthetic data only

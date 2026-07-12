@@ -106,9 +106,13 @@ def main():
         if fc and fc["riskLevel"] in ("High", "Elevated"):
             kn += f"ಮುಂದಿನ 7 ದಿನಗಳಲ್ಲಿ ಹೆಚ್ಚಿನ ಅಪಾಯ ನಿರೀಕ್ಷೆ; ಗಸ್ತು ಸಮಯ {fc['patrolWindow']}. "
 
+        top_crimes = [{"type": t, "pct": round(100 * n / l) if l else 0} for t, n in top3]
+        fc_out = ({"riskLevel": fc["riskLevel"], "crimeType": fc["crimeType"], "patrolWindow": fc["patrolWindow"]}
+                  if fc and fc["riskLevel"] in ("High", "Elevated") else None)
         out[name] = {"district": name, "date": "2026-07-01", "en": en, "kn": kn,
                      "stats": {"fir30d": l, "changePct": change, "detectionPct": det_pct,
-                               "leadType": lead, "alert": alert}}
+                               "leadType": lead, "alert": alert, "topCrimes": top_crimes,
+                               "forecast": fc_out}}
 
     json.dump(out, open(OUT, "w", encoding="utf-8"), ensure_ascii=False)
     top = sorted(out.values(), key=lambda b: -b["stats"]["fir30d"])[:3]
