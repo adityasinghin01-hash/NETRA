@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+/* NETRA design system — dark "command center". Single dark theme (intentional,
+   no toggle). Semantic tokens only; components never hardcode hex.
+   See docs/TEAMMATE_FRONTEND_GUIDE.md §2. */
+@theme {
+  --color-bg: #0b1220; /* page — near-black navy (never pure #000) */
+  --color-surface: #111a2e; /* cards / panels */
+  --color-surface-2: #16213b; /* elevated */
+  --color-border: #1e293b;
+  --color-border-strong: #2b3a55;
+
+  --color-text: #e2e8f0; /* primary */
+  --color-text-dim: #94a3b8; /* secondary */
+  --color-text-mute: #64748b; /* tertiary */
+
+  --color-accent: #22d3ee; /* cyan — interactive / selections */
+  --color-accent-dim: #0e7490;
+
+  --color-danger: #f87171; /* alerts / hotspots */
+  --color-warn: #fbbf24;
+  --color-ok: #34d399;
+
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Tabular numbers everywhere numbers appear */
+.tnum {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

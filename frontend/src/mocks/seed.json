@@ -1,0 +1,2272 @@
+{
+  "_meta": {
+    "note": "Mock API payloads derived from the real generated dataset. Shapes match docs/SYSTEM_DESIGN.md §4. Flip VITE_USE_MOCKS=false when live APIs land."
+  },
+  "geo/districts": [
+    {
+      "districtId": 1,
+      "name": "Bengaluru Urban",
+      "lat": 12.9716,
+      "lng": 77.5946,
+      "caseCount": 9796,
+      "heinousCount": 1513
+    },
+    {
+      "districtId": 2,
+      "name": "Bengaluru Rural",
+      "lat": 13.221,
+      "lng": 77.573,
+      "caseCount": 1782,
+      "heinousCount": 272
+    },
+    {
+      "districtId": 3,
+      "name": "Ramanagara",
+      "lat": 12.7217,
+      "lng": 77.28,
+      "caseCount": 1314,
+      "heinousCount": 229
+    },
+    {
+      "districtId": 4,
+      "name": "Kolar",
+      "lat": 13.1367,
+      "lng": 78.1292,
+      "caseCount": 1312,
+      "heinousCount": 197
+    },
+    {
+      "districtId": 5,
+      "name": "Chikkaballapura",
+      "lat": 13.4355,
+      "lng": 77.7315,
+      "caseCount": 1338,
+      "heinousCount": 216
+    },
+    {
+      "districtId": 6,
+      "name": "Tumakuru",
+      "lat": 13.3379,
+      "lng": 77.1017,
+      "caseCount": 1747,
+      "heinousCount": 266
+    },
+    {
+      "districtId": 7,
+      "name": "Mysuru",
+      "lat": 12.2958,
+      "lng": 76.6394,
+      "caseCount": 3129,
+      "heinousCount": 511
+    },
+    {
+      "districtId": 8,
+      "name": "Mandya",
+      "lat": 12.5223,
+      "lng": 76.8954,
+      "caseCount": 1344,
+      "heinousCount": 204
+    },
+    {
+      "districtId": 9,
+      "name": "Hassan",
+      "lat": 13.0033,
+      "lng": 76.1004,
+      "caseCount": 1325,
+      "heinousCount": 175
+    },
+    {
+      "districtId": 10,
+      "name": "Chamarajanagar",
+      "lat": 11.9236,
+      "lng": 76.9456,
+      "caseCount": 827,
+      "heinousCount": 141
+    },
+    {
+      "districtId": 11,
+      "name": "Kodagu",
+      "lat": 12.4218,
+      "lng": 75.74,
+      "caseCount": 777,
+      "heinousCount": 128
+    },
+    {
+      "districtId": 12,
+      "name": "Dakshina Kannada",
+      "lat": 12.85,
+      "lng": 75.24,
+      "caseCount": 2169,
+      "heinousCount": 365
+    },
+    {
+      "districtId": 13,
+      "name": "Udupi",
+      "lat": 13.3409,
+      "lng": 74.7421,
+      "caseCount": 1285,
+      "heinousCount": 204
+    },
+    {
+      "districtId": 14,
+      "name": "Uttara Kannada",
+      "lat": 14.8,
+      "lng": 74.68,
+      "caseCount": 867,
+      "heinousCount": 134
+    },
+    {
+      "districtId": 15,
+      "name": "Chikkamagaluru",
+      "lat": 13.3161,
+      "lng": 75.772,
+      "caseCount": 844,
+      "heinousCount": 127
+    },
+    {
+      "districtId": 16,
+      "name": "Shivamogga",
+      "lat": 13.9299,
+      "lng": 75.5681,
+      "caseCount": 1312,
+      "heinousCount": 203
+    },
+    {
+      "districtId": 17,
+      "name": "Davanagere",
+      "lat": 14.4644,
+      "lng": 75.9218,
+      "caseCount": 1310,
+      "heinousCount": 213
+    },
+    {
+      "districtId": 18,
+      "name": "Chitradurga",
+      "lat": 14.2251,
+      "lng": 76.398,
+      "caseCount": 1312,
+      "heinousCount": 197
+    },
+    {
+      "districtId": 19,
+      "name": "Ballari",
+      "lat": 15.1394,
+      "lng": 76.9214,
+      "caseCount": 1351,
+      "heinousCount": 200
+    },
+    {
+      "districtId": 20,
+      "name": "Vijayanagara",
+      "lat": 15.269,
+      "lng": 76.39,
+      "caseCount": 860,
+      "heinousCount": 132
+    },
+    {
+      "districtId": 21,
+      "name": "Koppal",
+      "lat": 15.35,
+      "lng": 76.1543,
+      "caseCount": 864,
+      "heinousCount": 117
+    },
+    {
+      "districtId": 22,
+      "name": "Raichur",
+      "lat": 16.2076,
+      "lng": 77.3463,
+      "caseCount": 1304,
+      "heinousCount": 198
+    },
+    {
+      "districtId": 23,
+      "name": "Yadgir",
+      "lat": 16.77,
+      "lng": 77.1376,
+      "caseCount": 912,
+      "heinousCount": 136
+    },
+    {
+      "districtId": 24,
+      "name": "Kalaburagi",
+      "lat": 17.3297,
+      "lng": 76.8343,
+      "caseCount": 1904,
+      "heinousCount": 280
+    },
+    {
+      "districtId": 25,
+      "name": "Bidar",
+      "lat": 17.9104,
+      "lng": 77.5199,
+      "caseCount": 1278,
+      "heinousCount": 191
+    },
+    {
+      "districtId": 26,
+      "name": "Vijayapura",
+      "lat": 16.8302,
+      "lng": 75.71,
+      "caseCount": 1300,
+      "heinousCount": 218
+    },
+    {
+      "districtId": 27,
+      "name": "Bagalkot",
+      "lat": 16.1817,
+      "lng": 75.696,
+      "caseCount": 844,
+      "heinousCount": 141
+    },
+    {
+      "districtId": 28,
+      "name": "Belagavi",
+      "lat": 15.8497,
+      "lng": 74.4977,
+      "caseCount": 2188,
+      "heinousCount": 375
+    },
+    {
+      "districtId": 29,
+      "name": "Dharwad",
+      "lat": 15.4589,
+      "lng": 75.0078,
+      "caseCount": 1719,
+      "heinousCount": 251
+    },
+    {
+      "districtId": 30,
+      "name": "Gadag",
+      "lat": 15.4292,
+      "lng": 75.628,
+      "caseCount": 868,
+      "heinousCount": 143
+    },
+    {
+      "districtId": 31,
+      "name": "Haveri",
+      "lat": 14.7935,
+      "lng": 75.404,
+      "caseCount": 818,
+      "heinousCount": 130
+    }
+  ],
+  "stats/summary": {
+    "totalCases": 50000,
+    "heinousCases": 7807,
+    "detectionRatePct": 76.5,
+    "activeHotspots": 12,
+    "openAlerts": 4,
+    "linkedClusters": 12
+  },
+  "stats/trends": [
+    {
+      "districtId": 1,
+      "name": "Bengaluru Urban",
+      "points": [
+        {
+          "month": "2021-01",
+          "count": 170
+        },
+        {
+          "month": "2021-02",
+          "count": 138
+        },
+        {
+          "month": "2021-03",
+          "count": 125
+        },
+        {
+          "month": "2021-04",
+          "count": 159
+        },
+        {
+          "month": "2021-05",
+          "count": 146
+        },
+        {
+          "month": "2021-06",
+          "count": 125
+        },
+        {
+          "month": "2021-07",
+          "count": 152
+        },
+        {
+          "month": "2021-08",
+          "count": 127
+        },
+        {
+          "month": "2021-09",
+          "count": 158
+        },
+        {
+          "month": "2021-10",
+          "count": 140
+        },
+        {
+          "month": "2021-11",
+          "count": 150
+        },
+        {
+          "month": "2021-12",
+          "count": 135
+        },
+        {
+          "month": "2022-01",
+          "count": 155
+        },
+        {
+          "month": "2022-02",
+          "count": 131
+        },
+        {
+          "month": "2022-03",
+          "count": 181
+        },
+        {
+          "month": "2022-04",
+          "count": 140
+        },
+        {
+          "month": "2022-05",
+          "count": 146
+        },
+        {
+          "month": "2022-06",
+          "count": 122
+        },
+        {
+          "month": "2022-07",
+          "count": 137
+        },
+        {
+          "month": "2022-08",
+          "count": 134
+        },
+        {
+          "month": "2022-09",
+          "count": 152
+        },
+        {
+          "month": "2022-10",
+          "count": 158
+        },
+        {
+          "month": "2022-11",
+          "count": 161
+        },
+        {
+          "month": "2022-12",
+          "count": 137
+        },
+        {
+          "month": "2023-01",
+          "count": 157
+        },
+        {
+          "month": "2023-02",
+          "count": 124
+        },
+        {
+          "month": "2023-03",
+          "count": 147
+        },
+        {
+          "month": "2023-04",
+          "count": 134
+        },
+        {
+          "month": "2023-05",
+          "count": 123
+        },
+        {
+          "month": "2023-06",
+          "count": 137
+        },
+        {
+          "month": "2023-07",
+          "count": 131
+        },
+        {
+          "month": "2023-08",
+          "count": 130
+        },
+        {
+          "month": "2023-09",
+          "count": 153
+        },
+        {
+          "month": "2023-10",
+          "count": 166
+        },
+        {
+          "month": "2023-11",
+          "count": 142
+        },
+        {
+          "month": "2023-12",
+          "count": 140
+        },
+        {
+          "month": "2024-01",
+          "count": 161
+        },
+        {
+          "month": "2024-02",
+          "count": 137
+        },
+        {
+          "month": "2024-03",
+          "count": 147
+        },
+        {
+          "month": "2024-04",
+          "count": 144
+        },
+        {
+          "month": "2024-05",
+          "count": 139
+        },
+        {
+          "month": "2024-06",
+          "count": 139
+        },
+        {
+          "month": "2024-07",
+          "count": 126
+        },
+        {
+          "month": "2024-08",
+          "count": 145
+        },
+        {
+          "month": "2024-09",
+          "count": 136
+        },
+        {
+          "month": "2024-10",
+          "count": 188
+        },
+        {
+          "month": "2024-11",
+          "count": 152
+        },
+        {
+          "month": "2024-12",
+          "count": 157
+        },
+        {
+          "month": "2025-01",
+          "count": 192
+        },
+        {
+          "month": "2025-02",
+          "count": 162
+        },
+        {
+          "month": "2025-03",
+          "count": 187
+        },
+        {
+          "month": "2025-04",
+          "count": 192
+        },
+        {
+          "month": "2025-05",
+          "count": 216
+        },
+        {
+          "month": "2025-06",
+          "count": 140
+        },
+        {
+          "month": "2025-07",
+          "count": 145
+        },
+        {
+          "month": "2025-08",
+          "count": 136
+        },
+        {
+          "month": "2025-09",
+          "count": 137
+        },
+        {
+          "month": "2025-10",
+          "count": 155
+        },
+        {
+          "month": "2025-11",
+          "count": 176
+        },
+        {
+          "month": "2025-12",
+          "count": 145
+        },
+        {
+          "month": "2026-01",
+          "count": 158
+        },
+        {
+          "month": "2026-02",
+          "count": 139
+        },
+        {
+          "month": "2026-03",
+          "count": 155
+        },
+        {
+          "month": "2026-04",
+          "count": 156
+        },
+        {
+          "month": "2026-05",
+          "count": 143
+        },
+        {
+          "month": "2026-06",
+          "count": 128
+        }
+      ]
+    },
+    {
+      "districtId": 7,
+      "name": "Mysuru",
+      "points": [
+        {
+          "month": "2021-01",
+          "count": 41
+        },
+        {
+          "month": "2021-02",
+          "count": 44
+        },
+        {
+          "month": "2021-03",
+          "count": 47
+        },
+        {
+          "month": "2021-04",
+          "count": 53
+        },
+        {
+          "month": "2021-05",
+          "count": 52
+        },
+        {
+          "month": "2021-06",
+          "count": 46
+        },
+        {
+          "month": "2021-07",
+          "count": 53
+        },
+        {
+          "month": "2021-08",
+          "count": 29
+        },
+        {
+          "month": "2021-09",
+          "count": 44
+        },
+        {
+          "month": "2021-10",
+          "count": 59
+        },
+        {
+          "month": "2021-11",
+          "count": 48
+        },
+        {
+          "month": "2021-12",
+          "count": 56
+        },
+        {
+          "month": "2022-01",
+          "count": 47
+        },
+        {
+          "month": "2022-02",
+          "count": 41
+        },
+        {
+          "month": "2022-03",
+          "count": 54
+        },
+        {
+          "month": "2022-04",
+          "count": 38
+        },
+        {
+          "month": "2022-05",
+          "count": 39
+        },
+        {
+          "month": "2022-06",
+          "count": 53
+        },
+        {
+          "month": "2022-07",
+          "count": 46
+        },
+        {
+          "month": "2022-08",
+          "count": 36
+        },
+        {
+          "month": "2022-09",
+          "count": 37
+        },
+        {
+          "month": "2022-10",
+          "count": 48
+        },
+        {
+          "month": "2022-11",
+          "count": 63
+        },
+        {
+          "month": "2022-12",
+          "count": 54
+        },
+        {
+          "month": "2023-01",
+          "count": 45
+        },
+        {
+          "month": "2023-02",
+          "count": 37
+        },
+        {
+          "month": "2023-03",
+          "count": 37
+        },
+        {
+          "month": "2023-04",
+          "count": 44
+        },
+        {
+          "month": "2023-05",
+          "count": 48
+        },
+        {
+          "month": "2023-06",
+          "count": 63
+        },
+        {
+          "month": "2023-07",
+          "count": 47
+        },
+        {
+          "month": "2023-08",
+          "count": 48
+        },
+        {
+          "month": "2023-09",
+          "count": 45
+        },
+        {
+          "month": "2023-10",
+          "count": 45
+        },
+        {
+          "month": "2023-11",
+          "count": 55
+        },
+        {
+          "month": "2023-12",
+          "count": 34
+        },
+        {
+          "month": "2024-01",
+          "count": 42
+        },
+        {
+          "month": "2024-02",
+          "count": 44
+        },
+        {
+          "month": "2024-03",
+          "count": 57
+        },
+        {
+          "month": "2024-04",
+          "count": 40
+        },
+        {
+          "month": "2024-05",
+          "count": 41
+        },
+        {
+          "month": "2024-06",
+          "count": 39
+        },
+        {
+          "month": "2024-07",
+          "count": 44
+        },
+        {
+          "month": "2024-08",
+          "count": 53
+        },
+        {
+          "month": "2024-09",
+          "count": 39
+        },
+        {
+          "month": "2024-10",
+          "count": 51
+        },
+        {
+          "month": "2024-11",
+          "count": 54
+        },
+        {
+          "month": "2024-12",
+          "count": 39
+        },
+        {
+          "month": "2025-01",
+          "count": 51
+        },
+        {
+          "month": "2025-02",
+          "count": 49
+        },
+        {
+          "month": "2025-03",
+          "count": 41
+        },
+        {
+          "month": "2025-04",
+          "count": 57
+        },
+        {
+          "month": "2025-05",
+          "count": 93
+        },
+        {
+          "month": "2025-06",
+          "count": 51
+        },
+        {
+          "month": "2025-07",
+          "count": 34
+        },
+        {
+          "month": "2025-08",
+          "count": 31
+        },
+        {
+          "month": "2025-09",
+          "count": 49
+        },
+        {
+          "month": "2025-10",
+          "count": 55
+        },
+        {
+          "month": "2025-11",
+          "count": 46
+        },
+        {
+          "month": "2025-12",
+          "count": 65
+        },
+        {
+          "month": "2026-01",
+          "count": 53
+        },
+        {
+          "month": "2026-02",
+          "count": 38
+        },
+        {
+          "month": "2026-03",
+          "count": 42
+        },
+        {
+          "month": "2026-04",
+          "count": 68
+        },
+        {
+          "month": "2026-05",
+          "count": 42
+        },
+        {
+          "month": "2026-06",
+          "count": 45
+        }
+      ]
+    },
+    {
+      "districtId": 28,
+      "name": "Belagavi",
+      "points": [
+        {
+          "month": "2021-01",
+          "count": 24
+        },
+        {
+          "month": "2021-02",
+          "count": 28
+        },
+        {
+          "month": "2021-03",
+          "count": 27
+        },
+        {
+          "month": "2021-04",
+          "count": 32
+        },
+        {
+          "month": "2021-05",
+          "count": 37
+        },
+        {
+          "month": "2021-06",
+          "count": 34
+        },
+        {
+          "month": "2021-07",
+          "count": 30
+        },
+        {
+          "month": "2021-08",
+          "count": 33
+        },
+        {
+          "month": "2021-09",
+          "count": 29
+        },
+        {
+          "month": "2021-10",
+          "count": 30
+        },
+        {
+          "month": "2021-11",
+          "count": 31
+        },
+        {
+          "month": "2021-12",
+          "count": 36
+        },
+        {
+          "month": "2022-01",
+          "count": 29
+        },
+        {
+          "month": "2022-02",
+          "count": 22
+        },
+        {
+          "month": "2022-03",
+          "count": 30
+        },
+        {
+          "month": "2022-04",
+          "count": 35
+        },
+        {
+          "month": "2022-05",
+          "count": 41
+        },
+        {
+          "month": "2022-06",
+          "count": 35
+        },
+        {
+          "month": "2022-07",
+          "count": 43
+        },
+        {
+          "month": "2022-08",
+          "count": 27
+        },
+        {
+          "month": "2022-09",
+          "count": 32
+        },
+        {
+          "month": "2022-10",
+          "count": 30
+        },
+        {
+          "month": "2022-11",
+          "count": 33
+        },
+        {
+          "month": "2022-12",
+          "count": 28
+        },
+        {
+          "month": "2023-01",
+          "count": 42
+        },
+        {
+          "month": "2023-02",
+          "count": 36
+        },
+        {
+          "month": "2023-03",
+          "count": 31
+        },
+        {
+          "month": "2023-04",
+          "count": 34
+        },
+        {
+          "month": "2023-05",
+          "count": 24
+        },
+        {
+          "month": "2023-06",
+          "count": 30
+        },
+        {
+          "month": "2023-07",
+          "count": 35
+        },
+        {
+          "month": "2023-08",
+          "count": 29
+        },
+        {
+          "month": "2023-09",
+          "count": 28
+        },
+        {
+          "month": "2023-10",
+          "count": 44
+        },
+        {
+          "month": "2023-11",
+          "count": 37
+        },
+        {
+          "month": "2023-12",
+          "count": 37
+        },
+        {
+          "month": "2024-01",
+          "count": 41
+        },
+        {
+          "month": "2024-02",
+          "count": 22
+        },
+        {
+          "month": "2024-03",
+          "count": 38
+        },
+        {
+          "month": "2024-04",
+          "count": 32
+        },
+        {
+          "month": "2024-05",
+          "count": 38
+        },
+        {
+          "month": "2024-06",
+          "count": 31
+        },
+        {
+          "month": "2024-07",
+          "count": 38
+        },
+        {
+          "month": "2024-08",
+          "count": 33
+        },
+        {
+          "month": "2024-09",
+          "count": 23
+        },
+        {
+          "month": "2024-10",
+          "count": 35
+        },
+        {
+          "month": "2024-11",
+          "count": 34
+        },
+        {
+          "month": "2024-12",
+          "count": 33
+        },
+        {
+          "month": "2025-01",
+          "count": 31
+        },
+        {
+          "month": "2025-02",
+          "count": 38
+        },
+        {
+          "month": "2025-03",
+          "count": 28
+        },
+        {
+          "month": "2025-04",
+          "count": 40
+        },
+        {
+          "month": "2025-05",
+          "count": 39
+        },
+        {
+          "month": "2025-06",
+          "count": 33
+        },
+        {
+          "month": "2025-07",
+          "count": 38
+        },
+        {
+          "month": "2025-08",
+          "count": 29
+        },
+        {
+          "month": "2025-09",
+          "count": 28
+        },
+        {
+          "month": "2025-10",
+          "count": 32
+        },
+        {
+          "month": "2025-11",
+          "count": 40
+        },
+        {
+          "month": "2025-12",
+          "count": 41
+        },
+        {
+          "month": "2026-01",
+          "count": 40
+        },
+        {
+          "month": "2026-02",
+          "count": 37
+        },
+        {
+          "month": "2026-03",
+          "count": 33
+        },
+        {
+          "month": "2026-04",
+          "count": 36
+        },
+        {
+          "month": "2026-05",
+          "count": 37
+        },
+        {
+          "month": "2026-06",
+          "count": 27
+        }
+      ]
+    },
+    {
+      "districtId": 12,
+      "name": "Dakshina Kannada",
+      "points": [
+        {
+          "month": "2021-01",
+          "count": 31
+        },
+        {
+          "month": "2021-02",
+          "count": 33
+        },
+        {
+          "month": "2021-03",
+          "count": 42
+        },
+        {
+          "month": "2021-04",
+          "count": 34
+        },
+        {
+          "month": "2021-05",
+          "count": 34
+        },
+        {
+          "month": "2021-06",
+          "count": 44
+        },
+        {
+          "month": "2021-07",
+          "count": 42
+        },
+        {
+          "month": "2021-08",
+          "count": 27
+        },
+        {
+          "month": "2021-09",
+          "count": 33
+        },
+        {
+          "month": "2021-10",
+          "count": 32
+        },
+        {
+          "month": "2021-11",
+          "count": 30
+        },
+        {
+          "month": "2021-12",
+          "count": 24
+        },
+        {
+          "month": "2022-01",
+          "count": 33
+        },
+        {
+          "month": "2022-02",
+          "count": 31
+        },
+        {
+          "month": "2022-03",
+          "count": 43
+        },
+        {
+          "month": "2022-04",
+          "count": 31
+        },
+        {
+          "month": "2022-05",
+          "count": 32
+        },
+        {
+          "month": "2022-06",
+          "count": 38
+        },
+        {
+          "month": "2022-07",
+          "count": 40
+        },
+        {
+          "month": "2022-08",
+          "count": 31
+        },
+        {
+          "month": "2022-09",
+          "count": 31
+        },
+        {
+          "month": "2022-10",
+          "count": 55
+        },
+        {
+          "month": "2022-11",
+          "count": 38
+        },
+        {
+          "month": "2022-12",
+          "count": 40
+        },
+        {
+          "month": "2023-01",
+          "count": 44
+        },
+        {
+          "month": "2023-02",
+          "count": 29
+        },
+        {
+          "month": "2023-03",
+          "count": 29
+        },
+        {
+          "month": "2023-04",
+          "count": 36
+        },
+        {
+          "month": "2023-05",
+          "count": 38
+        },
+        {
+          "month": "2023-06",
+          "count": 26
+        },
+        {
+          "month": "2023-07",
+          "count": 22
+        },
+        {
+          "month": "2023-08",
+          "count": 36
+        },
+        {
+          "month": "2023-09",
+          "count": 38
+        },
+        {
+          "month": "2023-10",
+          "count": 37
+        },
+        {
+          "month": "2023-11",
+          "count": 31
+        },
+        {
+          "month": "2023-12",
+          "count": 27
+        },
+        {
+          "month": "2024-01",
+          "count": 28
+        },
+        {
+          "month": "2024-02",
+          "count": 26
+        },
+        {
+          "month": "2024-03",
+          "count": 41
+        },
+        {
+          "month": "2024-04",
+          "count": 43
+        },
+        {
+          "month": "2024-05",
+          "count": 34
+        },
+        {
+          "month": "2024-06",
+          "count": 38
+        },
+        {
+          "month": "2024-07",
+          "count": 23
+        },
+        {
+          "month": "2024-08",
+          "count": 24
+        },
+        {
+          "month": "2024-09",
+          "count": 33
+        },
+        {
+          "month": "2024-10",
+          "count": 42
+        },
+        {
+          "month": "2024-11",
+          "count": 34
+        },
+        {
+          "month": "2024-12",
+          "count": 25
+        },
+        {
+          "month": "2025-01",
+          "count": 40
+        },
+        {
+          "month": "2025-02",
+          "count": 30
+        },
+        {
+          "month": "2025-03",
+          "count": 31
+        },
+        {
+          "month": "2025-04",
+          "count": 37
+        },
+        {
+          "month": "2025-05",
+          "count": 24
+        },
+        {
+          "month": "2025-06",
+          "count": 22
+        },
+        {
+          "month": "2025-07",
+          "count": 25
+        },
+        {
+          "month": "2025-08",
+          "count": 36
+        },
+        {
+          "month": "2025-09",
+          "count": 29
+        },
+        {
+          "month": "2025-10",
+          "count": 28
+        },
+        {
+          "month": "2025-11",
+          "count": 22
+        },
+        {
+          "month": "2025-12",
+          "count": 31
+        },
+        {
+          "month": "2026-01",
+          "count": 30
+        },
+        {
+          "month": "2026-02",
+          "count": 25
+        },
+        {
+          "month": "2026-03",
+          "count": 35
+        },
+        {
+          "month": "2026-04",
+          "count": 28
+        },
+        {
+          "month": "2026-05",
+          "count": 33
+        },
+        {
+          "month": "2026-06",
+          "count": 30
+        }
+      ]
+    },
+    {
+      "districtId": 24,
+      "name": "Kalaburagi",
+      "points": [
+        {
+          "month": "2021-01",
+          "count": 30
+        },
+        {
+          "month": "2021-02",
+          "count": 21
+        },
+        {
+          "month": "2021-03",
+          "count": 31
+        },
+        {
+          "month": "2021-04",
+          "count": 20
+        },
+        {
+          "month": "2021-05",
+          "count": 28
+        },
+        {
+          "month": "2021-06",
+          "count": 24
+        },
+        {
+          "month": "2021-07",
+          "count": 26
+        },
+        {
+          "month": "2021-08",
+          "count": 31
+        },
+        {
+          "month": "2021-09",
+          "count": 27
+        },
+        {
+          "month": "2021-10",
+          "count": 34
+        },
+        {
+          "month": "2021-11",
+          "count": 29
+        },
+        {
+          "month": "2021-12",
+          "count": 22
+        },
+        {
+          "month": "2022-01",
+          "count": 43
+        },
+        {
+          "month": "2022-02",
+          "count": 24
+        },
+        {
+          "month": "2022-03",
+          "count": 21
+        },
+        {
+          "month": "2022-04",
+          "count": 38
+        },
+        {
+          "month": "2022-05",
+          "count": 28
+        },
+        {
+          "month": "2022-06",
+          "count": 21
+        },
+        {
+          "month": "2022-07",
+          "count": 33
+        },
+        {
+          "month": "2022-08",
+          "count": 22
+        },
+        {
+          "month": "2022-09",
+          "count": 21
+        },
+        {
+          "month": "2022-10",
+          "count": 36
+        },
+        {
+          "month": "2022-11",
+          "count": 32
+        },
+        {
+          "month": "2022-12",
+          "count": 32
+        },
+        {
+          "month": "2023-01",
+          "count": 25
+        },
+        {
+          "month": "2023-02",
+          "count": 24
+        },
+        {
+          "month": "2023-03",
+          "count": 27
+        },
+        {
+          "month": "2023-04",
+          "count": 30
+        },
+        {
+          "month": "2023-05",
+          "count": 29
+        },
+        {
+          "month": "2023-06",
+          "count": 29
+        },
+        {
+          "month": "2023-07",
+          "count": 30
+        },
+        {
+          "month": "2023-08",
+          "count": 26
+        },
+        {
+          "month": "2023-09",
+          "count": 21
+        },
+        {
+          "month": "2023-10",
+          "count": 23
+        },
+        {
+          "month": "2023-11",
+          "count": 29
+        },
+        {
+          "month": "2023-12",
+          "count": 31
+        },
+        {
+          "month": "2024-01",
+          "count": 33
+        },
+        {
+          "month": "2024-02",
+          "count": 23
+        },
+        {
+          "month": "2024-03",
+          "count": 33
+        },
+        {
+          "month": "2024-04",
+          "count": 28
+        },
+        {
+          "month": "2024-05",
+          "count": 24
+        },
+        {
+          "month": "2024-06",
+          "count": 37
+        },
+        {
+          "month": "2024-07",
+          "count": 25
+        },
+        {
+          "month": "2024-08",
+          "count": 25
+        },
+        {
+          "month": "2024-09",
+          "count": 27
+        },
+        {
+          "month": "2024-10",
+          "count": 76
+        },
+        {
+          "month": "2024-11",
+          "count": 59
+        },
+        {
+          "month": "2024-12",
+          "count": 24
+        },
+        {
+          "month": "2025-01",
+          "count": 29
+        },
+        {
+          "month": "2025-02",
+          "count": 29
+        },
+        {
+          "month": "2025-03",
+          "count": 31
+        },
+        {
+          "month": "2025-04",
+          "count": 31
+        },
+        {
+          "month": "2025-05",
+          "count": 29
+        },
+        {
+          "month": "2025-06",
+          "count": 27
+        },
+        {
+          "month": "2025-07",
+          "count": 28
+        },
+        {
+          "month": "2025-08",
+          "count": 24
+        },
+        {
+          "month": "2025-09",
+          "count": 16
+        },
+        {
+          "month": "2025-10",
+          "count": 35
+        },
+        {
+          "month": "2025-11",
+          "count": 26
+        },
+        {
+          "month": "2025-12",
+          "count": 29
+        },
+        {
+          "month": "2026-01",
+          "count": 21
+        },
+        {
+          "month": "2026-02",
+          "count": 24
+        },
+        {
+          "month": "2026-03",
+          "count": 32
+        },
+        {
+          "month": "2026-04",
+          "count": 16
+        },
+        {
+          "month": "2026-05",
+          "count": 30
+        },
+        {
+          "month": "2026-06",
+          "count": 35
+        }
+      ]
+    }
+  ],
+  "stats/outcomes": [
+    {
+      "districtId": 1,
+      "name": "Bengaluru Urban",
+      "chargesheeted": 4833,
+      "false": 275,
+      "undetected": 1243,
+      "undetectedPct": 19.6
+    },
+    {
+      "districtId": 7,
+      "name": "Mysuru",
+      "chargesheeted": 1522,
+      "false": 93,
+      "undetected": 409,
+      "undetectedPct": 20.2
+    },
+    {
+      "districtId": 28,
+      "name": "Belagavi",
+      "chargesheeted": 1085,
+      "false": 62,
+      "undetected": 265,
+      "undetectedPct": 18.8
+    },
+    {
+      "districtId": 12,
+      "name": "Dakshina Kannada",
+      "chargesheeted": 1099,
+      "false": 67,
+      "undetected": 274,
+      "undetectedPct": 19.0
+    },
+    {
+      "districtId": 24,
+      "name": "Kalaburagi",
+      "chargesheeted": 917,
+      "false": 70,
+      "undetected": 213,
+      "undetectedPct": 17.8
+    },
+    {
+      "districtId": 2,
+      "name": "Bengaluru Rural",
+      "chargesheeted": 883,
+      "false": 34,
+      "undetected": 208,
+      "undetectedPct": 18.5
+    },
+    {
+      "districtId": 6,
+      "name": "Tumakuru",
+      "chargesheeted": 859,
+      "false": 46,
+      "undetected": 203,
+      "undetectedPct": 18.3
+    },
+    {
+      "districtId": 29,
+      "name": "Dharwad",
+      "chargesheeted": 832,
+      "false": 43,
+      "undetected": 238,
+      "undetectedPct": 21.4
+    },
+    {
+      "districtId": 19,
+      "name": "Ballari",
+      "chargesheeted": 676,
+      "false": 46,
+      "undetected": 158,
+      "undetectedPct": 18.0
+    },
+    {
+      "districtId": 8,
+      "name": "Mandya",
+      "chargesheeted": 698,
+      "false": 34,
+      "undetected": 167,
+      "undetectedPct": 18.6
+    },
+    {
+      "districtId": 5,
+      "name": "Chikkaballapura",
+      "chargesheeted": 682,
+      "false": 38,
+      "undetected": 149,
+      "undetectedPct": 17.1
+    },
+    {
+      "districtId": 9,
+      "name": "Hassan",
+      "chargesheeted": 649,
+      "false": 46,
+      "undetected": 174,
+      "undetectedPct": 20.0
+    }
+  ],
+  "linkage/clusters": [
+    {
+      "clusterId": "SC01",
+      "label": "Shutter-cutting shop burglar",
+      "crimeType": "House-Breaking & Burglary",
+      "districtsSpanned": [
+        "Chitradurga",
+        "Davanagere",
+        "Tumakuru"
+      ],
+      "memberCount": 8,
+      "confidence": 0.82,
+      "sharedMO": {
+        "time_phrase": "past midnight",
+        "entry_method": "by cutting the shutter lock",
+        "burglary_target": "cash and mobile phones from the counter",
+        "location_type": "a commercial shop"
+      },
+      "sampleNarratives": [
+        "Unknown miscreants, past midnight, committed house-breaking at a commercial shop by cutting the shutter lock and made off with cash and mobile phones from the counter.",
+        "Unknown miscreants, past midnight, committed house-breaking at a commercial shop by cutting the shutter lock and made off with cash and mobile phones from the counter.",
+        "Unidentified thieves broke into a commercial shop past midnight by cutting the shutter lock, decamping with cash and mobile phones from the counter before fleeing."
+      ],
+      "memberCaseNos": [
+        "100170006202300001",
+        "100180003202300001",
+        "100170003202300002",
+        "100170006202300002",
+        "100060003202300003",
+        "100170002202300001",
+        "100060003202300004",
+        "100180001202300001"
+      ]
+    },
+    {
+      "clusterId": "SC02",
+      "label": "Highway two-wheeler theft ring",
+      "crimeType": "Motor Vehicle Theft",
+      "districtsSpanned": [
+        "Bengaluru Rural",
+        "Bengaluru Urban",
+        "Tumakuru"
+      ],
+      "memberCount": 9,
+      "confidence": 0.84,
+      "sharedMO": {
+        "time_phrase": "late at night",
+        "mv_target": "a black Honda Activa scooter",
+        "location_type": "a bus stand"
+      },
+      "sampleNarratives": [
+        "An unidentified person made away with a black Honda Activa scooter left at a bus stand late at night.",
+        "An unidentified person made away with a black Honda Activa scooter left at a bus stand late at night.",
+        "ರಾತ್ರಿ ವೇಳೆ ನಿಲ್ಲಿಸಿದ್ದ ದ್ವಿಚಕ್ರ ವಾಹನವನ್ನು ಅಪರಿಚಿತರು ಕಳವು ಮಾಡಿದ್ದಾರೆ ಎಂದು ದೂರು ದಾಖಲಾಗಿದೆ."
+      ],
+      "memberCaseNos": [
+        "100010033202400001",
+        "100010018202400001",
+        "100010027202400001",
+        "100020002202400001",
+        "400060005202400001",
+        "100020003202400001",
+        "100010015202400001",
+        "100010016202400001",
+        "400010023202400001"
+      ]
+    },
+    {
+      "clusterId": "SC03",
+      "label": "Motorcycle chain-snatching pair",
+      "crimeType": "Robbery",
+      "districtsSpanned": [
+        "Bengaluru Urban",
+        "Ramanagara"
+      ],
+      "memberCount": 7,
+      "confidence": 0.8,
+      "sharedMO": {
+        "time_phrase": "in the evening",
+        "transport": "on a motorcycle",
+        "weapon": "a knife",
+        "robbery_target": "a gold chain",
+        "location_type": "a roadside"
+      },
+      "sampleNarratives": [
+        "The victim was intercepted at a roadside in the evening by persons on a motorcycle, who robbed a gold chain using a knife.",
+        "The victim was intercepted at a roadside in the evening by persons on a motorcycle, who robbed a gold chain using a knife.",
+        "The complainant stated that in the evening, on a motorcycle, the accused threatened the victim with a knife and robbed a gold chain at a roadside."
+      ],
+      "memberCaseNos": [
+        "100030003202500001",
+        "100010035202500001",
+        "100030005202500001",
+        "100010024202500001",
+        "100010017202500001",
+        "100010025202500001",
+        "100030004202500001"
+      ]
+    },
+    {
+      "clusterId": "SC04",
+      "label": "Temple hundi theft crew",
+      "crimeType": "Theft (Ordinary)",
+      "districtsSpanned": [
+        "Chamarajanagar",
+        "Mandya",
+        "Mysuru"
+      ],
+      "memberCount": 6,
+      "confidence": 0.78,
+      "sharedMO": {
+        "time_phrase": "in the early hours",
+        "theft_target": "cash from the offering box",
+        "location_type": "the temple premises"
+      },
+      "sampleNarratives": [
+        "In the early hours, an unidentified person removed cash from the offering box from the temple premises and fled.",
+        "A theft is reported wherein cash from the offering box was taken from the temple premises in the early hours by an unknown culprit.",
+        "The complainant reported the theft of cash from the offering box from the temple premises while it was left unattended in the early hours."
+      ],
+      "memberCaseNos": [
+        "100070004202300001",
+        "100070010202300001",
+        "100080004202300002",
+        "100100005202300001",
+        "100070001202300002",
+        "100100003202300005"
+      ]
+    },
+    {
+      "clusterId": "SC05",
+      "label": "OTP bank-fraud call centre",
+      "crimeType": "Online Financial Fraud",
+      "districtsSpanned": [
+        "Bengaluru Urban",
+        "Dharwad",
+        "Kalaburagi"
+      ],
+      "memberCount": 9,
+      "confidence": 0.84,
+      "sharedMO": {
+        "cyber_method": "by posing as a customer-care executive",
+        "channel": "over a phone call"
+      },
+      "sampleNarratives": [
+        "The complainant reported that in the evening, an unknown person, by posing as a customer-care executive over a phone call, fraudulently withdrew money from the complainant's account.",
+        "ಅಪರಿಚಿತ ವ್ಯಕ್ತಿ ಒಟಿಪಿ/ಫಿಶಿಂಗ್ ಮೂಲಕ ದೂರುದಾರರ ಖಾತೆಯಿಂದ ಹಣವನ್ನು ವಂಚನೆಯಿಂದ ವರ್ಗಾಯಿಸಿಕೊಂಡಿದ್ದಾನೆ.",
+        "It is alleged that the accused, by posing as a customer-care executive over a phone call, cheated the complainant of a sum of money."
+      ],
+      "memberCaseNos": [
+        "100010031202500001",
+        "100240003202400002",
+        "400240002202500001",
+        "100010014202500001",
+        "100290007202400001",
+        "100240006202400001",
+        "100290004202400001",
+        "100240008202500001",
+        "100010016202500001"
+      ]
+    },
+    {
+      "clusterId": "SC06",
+      "label": "Fake government-job racket",
+      "crimeType": "Cheating & Fraud",
+      "districtsSpanned": [
+        "Kalaburagi",
+        "Raichur",
+        "Yadgir"
+      ],
+      "memberCount": 7,
+      "confidence": 0.8,
+      "sharedMO": {
+        "fraud_method": "by promising a government job",
+        "relationship": "an unknown person"
+      },
+      "sampleNarratives": [
+        "ಆರೋಪಿಯು ಬ್ಯಾಂಕ್ ಅಧಿಕಾರಿ ಸೋಗಿನಲ್ಲಿ ದೂರುದಾರರನ್ನು ವಂಚಿಸಿ ಹಣ ಪಡೆದಿದ್ದಾನೆ ಎಂದು ದೂರು ದಾಖಲಾಗಿದೆ.",
+        "It is alleged that an unknown person, by promising a government job, induced the complainant to part with money and thereafter absconded.",
+        "The accused gained the complainant's trust by promising a government job and then cheated them of their money."
+      ],
+      "memberCaseNos": [
+        "100220004202200001",
+        "800230003202200001",
+        "100220003202200001",
+        "800230005202200001",
+        "100220005202200001",
+        "100220003202200002",
+        "100240003202200003"
+      ]
+    },
+    {
+      "clusterId": "SC07",
+      "label": "Daytime apartment burglar (occupants away)",
+      "crimeType": "House-Breaking & Burglary",
+      "districtsSpanned": [
+        "Bengaluru Rural",
+        "Bengaluru Urban"
+      ],
+      "memberCount": 6,
+      "confidence": 0.78,
+      "sharedMO": {
+        "time_phrase": "during the afternoon",
+        "entry_method": "by breaking open the main door latch",
+        "burglary_target": "gold ornaments and cash",
+        "location_type": "an apartment complex"
+      },
+      "sampleNarratives": [
+        "The complainant returned to find an apartment complex ransacked; the intruders had entered by breaking open the main door latch during the afternoon and taken gold ornaments and cash.",
+        "Unidentified thieves broke into an apartment complex during the afternoon by breaking open the main door latch, decamping with gold ornaments and cash before fleeing.",
+        "Unknown miscreants, during the afternoon, committed house-breaking at an apartment complex by breaking open the main door latch and made off with gold ornaments and cash."
+      ],
+      "memberCaseNos": [
+        "100020001202500001",
+        "800020001202500001",
+        "100010010202500001",
+        "100020004202500002",
+        "100010032202500001",
+        "800020003202500001"
+      ]
+    },
+    {
+      "clusterId": "SC08",
+      "label": "Idol theft from rural temples",
+      "crimeType": "Theft (Ordinary)",
+      "districtsSpanned": [
+        "Chikkamagaluru",
+        "Hassan",
+        "Shivamogga"
+      ],
+      "memberCount": 6,
+      "confidence": 0.78,
+      "sharedMO": {
+        "time_phrase": "past midnight",
+        "theft_target": "an antique idol",
+        "location_type": "the temple premises"
+      },
+      "sampleNarratives": [
+        "ಮಧ್ಯರಾತ್ರಿ ನಂತರ ಸಾರ್ವಜನಿಕ ಸ್ಥಳದಲ್ಲಿ ಮೊಬೈಲ್/ಚಿನ್ನದ ಸರ ಕಳವಾಗಿದೆ ಎಂದು ದೂರುದಾರರು ತಿಳಿಸಿದ್ದಾರೆ.",
+        "ಮಧ್ಯರಾತ್ರಿ ನಂತರ ಸಾರ್ವಜನಿಕ ಸ್ಥಳದಲ್ಲಿ ಮೊಬೈಲ್/ಚಿನ್ನದ ಸರ ಕಳವಾಗಿದೆ ಎಂದು ದೂರುದಾರರು ತಿಳಿಸಿದ್ದಾರೆ.",
+        "Past midnight, an unidentified person removed an antique idol from the temple premises and fled."
+      ],
+      "memberCaseNos": [
+        "400160007202200001",
+        "100150004202300003",
+        "100150001202200001",
+        "100090002202300002",
+        "100150004202200002",
+        "100090003202300006"
+      ]
+    },
+    {
+      "clusterId": "SC09",
+      "label": "Ganja transport corridor gang",
+      "crimeType": "NDPS (Drugs)",
+      "districtsSpanned": [
+        "Dakshina Kannada",
+        "Udupi"
+      ],
+      "memberCount": 7,
+      "confidence": 0.8,
+      "sharedMO": {
+        "time_phrase": "late at night",
+        "location_type": "a highway check-post"
+      },
+      "sampleNarratives": [
+        "During a patrol late at night, the accused was found in possession of contraband (ganja/other narcotics) at a highway check-post, and a case under the NDPS Act was registered.",
+        "ದೂರುದಾರರ ದೂರಿನ ಆಧಾರದ ಮೇಲೆ ಪ್ರಕರಣ ದಾಖಲಿಸಲಾಗಿದೆ; ತನಿಖೆ ಪ್ರಗತಿಯಲ್ಲಿದೆ.",
+        "During a patrol late at night, the accused was found in possession of contraband (ganja/other narcotics) at a highway check-post, and a case under the NDPS Act was registered."
+      ],
+      "memberCaseNos": [
+        "100120001202400001",
+        "100120009202400001",
+        "100120001202400002",
+        "400120010202400001",
+        "100130001202400003",
+        "100120006202400002",
+        "100130003202400003"
+      ]
+    },
+    {
+      "clusterId": "SC10",
+      "label": "Crop-loan document forgery ring",
+      "crimeType": "Forgery",
+      "districtsSpanned": [
+        "Ballari",
+        "Koppal",
+        "Raichur"
+      ],
+      "memberCount": 6,
+      "confidence": 0.78,
+      "sharedMO": {
+        "fraud_method": "by promising a government job"
+      },
+      "sampleNarratives": [
+        "ಆರೋಪಿಯು ಬ್ಯಾಂಕ್ ಅಧಿಕಾರಿ ಸೋಗಿನಲ್ಲಿ ದೂರುದಾರರನ್ನು ವಂಚಿಸಿ ಹಣ ಪಡೆದಿದ್ದಾನೆ ಎಂದು ದೂರು ದಾಖಲಾಗಿದೆ.",
+        "The complainant reported being defrauded by promising a government job, resulting in a monetary loss.",
+        "ಆರೋಪಿಯು ಬ್ಯಾಂಕ್ ಅಧಿಕಾರಿ ಸೋಗಿನಲ್ಲಿ ದೂರುದಾರರನ್ನು ವಂಚಿಸಿ ಹಣ ಪಡೆದಿದ್ದಾನೆ ಎಂದು ದೂರು ದಾಖಲಾಗಿದೆ."
+      ],
+      "memberCaseNos": [
+        "400210004202300001",
+        "100220006202300003",
+        "100210003202300007",
+        "100210003202300008",
+        "400190006202300001",
+        "100220002202300003"
+      ]
+    },
+    {
+      "clusterId": "SC11",
+      "label": "ATM-kiosk cash theft crew",
+      "crimeType": "House-Breaking & Burglary",
+      "districtsSpanned": [
+        "Bagalkot",
+        "Belagavi",
+        "Dharwad"
+      ],
+      "memberCount": 7,
+      "confidence": 0.8,
+      "sharedMO": {
+        "time_phrase": "around midnight",
+        "entry_method": "by drilling out the lock",
+        "burglary_target": "cash from the ATM cassette",
+        "location_type": "an ATM kiosk"
+      },
+      "sampleNarratives": [
+        "The complainant returned to find an ATM kiosk ransacked; the intruders had entered by drilling out the lock around midnight and taken cash from the ATM cassette.",
+        "ಮಧ್ಯರಾತ್ರಿ ಸಮಯದಲ್ಲಿ ಅಪರಿಚಿತ ವ್ಯಕ್ತಿಗಳು ಮನೆಗೆ ನುಗ್ಗಿ ಚಿನ್ನಾಭರಣ ಮತ್ತು ನಗದು ಕಳವು ಮಾಡಿದ್ದಾರೆ ಎಂದು ದೂರುದಾರರು ತಿಳಿಸಿದ್ದಾರೆ.",
+        "It is reported that an ATM kiosk was broken into around midnight; the culprits drilled out the lock and took away cash from the ATM cassette."
+      ],
+      "memberCaseNos": [
+        "400290002202500002",
+        "100290001202500002",
+        "100290007202500001",
+        "100290003202500002",
+        "800270004202500001",
+        "100270003202500003",
+        "100280002202500001"
+      ]
+    },
+    {
+      "clusterId": "SC12",
+      "label": "Farmhouse dacoity gang",
+      "crimeType": "Dacoity",
+      "districtsSpanned": [
+        "Kalaburagi",
+        "Raichur"
+      ],
+      "memberCount": 5,
+      "confidence": 0.88,
+      "sharedMO": {
+        "time_phrase": "past midnight",
+        "gang_size": "five to six armed persons",
+        "weapon": "a machete (longu)",
+        "burglary_target": "gold, cash and silverware",
+        "location_type": "a farmhouse"
+      },
+      "sampleNarratives": [
+        "ದೂರುದಾರರ ಹೇಳಿಕೆಯಂತೆ ಘಟನೆ ಸಂಭವಿಸಿದ್ದು, ಪ್ರಕರಣ ದಾಖಲಿಸಿ ತನಿಖೆ ಕೈಗೊಳ್ಳಲಾಗಿದೆ.",
+        "The complainant reported that past midnight, five to six armed persons armed with a machete (longu) raided a farmhouse and looted gold, cash and silverware.",
+        "The complainant reported that past midnight, five to six armed persons armed with a machete (longu) raided a farmhouse and looted gold, cash and silverware."
+      ],
+      "memberCaseNos": [
+        "100220006202400003",
+        "100220005202400001",
+        "100240006202400004",
+        "100220004202400002",
+        "100220004202400003"
+      ]
+    }
+  ],
+  "alerts": [
+    {
+      "alertId": "B01",
+      "districtId": 1,
+      "district": "Bengaluru Urban",
+      "crimeType": "Motor Vehicle Theft",
+      "severity": "high",
+      "message": "Motor Vehicle Theft spike detected in Bengaluru Urban — 140 cases in a short window.",
+      "caseCount": 140
+    },
+    {
+      "alertId": "B02",
+      "districtId": 1,
+      "district": "Bengaluru Urban",
+      "crimeType": "Online Financial Fraud",
+      "severity": "high",
+      "message": "Online Financial Fraud spike detected in Bengaluru Urban — 120 cases in a short window.",
+      "caseCount": 120
+    },
+    {
+      "alertId": "B03",
+      "districtId": 24,
+      "district": "Kalaburagi",
+      "crimeType": "House-Breaking & Burglary",
+      "severity": "medium",
+      "message": "House-Breaking & Burglary spike detected in Kalaburagi — 70 cases in a short window.",
+      "caseCount": 70
+    },
+    {
+      "alertId": "B04",
+      "districtId": 7,
+      "district": "Mysuru",
+      "crimeType": "Robbery",
+      "severity": "medium",
+      "message": "Robbery spike detected in Mysuru — 55 cases in a short window.",
+      "caseCount": 55
+    }
+  ],
+  "network/graph": {
+    "nodes": [
+      {
+        "offenderId": 54,
+        "name": "David Yadav",
+        "caseCount": 32
+      },
+      {
+        "offenderId": 22,
+        "name": "John Chowdary",
+        "caseCount": 29
+      },
+      {
+        "offenderId": 164,
+        "name": "Harish Hegde",
+        "caseCount": 27
+      },
+      {
+        "offenderId": 411,
+        "name": "Gopal Shetty",
+        "caseCount": 25
+      },
+      {
+        "offenderId": 434,
+        "name": "Basavaraj Setty",
+        "caseCount": 24
+      },
+      {
+        "offenderId": 158,
+        "name": "Prakasha Pinto",
+        "caseCount": 22
+      },
+      {
+        "offenderId": 219,
+        "name": "Basavaraju Achar",
+        "caseCount": 22
+      },
+      {
+        "offenderId": 573,
+        "name": "Girish Gowda",
+        "caseCount": 22
+      },
+      {
+        "offenderId": 604,
+        "name": "Geetha Jain",
+        "caseCount": 22
+      },
+      {
+        "offenderId": 635,
+        "name": "David Nayak",
+        "caseCount": 22
+      },
+      {
+        "offenderId": 681,
+        "name": "Basavaraju Kotian",
+        "caseCount": 22
+      },
+      {
+        "offenderId": 29,
+        "name": "Mahesh Achar",
+        "caseCount": 21
+      },
+      {
+        "offenderId": 79,
+        "name": "Channabasappa Pinto",
+        "caseCount": 21
+      },
+      {
+        "offenderId": 225,
+        "name": "Feroz Banjara",
+        "caseCount": 21
+      },
+      {
+        "offenderId": 277,
+        "name": "Gopal Kotian",
+        "caseCount": 21
+      }
+    ]
+  },
+  "data-quality": {
+    "totalCases": 50000,
+    "geocodedPct": 94.1,
+    "fallback": "station-level aggregation for un-geocoded cases",
+    "kannadaPct": 20.3
+  },
+  "cases/sample": [
+    {
+      "caseMasterId": 1,
+      "crimeNo": "100170006202300001",
+      "caseNo": "202300001",
+      "registeredDate": "2023-03-13",
+      "district": "Davanagere",
+      "crimeHead": "Crimes Against Property",
+      "crimeSubHead": "House-Breaking & Burglary",
+      "gravity": "Non-Heinous",
+      "briefFacts": "Unknown miscreants, past midnight, committed house-breaking at a commercial shop by cutting the shutter lock and made off with cash and mobile phones from the counter.",
+      "language": "en",
+      "latitude": 14.446755,
+      "longitude": 75.858872
+    },
+    {
+      "caseMasterId": 2,
+      "crimeNo": "100180003202300001",
+      "caseNo": "202300001",
+      "registeredDate": "2023-02-11",
+      "district": "Chitradurga",
+      "crimeHead": "Crimes Against Property",
+      "crimeSubHead": "House-Breaking & Burglary",
+      "gravity": "Non-Heinous",
+      "briefFacts": "Unknown miscreants, past midnight, committed house-breaking at a commercial shop by cutting the shutter lock and made off with cash and mobile phones from the counter.",
+      "language": "en",
+      "latitude": 14.183508,
+      "longitude": 76.56249
+    },
+    {
+      "caseMasterId": 3,
+      "crimeNo": "100170003202300002",
+      "caseNo": "202300002",
+      "registeredDate": "2023-06-04",
+      "district": "Davanagere",
+      "crimeHead": "Crimes Against Property",
+      "crimeSubHead": "House-Breaking & Burglary",
+      "gravity": "Non-Heinous",
+      "briefFacts": "Unidentified thieves broke into a commercial shop past midnight by cutting the shutter lock, decamping with cash and mobile phones from the counter before fleeing.",
+      "language": "en",
+      "latitude": 14.66837,
+      "longitude": 75.791338
+    },
+    {
+      "caseMasterId": 1,
+      "crimeNo": "100170006202300001",
+      "caseNo": "202300001",
+      "registeredDate": "2023-03-13",
+      "district": "Davanagere",
+      "crimeHead": "Crimes Against Property",
+      "crimeSubHead": "House-Breaking & Burglary",
+      "gravity": "Non-Heinous",
+      "briefFacts": "Unknown miscreants, past midnight, committed house-breaking at a commercial shop by cutting the shutter lock and made off with cash and mobile phones from the counter.",
+      "language": "en",
+      "latitude": 14.446755,
+      "longitude": 75.858872
+    }
+  ],
+  "briefings/today": {
+    "district": "Bengaluru Urban",
+    "date": "2026-06-30",
+    "en": "Good morning. In Bengaluru Urban over the past week, property crimes remained the leading category. An active alert flags a rise in motor-vehicle theft in the Whitefield belt. Two cross-district serial patterns are under watch. Detection rate stands at 76.5%.",
+    "kn": "ಶುಭೋದಯ. Bengaluru Urban ಜಿಲ್ಲೆಯಲ್ಲಿ ಕಳೆದ ವಾರ ಆಸ್ತಿ ಅಪರಾಧಗಳು ಪ್ರಮುಖವಾಗಿವೆ. ವೈಟ್‌ಫೀಲ್ಡ್ ಭಾಗದಲ್ಲಿ ವಾಹನ ಕಳ್ಳತನ ಹೆಚ್ಚಳ ಕುರಿತು ಎಚ್ಚರಿಕೆ ನೀಡಲಾಗಿದೆ.",
+    "pdfUrl": null
+  }
+}
