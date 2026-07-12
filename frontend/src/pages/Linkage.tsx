@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApi, Card, PageHeader, State, Badge } from "@/components/ui";
 import { matchFir, type MatchResult } from "@/api/client";
+import { embedMatch, preloadEmbedder } from "@/lib/embedMatch";
 
 const EXAMPLES = [
   "Unknown persons cut the shutter lock of a mobile shop past midnight and decamped with cash and phones kept at the counter.",
@@ -32,10 +33,20 @@ export default function Linkage() {
     : null;
   const cluster = matchedCluster ?? selected ?? data?.[0] ?? null;
 
+  // Warm up the semantic model in the background so the first Analyze is fast.
+  useEffect(() => {
+    preloadEmbedder();
+  }, []);
+
   async function analyze() {
     setMatching(true);
     try {
-      const r = await matchFir(query);
+      let r: MatchResult;
+      try {
+        r = await embedMatch(query); // real semantic multilingual match
+      } catch {
+        r = await matchFir(query); // keyword fallback (server) if model unavailable
+      }
       setResult(r);
       const hit = data?.find((c) => c.clusterId === r.best.clusterId);
       if (hit) setSelected(hit);
@@ -83,8 +94,11 @@ export default function Linkage() {
             <div className="flex items-center gap-4">
               <div className="tnum text-3xl font-semibold text-[var(--color-accent)]">{result.best.score}%</div>
               <div>
-                <div className="text-sm font-medium text-[var(--color-text)]">
-                  Best match — {result.best.label}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-[var(--color-text)]">Best match — {result.best.label}</span>
+                  <Badge tone={result.method === "semantic" ? "accent" : "mute"}>
+                    {result.method === "semantic" ? "semantic AI" : "keyword"}
+                  </Badge>
                 </div>
                 <div className="text-xs text-[var(--color-text-dim)]">
                   {result.best.crimeType} · spans {result.best.districts.join(", ")}
