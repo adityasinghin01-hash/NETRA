@@ -63,11 +63,45 @@ function TrendsTab() {
   );
 }
 
+interface RiskData {
+  metrics: { accuracy: number; auc: number };
+  drivers: { factor: string; importance: number }[];
+  districts: { district: string; riskScore: number }[];
+}
+
 function OutcomesTab() {
   const { data, loading, error } = useApi<Outcome[]>("/stats/outcomes");
+  const [risk, setRisk] = useState<RiskData | null>(null);
+  useEffect(() => {
+    fetch(`${import.meta.env.BASE_URL}risk-scores.json`).then((r) => r.json()).then(setRisk).catch(() => {});
+  }, []);
+  const riskByName = useMemo(
+    () => new Map((risk?.districts ?? []).map((d) => [d.district, d.riskScore])),
+    [risk]
+  );
   const rows = (data ?? []).slice().sort((a, b) => b.undetectedPct - a.undetectedPct);
+  const maxImp = Math.max(0.001, ...(risk?.drivers ?? []).map((d) => Math.max(0, d.importance)));
+
   return (
     <State loading={loading} error={error} empty={!rows.length}>
+      {risk && (
+        <Card className="mb-3 p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <div className="text-sm font-medium">Detection-risk model — what drives undetected crime</div>
+            <span className="text-xs text-[var(--color-text-mute)]">gradient boosting · ROC-AUC {risk.metrics.auc}</span>
+          </div>
+          <div className="space-y-1.5">
+            {risk.drivers.filter((d) => d.importance > 0).slice(0, 4).map((d) => (
+              <div key={d.factor} className="flex items-center gap-2 text-xs">
+                <span className="w-36 shrink-0 text-[var(--color-text-dim)] capitalize">{d.factor}</span>
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--color-bg)]">
+                  <div className="h-full bg-[var(--color-accent)]" style={{ width: `${(Math.max(0, d.importance) / maxImp) * 100}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
       <div className="mb-3 flex gap-4 text-xs text-[var(--color-text-dim)]">
         <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[var(--color-ok)]" /> Chargesheeted</span>
         <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full bg-[var(--color-text-mute)]" /> False</span>
@@ -80,16 +114,25 @@ function OutcomesTab() {
               <th className="pb-2 font-normal">District</th>
               <th className="pb-2 font-normal">Outcome mix</th>
               <th className="pb-2 text-right font-normal">Undetected %</th>
+              <th className="pb-2 text-right font-normal">Risk</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <tr key={r.districtId} className="border-t border-[var(--color-border)]">
-                <td className="py-2.5 text-[var(--color-text-dim)]">{r.name}</td>
-                <td className="w-1/2 py-2.5 pr-6"><OutcomeBar a={r.chargesheeted} b={r.false} c={r.undetected} /></td>
-                <td className="tnum py-2.5 text-right text-[var(--color-text)]">{r.undetectedPct}%</td>
-              </tr>
-            ))}
+            {rows.map((r) => {
+              const rs = riskByName.get(r.name);
+              return (
+                <tr key={r.districtId} className="border-t border-[var(--color-border)]">
+                  <td className="py-2.5 text-[var(--color-text-dim)]">{r.name}</td>
+                  <td className="w-2/5 py-2.5 pr-6"><OutcomeBar a={r.chargesheeted} b={r.false} c={r.undetected} /></td>
+                  <td className="tnum py-2.5 text-right text-[var(--color-text)]">{r.undetectedPct}%</td>
+                  <td className="tnum py-2.5 text-right">
+                    {rs != null && (
+                      <span className={rs > 66 ? "text-[var(--color-danger)]" : rs > 33 ? "text-[var(--color-warn)]" : "text-[var(--color-ok)]"}>{rs}</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </Card>
