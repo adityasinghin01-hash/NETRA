@@ -1,105 +1,183 @@
 # NETRA — Designer's Work Package
 
-You own how NETRA **looks**. You don't need to write code — Aditya + Claude handle
-that. Your job is to make NETRA look like a real, world-class police-intelligence
-product, because the judges score us from a **video of the screens**. A beautiful,
-confident UI is one of our biggest edges.
+Everything you need, in plain language. You make NETRA **look** world-class. You do
+**not** write code — Aditya + Claude do that. Read this once fully, then start.
 
-## First: go look at what already exists
+---
 
-NETRA is already built and live. Open it and click around:
+## PART 1 — THE IDEA (what we're building, in simple words)
 
-**Live app:** `https://netra-60077866273.development.catalystserverless.in/app/`
+### The problem
+Every time a crime happens in Karnataka, police write a report called an **FIR**
+(First Information Report). There are **1,100+ police stations**, so there are
+**lakhs** of these reports sitting in a computer. But:
+- Police **can't see the big picture** — where crime is rising, what the patterns are.
+- A criminal who robs shops in 3 different cities looks like **3 separate small cases**
+  to 3 different police stations. Nobody connects them.
+- Police only look at **last month's numbers** — never what's coming next.
 
-There are 5 screens (Login, Command Map, Linkage, Analytics, Briefing). They work
-and show real data, but they're a **first draft** — plain, with placeholder boxes
-where the map and charts will go. Your job is to make them shine and to design the
-parts that don't exist yet.
+### What NETRA does
+NETRA is a smart AI assistant that **reads ALL the reports** and gives police
+**5 superpowers**:
 
-## The idea (so your design tells the right story)
+1. **SEE 🗺️ (Map)** — a live map of Karnataka showing where crimes cluster
+   ("hotspots"). You can zoom in: whole state → one district → one police station.
 
-NETRA reads lakhs of police crime reports (FIRs) and shows officers: where crime
-clusters (map), which crimes are the **same criminal across different cities**
-(our star feature — "Linkage"), what may happen next week (forecast), and a short
-daily briefing (English + Kannada). Users are **police officers**, not analysts —
-design for someone with 4 minutes before a meeting, who needs answers fast. The
-vibe: a serious, calm "command center," not a flashy consumer app.
+2. **TRACK 📈 (Trends & Alerts)** — graphs of crime over time, and **automatic
+   alerts** when something suddenly spikes (e.g. "vehicle theft up 40% in Whitefield").
 
-## The current look (our starting design system)
+3. **CONNECT 🕵️ (Linkage) — ⭐ THIS IS OUR STAR FEATURE** — the AI reads the
+   *story* written in each report and figures out which crimes are the **same
+   criminal across different cities** (by their "method"). It works in **English AND
+   Kannada**. The magic moment: an officer pastes a fresh new report and NETRA
+   instantly says *"87% match — this belongs to Serial Cluster #3."*
 
-Feel free to improve any of this — you're the designer. This is what's built today:
+4. **JUDGE 📊 (Outcomes)** — for each police station, how many cases got **solved**
+   (chargesheeted), were **false**, or stayed **unsolved** (undetected). Honest
+   accountability that bosses want.
 
-- **Theme:** dark "command center" — deep navy background (`#0B1220`), not pure black
-- **Cards/panels:** slightly lighter navy (`#111A2E`) with thin borders
-- **Text:** off-white (`#E2E8F0`) headings, grey (`#94A3B8`) secondary
-- **Accent (highlights, selections):** cyan (`#22D3EE`)
-- **Alerts / crime hotspots:** red (`#F87171`); warnings amber; good/solved green
-- **Font:** Inter for text, a monospace font for numbers
-- **Feel:** lots of breathing room, calm, no gimmicky animation
+5. **ACT 📄 (Forecast + Briefing)** — predicts **next week's** likely hotspots and
+   suggests where to send patrols; and writes a **1-page daily briefing** for each
+   district (English or Kannada, downloadable as a PDF).
 
-If you think a different palette or feel is stronger — propose it. Just keep it
-dark, serious, and government-credible.
+### Extra important bits
+- **Different logins for different ranks:** HQ boss sees all Karnataka, a District
+  officer sees only their district, a Station officer sees only their station.
+- **Built ethically:** NETRA never uses caste or religion, always explains *why* it
+  says something, and only *helps* officers decide (a human always makes the final call).
 
-## Your deliverables
+### Why we can win
+Built on the police's **real data structure**, the cross-city linkage is something
+**almost no other team will have**, every claim is backed by a number, and it all
+runs on **Zoho Catalyst** (the platform the competition requires).
 
-### 1. A NETRA logo / wordmark ⭐
+---
+
+## PART 2 — THE TEAM (who is doing what)
+
+We are 3 people. Here's the whole picture so you know where you fit:
+
+| Person | Role | What they do |
+|---|---|---|
+| **Aditya (+ Claude AI)** | Tech lead | Builds the **brain** (the database, the AI that connects crimes and forecasts) and writes **all the code**, including turning YOUR designs into real working screens. |
+| **YOU** | **Designer** | Make NETRA **beautiful**. Design the look, the logo, the screens, and the pitch-deck visuals. Hand your designs to Aditya to build. |
+| **3rd teammate** | Presentation | Writes the **pitch deck** (slides), the demo **video**, and submits everything to the competition. |
+
+You and the presentation teammate will **work together** on the pitch deck: they
+write the words, you make it gorgeous.
+
+---
+
+## PART 3 — YOUR JOB (in detail — what to do and how)
+
+**First step, today:** open the live app and click every screen —
+`https://netra-60077866273.development.catalystserverless.in/app/`
+It already works and shows real data, but it's a **plain first draft** with empty
+boxes where the map and charts go. Your job is to make it shine and design the
+missing parts.
+
+### The current look (you may improve any of it)
+- **Dark "command center"** theme: deep navy background (`#0B1220`, not pure black)
+- Cards: slightly lighter navy (`#111A2E`) with thin borders
+- Text: off-white headings, grey secondary text
+- Highlight color: **cyan** (`#22D3EE`); alerts/hotspots **red**; good/solved **green**
+- Font: Inter for text, a monospace font for numbers
+- Feeling: calm, serious, lots of space, no flashy animation — think "government
+  control room," not a flashy app. If you have a stronger idea, propose it — just keep
+  it dark, serious, and trustworthy.
+
+### Your deliverables (in order of importance)
+
+**1. NETRA logo / wordmark ⭐**
 Right now it's just an eye emoji 👁️. Design a proper simple mark + the word "NETRA"
-(means "eye" in Sanskrit). Clean, works small, works on dark. This goes on the app,
-the login, and the pitch deck.
+("NETRA" means *eye* in Sanskrit). Must look good small, and on a dark background.
+Used on the app, the login screen, and the pitch deck. → *How:* Figma or Canva, export
+as PNG (transparent background) + SVG if you can.
 
-### 2. Design the Command Map screen
-The main screen has a big **grey placeholder box** where the Karnataka map will go.
+**2. Command Map screen design**
+The main screen has a big **grey placeholder box** where the Karnataka map goes.
 Design what it should look like:
-- How should the map of Karnataka's districts look? (colors for high vs low crime)
-- How should a "hotspot" look on the map? (a glowing red circle? pins?)
-- The legend, the layer buttons (Incidents / Hotspots / Forecast)
-- The side panel with alerts
+- The Karnataka district map — what colours show high vs low crime?
+- What does a "hotspot" look like — a glowing red circle? pins?
+- The buttons to switch map layers (Incidents / Hotspots / Forecast)
+- The map legend, and the side panel that lists alerts
 
-### 3. Design the Linkage screen (our STAR — spend the most love here)
-This is the feature that wins us the competition. It shows groups of connected
-serial crimes. Design:
-- How a "serial crime cluster" card should look (crime type, cities it spans, how confident)
-- The "paste a new report → find its group" box and how the **match result** should
-  feel exciting when it appears (this is the big demo moment in our video)
-- A small map showing the crimes connected across cities with lines
+**3. Linkage screen design — spend the MOST time here (it's our star) ⭐⭐**
+This is the feature that wins the competition, and it's the highlight of our video.
+Design:
+- How a "serial crime cluster" card looks (crime type, which cities it spans, a
+  confidence % badge)
+- The "paste a new report → find its group" box, and how the **match result** should
+  appear so it feels **exciting and impressive** (this is our big demo moment)
+- A small map showing crimes in different cities connected by lines
 
-### 4. Design the charts (Analytics screen)
-- How should the "which stations solve cases vs not" bars look?
-- Crime-trend line charts, the criminal-network web graph — pick styles, colors
+**4. Chart styles (Analytics screen)**
+- The "which stations solve cases vs not" bars (solved/false/unsolved)
+- Crime-trend line graphs
+- The criminal-network "web" graph (dots = criminals, lines = they worked together)
+Pick the colours and style for each.
 
-### 5. Design the pitch-deck visuals (with the PPT teammate)
-The submission deck must look stunning. You + the PPT teammate: they write the
-words, **you make it beautiful** (layout, colors, the architecture diagram, the
-screenshots framed nicely). This is huge for scoring.
+**5. Briefing screen polish**
+Make the daily-briefing page look like a clean, official one-page document, with a
+nice English ⇄ ಕನ್ನಡ (Kannada) toggle.
 
-## How you hand work to us (this is the workflow)
+**6. Pitch-deck visuals (with the presentation teammate)**
+The slides must look **stunning** — this is a big part of the score. They write the
+words; you design the layout, colours, framed screenshots, and the architecture
+diagram. Aim for a clean, premium, tech look.
 
-You don't touch code. Instead:
-1. Design in **Figma** (free, best) — or **Canva**, or even neatly on paper/tablet
-2. Export a picture or share the Figma link
-3. Give it to Aditya / drop it in the team chat
-4. Aditya + Claude turn your design into the real working screen
-5. You review the live result and suggest tweaks — repeat until it's beautiful
+### How you hand your work to us (the workflow)
+You never touch code. Instead:
+1. Design it in **Figma** (free, best for this) — or **Canva**, or even neatly on
+   paper/tablet if that's faster for you.
+2. Export a **picture** (PNG) or share the **Figma link**.
+3. Send it to Aditya / drop it in the team chat.
+4. Aditya + Claude turn your design into the real working screen.
+5. You look at the live result and suggest tweaks. Repeat until it's beautiful.
 
-Think of yourself as the architect drawing the rooms; we're the builders. Your
-drawing is what we build.
+Think: **you draw the rooms, we build them.**
 
-## Design references to study (aim for this level)
+---
 
-- Award-winning dashboard UIs on **Dribbble** — search "dark dashboard", "analytics command center", "crime map dashboard"
-- **Awwwards** for polish inspiration
-- Real intelligence/ops dashboards (Palantir-style command centers) for the serious vibe
-- Keep it **accessible**: text must be easy to read on dark, don't rely on color alone
+## PART 4 — WHAT YOU NEED FROM YOUR TEAMMATES (and what they need from you)
 
-## Timeline (rough)
+### You GET from Aditya (ask him for these):
+- The **live app link** (above) and **screenshots** of the current screens to redesign over
+- The **list of what each screen must show** (it's in this doc + he can explain)
+- Once you design something → he **builds it** and sends back the live version to review
 
-| By | Deliverable |
-|---|---|
-| Jul 14 | NETRA logo + your take on the overall look (approve or improve the palette) |
-| Jul 17 | Command Map + Linkage screen designs (the two demo stars) |
-| Jul 19 | Chart styles + Analytics/Briefing polish |
-| Jul 22 | Pitch-deck visual design (with PPT teammate) |
-| Jul 24 | Final polish review on the live app before the demo video |
+### You GET from the presentation teammate:
+- The **deck outline / content** (what words go on each slide) so you can design around it
+- The **official submission template** the competition requires (so the deck fits their format)
 
-**One sentence:** open the live app, imagine how a world-class version looks, design
-that in Figma/Canva, hand us the pictures, we build it. Make NETRA beautiful. 🎨
+### You GIVE to the presentation teammate:
+- The **NETRA logo**
+- **Beautifully designed slides** (they fill in final words)
+- **Nicely framed screenshots** of the app for the deck and video
+
+### You GIVE to Aditya:
+- Your **screen designs / mockups** → he builds them into the real app
+
+---
+
+## PART 5 — HELPFUL EXTRAS
+
+- **Best free tools:** Figma (design), Canva (quick slides), Coolors.co (colour ideas),
+  unDraw / Lucide icons (free icons — keep them all one style).
+- **Study these for inspiration** (aim for this level): Dribbble — search *"dark
+  dashboard," "analytics command center," "crime map dashboard"*; Awwwards for polish;
+  Palantir-style ops dashboards for the serious "intelligence" vibe.
+- **Rules that keep it professional:**
+  - Text must be **easy to read** on the dark background (don't use dim grey for
+    important words).
+  - **Never use colour alone** to mean something — add a label or icon too (some
+    people are colour-blind; judges notice this).
+  - Keep **one icon style** throughout (don't mix filled and outline).
+  - Lots of **empty space** looks more premium than cramming things in.
+- **Remember the user is a police officer** with little time — clarity beats
+  decoration. Beautiful *and* instantly understandable.
+- **Deadline that matters:** the demo **video** is filmed around **Jul 23–24**, so the
+  screens need to look their best by **Jul 22**. Final submission is **Jul 26**.
+
+**One sentence:** open the live app, imagine the world-class version, design it in
+Figma/Canva, hand us the pictures, we build it — make NETRA beautiful. 🎨
