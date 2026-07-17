@@ -3,7 +3,7 @@
 // glowing clickable incident dots that open the real FIR. Imperative MapLibre +
 // MapboxOverlay (robust under React 19 / Vite). Data: public/incident-points.json
 // ([lat, lng, crimeHead, crimeNo, district, date, crimeType]).
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { MapboxOverlay } from "@deck.gl/mapbox";
@@ -51,9 +51,16 @@ const LIGHTING = new LightingEffect({
   fill: new DirectionalLight({ color: [140, 180, 255], intensity: 0.7, direction: [2, 2, -1] }),
 });
 
-type Pt = { position: [number, number]; head: number; crimeNo: string; district: string; date: string; crimeType: string };
+type Pt = { position: [number, number]; head: number; crimeNo: string; district: string; date: string; crimeType: string; t: number };
 type Mode = "hex" | "points";
 type Base = "dark" | "satellite";
+
+// Time-lapse: month index since Jan-2021, and a label for the scrubber.
+const BASE_YEAR = 2021;
+const TL_WINDOW = 9; // trailing months shown → hotspots visibly rise, migrate & fade
+const monthIndex = (date: string) => (Number(date.slice(0, 4)) - BASE_YEAR) * 12 + (Number(date.slice(5, 7)) - 1);
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const tLabel = (t: number) => `${MONTHS[((t % 12) + 12) % 12]} ${BASE_YEAR + Math.floor(t / 12)}`;
 
 const MODES: { id: Mode; label: string }[] = [
   { id: "hex", label: "3D Density" },
@@ -115,6 +122,65 @@ function buildLayers(mode: Mode, data: Pt[], z: number): Layer[] {
   ];
 }
 
+// A drag joystick that pans the map continuously while held (game-pad feel).
+function Joystick({ onTick }: { onTick: (nx: number, ny: number) => void }) {
+  const [knob, setKnob] = useState({ x: 0, y: 0 });
+  const active = useRef(false);
+  const raf = useRef(0);
+  const val = useRef({ x: 0, y: 0 });
+  const R = 26;
+  function loop() {
+    if (!active.current) return;
+    const { x, y } = val.current;
+    if (x || y) onTick(x / R, y / R);
+    raf.current = requestAnimationFrame(loop);
+  }
+  function set(e: React.PointerEvent) {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    let dx = e.clientX - (r.left + r.width / 2);
+    let dy = e.clientY - (r.top + r.height / 2);
+    const d = Math.hypot(dx, dy);
+    if (d > R) { dx = (dx / d) * R; dy = (dy / d) * R; }
+    val.current = { x: dx, y: dy };
+    setKnob({ x: dx, y: dy });
+  }
+  function down(e: React.PointerEvent) {
+    active.current = true;
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    set(e); cancelAnimationFrame(raf.current); loop();
+  }
+  function up() {
+    active.current = false; cancelAnimationFrame(raf.current);
+    val.current = { x: 0, y: 0 }; setKnob({ x: 0, y: 0 });
+  }
+  return (
+    <div
+      onPointerDown={down} onPointerMove={(e) => active.current && set(e)} onPointerUp={up} onPointerLeave={up}
+      title="Drag to pan the map"
+      className="relative h-16 w-16 cursor-grab touch-none rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur active:cursor-grabbing"
+      style={{ boxShadow: "inset 0 0 12px rgba(0,0,0,0.4)" }}
+    >
+      <div
+        className="pointer-events-none absolute left-1/2 top-1/2 h-6 w-6 rounded-full bg-[var(--color-accent)]"
+        style={{ transform: `translate(calc(-50% + ${knob.x}px), calc(-50% + ${knob.y}px))`, boxShadow: "0 0 10px rgba(34,211,238,0.6)" }}
+      />
+    </div>
+  );
+}
+
+function CtrlBtn({ onClick, label, title, active }: { onClick: () => void; label: string; title: string; active?: boolean }) {
+  return (
+    <button
+      onClick={onClick} title={title} aria-label={title}
+      className={`flex h-8 w-8 items-center justify-center rounded-md border border-[var(--color-border)] text-sm backdrop-blur transition-colors ${
+        active ? "bg-[var(--color-accent)] text-[var(--color-bg)]" : "bg-[var(--color-surface)]/90 text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
 export default function DeckMap() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -126,6 +192,34 @@ export default function DeckMap() {
   const [mode, setMode] = useState<Mode>("hex");
   const [base, setBase] = useState<Base>("dark");
   const [z, setZ] = useState(6);
+  const [timelapse, setTimelapse] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [curT, setCurT] = useState(0);
+
+  const maxT = useMemo(() => (pts && pts.length ? Math.max(...pts.map((p) => p.t)) : 0), [pts]);
+  // Points visible at the current time-lapse frame (trailing window). Off → everything.
+  const visible = useMemo(() => {
+    if (!pts) return [];
+    if (!timelapse) return pts;
+    return pts.filter((p) => p.t <= curT && p.t > curT - TL_WINDOW);
+  }, [pts, timelapse, curT]);
+
+  // Playback: advance one month per tick, loop at the end.
+  useEffect(() => {
+    if (!playing) return;
+    const id = setInterval(() => setCurT((t) => (t >= maxT ? 0 : t + 1)), 240);
+    return () => clearInterval(id);
+  }, [playing, maxT]);
+
+  function enterTimelapse() { setTimelapse(true); setCurT(0); setPlaying(true); }
+  function exitTimelapse() { setPlaying(false); setTimelapse(false); }
+
+  // Map-control cluster (joystick + buttons) → drive the MapLibre camera.
+  const panTick = (nx: number, ny: number) => mapRef.current?.panBy([nx * 16, ny * 16], { duration: 0 });
+  const rotate = (deg: number) => { const m = mapRef.current; if (m) m.easeTo({ bearing: m.getBearing() + deg, duration: 300 }); };
+  const tilt = (d: number) => { const m = mapRef.current; if (m) m.easeTo({ pitch: Math.max(0, Math.min(75, m.getPitch() + d)), duration: 300 }); };
+  const zoomBy = (d: number) => { const m = mapRef.current; if (m) m.easeTo({ zoom: m.getZoom() + d, duration: 250 }); };
+  const home = () => mapRef.current?.easeTo({ center: [76.2, 14.9], zoom: 5.9, pitch: 48, bearing: -12, duration: 600 });
 
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}incident-points.json`)
@@ -133,7 +227,7 @@ export default function DeckMap() {
       .then((raw: [number, number, number, string, string, string, string][]) =>
         setPts(
           raw.map(([lat, lng, head, crimeNo, district, date, crimeType]) => ({
-            position: [lng, lat], head, crimeNo, district, date, crimeType,
+            position: [lng, lat], head, crimeNo, district, date, crimeType, t: monthIndex(date),
           }))
         )
       )
@@ -154,7 +248,6 @@ export default function DeckMap() {
     });
     const overlay = new MapboxOverlay({ interleaved: false, layers: [], effects: [LIGHTING], pickingRadius: 8 });
     map.addControl(overlay as unknown as maplibregl.IControl);
-    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
     // Deterministic picking: find the incident NEAREST the click in real coords, and show it
     // only if within ~16px on screen. Fresh every click — no stale deck picking buffer (the bug
     // where every click kept showing the first FIR).
@@ -214,8 +307,8 @@ export default function DeckMap() {
 
   useEffect(() => {
     if (!overlayRef.current || !pts) return;
-    overlayRef.current.setProps({ layers: buildLayers(mode, pts, z), effects: [LIGHTING] });
-  }, [pts, mode, z]);
+    overlayRef.current.setProps({ layers: buildLayers(mode, visible, z), effects: [LIGHTING] });
+  }, [visible, mode, z, pts]);
 
   // Keep a ref of points for the (once-bound) click handler.
   useEffect(() => { ptsRef.current = pts ?? []; }, [pts]);
@@ -294,6 +387,45 @@ export default function DeckMap() {
           </div>
         )}
       </div>
+
+      {/* Map-control cluster: joystick (pan) + buttons (zoom / rotate / tilt / home / time-lapse) */}
+      <div className="absolute bottom-3 right-3 z-[1000] flex items-end gap-2">
+        <div className="flex flex-col gap-1">
+          <div className="flex gap-1">
+            <CtrlBtn onClick={() => zoomBy(1)} label="+" title="Zoom in" />
+            <CtrlBtn onClick={() => zoomBy(-1)} label="−" title="Zoom out" />
+            <CtrlBtn onClick={() => tilt(8)} label="⤊" title="Tilt up" />
+            <CtrlBtn onClick={() => tilt(-8)} label="⤋" title="Tilt down" />
+          </div>
+          <div className="flex gap-1">
+            <CtrlBtn onClick={() => rotate(-20)} label="⟲" title="Rotate left" />
+            <CtrlBtn onClick={() => rotate(20)} label="⟳" title="Rotate right" />
+            <CtrlBtn onClick={home} label="⌂" title="Reset view" />
+            <CtrlBtn onClick={() => (timelapse ? exitTimelapse() : enterTimelapse())} label="⏱" title="Time-lapse" active={timelapse} />
+          </div>
+        </div>
+        <Joystick onTick={panTick} />
+      </div>
+
+      {/* Time-lapse scrubber (top-center, clear of the control cluster) */}
+      {timelapse && (
+        <div className="absolute top-3 left-1/2 z-[1000] flex -translate-x-1/2 items-center gap-3 rounded-lg border border-[var(--color-accent-dim)] bg-[var(--color-surface)]/95 px-3 py-2 backdrop-blur">
+          <button
+            onClick={() => setPlaying((p) => !p)}
+            className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--color-accent)] text-sm text-[var(--color-bg)]"
+            title={playing ? "Pause" : "Play"}
+          >
+            {playing ? "⏸" : "▶"}
+          </button>
+          <input
+            type="range" min={0} max={maxT || 1} value={curT}
+            onChange={(e) => { setPlaying(false); setCurT(Number(e.target.value)); }}
+            className="w-56 accent-[var(--color-accent)]"
+          />
+          <span className="tnum w-20 text-center text-xs text-[var(--color-text)]">{tLabel(curT)}</span>
+          <button onClick={exitTimelapse} className="text-[var(--color-text-mute)] hover:text-[var(--color-text)]" title="Exit time-lapse">✕</button>
+        </div>
+      )}
     </div>
   );
 }
