@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, PageHeader, State } from "@/components/ui";
 import { getSession } from "@/lib/auth";
+
+const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
 interface Brief {
   district: string;
@@ -19,9 +21,11 @@ export default function Briefing() {
   const [err, setErr] = useState<string | null>(null);
   const [district, setDistrict] = useState<string>(getSession().district ?? "Bengaluru Urban");
   const [lang, setLang] = useState<"en" | "kn">("en");
+  const [gender, setGender] = useState<"f" | "m">("f");
   const [forecast, setForecast] = useState<{ hotspots: { district: string; crimeType: string; riskLevel: string; patrolWindow: string }[] } | null>(null);
   const [cold, setCold] = useState<{ districts: Record<string, { crimeNo: string; type: string; risk: number }[]> } | null>(null);
   const [speaking, setSpeaking] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}briefings.json`)
@@ -40,16 +44,39 @@ export default function Briefing() {
   const patrol = forecast?.hotspots.find((h) => h.district === district) ?? null;
   const coldRows = cold?.districts?.[district] ?? [];
 
-  function speak() {
-    if (speaking) { window.speechSynthesis?.cancel(); setSpeaking(false); return; }
+  // Stop any playback when the selection changes.
+  useEffect(() => {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    window.speechSynthesis?.cancel();
+    setSpeaking(false);
+  }, [district, lang, gender]);
+
+  function stopAll() {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    window.speechSynthesis?.cancel();
+  }
+  // Fallback if a pre-rendered clip is missing: the browser's own (robotic) TTS.
+  function browserTTS() {
     const text = lang === "en" ? brief?.en : brief?.kn;
-    if (!text || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
+    if (!text || !window.speechSynthesis) { setSpeaking(false); return; }
     const u = new SpeechSynthesisUtterance(text);
     u.lang = lang === "en" ? "en-IN" : "kn-IN";
     u.onend = () => setSpeaking(false);
-    setSpeaking(true);
     window.speechSynthesis.speak(u);
+  }
+  // Play the human neural voice (pre-rendered EN/KN × M/F); fall back to browser TTS.
+  function speak() {
+    if (speaking) { stopAll(); setSpeaking(false); return; }
+    if (!brief) return;
+    setSpeaking(true);
+    const url = `${import.meta.env.BASE_URL}audio/brief-${slug(district)}-${lang}-${gender}.mp3`;
+    const a = new Audio(url);
+    audioRef.current = a;
+    let fell = false;
+    const fallback = () => { if (!fell) { fell = true; browserTTS(); } };
+    a.onended = () => setSpeaking(false);
+    a.onerror = fallback;
+    a.play().catch(fallback);
   }
 
   function downloadPdf() {
@@ -159,6 +186,18 @@ export default function Briefing() {
             <div className="mb-4 flex items-center justify-between">
               <div className="text-sm font-semibold">Intelligence Digest — {brief.district}</div>
               <div className="flex items-center gap-2">
+                <div className="flex overflow-hidden rounded-lg border border-[var(--color-border)]" title="Voice">
+                  {(["f", "m"] as const).map((g) => (
+                    <button
+                      key={g}
+                      onClick={() => setGender(g)}
+                      className={`px-2.5 py-1 text-xs ${gender === g ? "bg-[var(--color-accent)] text-[var(--color-bg)]" : "text-[var(--color-text-dim)]"}`}
+                      title={g === "f" ? "Female voice" : "Male voice"}
+                    >
+                      {g === "f" ? "♀" : "♂"}
+                    </button>
+                  ))}
+                </div>
                 <button
                   onClick={speak}
                   className="rounded-lg border border-[var(--color-border-strong)] px-3 py-1 text-xs text-[var(--color-text-dim)] hover:text-[var(--color-accent)]"
