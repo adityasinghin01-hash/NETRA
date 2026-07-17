@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { IS_MOCK } from "@/api/client";
 import { getSession, clearSession } from "@/lib/auth";
 import { Badge } from "./ui";
+import Copilot from "./Copilot";
 
 const NAV = [
   { to: "/map", label: "Command Map", icon: "🗺️" },
@@ -9,12 +11,20 @@ const NAV = [
   { to: "/analytics", label: "Analytics", icon: "📊" },
   { to: "/cases", label: "Case Search", icon: "🔎" },
   { to: "/briefing", label: "Briefing", icon: "📄" },
+  { to: "/documents", label: "Documents", icon: "📁" },
+  { to: "/alerts", label: "Alerts", icon: "🔔" },
 ];
 
 export default function AppShell() {
   const nav = useNavigate();
   const session = getSession();
   const initials = session.roleLabel.split(" · ")[0];
+  const [alertCount, setAlertCount] = useState(0);
+  useEffect(() => {
+    fetch(`${import.meta.env.BASE_URL}alerts-feed.json`).then((r) => r.json())
+      .then((a: { severity: string }[]) => setAlertCount(a.filter((x) => x.severity === "high").length))
+      .catch(() => {});
+  }, []);
   return (
     <div className="flex h-screen overflow-hidden">
       {/* Sidebar */}
@@ -56,6 +66,14 @@ export default function AppShell() {
           </div>
           <div className="flex items-center gap-3">
             {IS_MOCK && <Badge tone="warn">MOCK DATA</Badge>}
+            <NavLink to="/alerts" className="relative text-lg" title="Alert Center">
+              🔔
+              {alertCount > 0 && (
+                <span className="absolute -right-1.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-danger)] px-1 text-[9px] font-semibold text-white">
+                  {alertCount}
+                </span>
+              )}
+            </NavLink>
             <button
               onClick={() => {
                 clearSession();
@@ -74,6 +92,7 @@ export default function AppShell() {
           <Outlet />
         </main>
       </div>
+      <Copilot />
     </div>
   );
 }

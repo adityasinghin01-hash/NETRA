@@ -54,14 +54,49 @@ def main():
     edges = [{"source": a, "target": b, "weight": w}
              for (a, b), w in edge_w.items() if a in keep and b in keep]
 
-    json.dump({"nodes": nodes, "edges": edges}, open(OUT, "w", encoding="utf-8"),
-              ensure_ascii=False, separators=(",", ":"))
-    print(f"network: {len(nodes)} nodes, {len(edges)} edges → {OUT} "
+    # ── Organized-crime intelligence: Louvain communities (gangs) + weighted-degree
+    #    centrality (kingpin per gang) + betweenness (bridge offenders across gangs) ──
+    import networkx as nx
+    from networkx.algorithms.community import louvain_communities
+
+    G = nx.Graph()
+    G.add_nodes_from(n["id"] for n in nodes)
+    for e in edges:
+        G.add_edge(e["source"], e["target"], weight=e["weight"])
+
+    comms = louvain_communities(G, weight="weight", seed=7) if G.number_of_edges() else [{n["id"]} for n in nodes]
+    comm_of = {m: ci for ci, ms in enumerate(comms) for m in ms}
+    deg = dict(G.degree(weight="weight"))
+    maxdeg = max(deg.values(), default=1) or 1
+    btw = nx.betweenness_centrality(G, weight="weight") if G.number_of_edges() else {}
+    node_by_id = {n["id"]: n for n in nodes}
+
+    for n in nodes:
+        i = n["id"]
+        n["community"] = comm_of.get(i, -1)
+        n["centrality"] = round(deg.get(i, 0) / maxdeg, 3)
+        n["bridge"] = round(btw.get(i, 0), 3)
+        n["kingpin"] = False
+
+    communities = []
+    for ci, members in enumerate(comms):
+        members = list(members)
+        if len(members) < 3:
+            continue
+        labels = Counter(node_by_id[m]["cluster"] for m in members if node_by_id[m].get("cluster"))
+        label = labels.most_common(1)[0][0] if labels else f"Ring {ci + 1}"
+        kp = max(members, key=lambda m: deg.get(m, 0))
+        node_by_id[kp]["kingpin"] = True
+        communities.append({"id": ci, "label": label, "size": len(members),
+                            "kingpinId": kp, "kingpin": node_by_id[kp]["name"]})
+    communities.sort(key=lambda c: -c["size"])
+
+    json.dump({"nodes": nodes, "edges": edges, "communities": communities},
+              open(OUT, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
+    print(f"network: {len(nodes)} nodes, {len(edges)} edges, {len(communities)} rings → {OUT} "
           f"({os.path.getsize(OUT)/1024:.0f} KB)")
-    if edges:
-        top_edge = max(edges, key=lambda e: e["weight"])
-        print(f"strongest link: offenders {top_edge['source']}↔{top_edge['target']} "
-              f"share {top_edge['weight']} cases")
+    for c in communities[:5]:
+        print(f"  ring '{c['label'][:28]}' — {c['size']} members · kingpin {c['kingpin']}")
 
 
 if __name__ == "__main__":

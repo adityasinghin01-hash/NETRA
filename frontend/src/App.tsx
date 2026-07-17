@@ -6,6 +6,8 @@ import Linkage from "@/pages/Linkage";
 import Analytics from "@/pages/Analytics";
 import Cases from "@/pages/Cases";
 import Briefing from "@/pages/Briefing";
+import DocumentCenter from "@/pages/DocumentCenter";
+import AlertCenter from "@/pages/AlertCenter";
 
 export default function App() {
   return (
@@ -18,6 +20,8 @@ export default function App() {
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/cases" element={<Cases />} />
           <Route path="/briefing" element={<Briefing />} />
+          <Route path="/documents" element={<DocumentCenter />} />
+          <Route path="/alerts" element={<AlertCenter />} />
         </Route>
         <Route path="*" element={<Navigate to="/map" replace />} />
       </Routes>

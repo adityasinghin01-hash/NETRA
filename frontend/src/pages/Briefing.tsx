@@ -19,12 +19,17 @@ export default function Briefing() {
   const [err, setErr] = useState<string | null>(null);
   const [district, setDistrict] = useState<string>(getSession().district ?? "Bengaluru Urban");
   const [lang, setLang] = useState<"en" | "kn">("en");
+  const [forecast, setForecast] = useState<{ hotspots: { district: string; crimeType: string; riskLevel: string; patrolWindow: string }[] } | null>(null);
+  const [cold, setCold] = useState<{ districts: Record<string, { crimeNo: string; type: string; risk: number }[]> } | null>(null);
+  const [speaking, setSpeaking] = useState(false);
 
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}briefings.json`)
       .then((r) => r.json())
       .then(setAll)
       .catch(() => setErr("Could not load briefings"));
+    fetch(`${import.meta.env.BASE_URL}forecast.json`).then((r) => r.json()).then(setForecast).catch(() => {});
+    fetch(`${import.meta.env.BASE_URL}cold-cases.json`).then((r) => r.json()).then(setCold).catch(() => {});
   }, []);
 
   const districtNames = useMemo(
@@ -32,6 +37,20 @@ export default function Briefing() {
     [all]
   );
   const brief = all?.[district];
+  const patrol = forecast?.hotspots.find((h) => h.district === district) ?? null;
+  const coldRows = cold?.districts?.[district] ?? [];
+
+  function speak() {
+    if (speaking) { window.speechSynthesis?.cancel(); setSpeaking(false); return; }
+    const text = lang === "en" ? brief?.en : brief?.kn;
+    if (!text || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang === "en" ? "en-IN" : "kn-IN";
+    u.onend = () => setSpeaking(false);
+    setSpeaking(true);
+    window.speechSynthesis.speak(u);
+  }
 
   function downloadPdf() {
     if (!brief) return;
@@ -138,13 +157,21 @@ export default function Briefing() {
         {brief && (
           <Card className="mx-auto max-w-2xl p-8">
             <div className="mb-4 flex items-center justify-between">
-              <div className="text-sm font-semibold">Morning Brief — {brief.district}</div>
-              <button
-                onClick={downloadPdf}
-                className="rounded-lg border border-[var(--color-border-strong)] px-3 py-1 text-xs text-[var(--color-text-dim)] hover:text-[var(--color-accent)]"
-              >
-                Download PDF
-              </button>
+              <div className="text-sm font-semibold">Intelligence Digest — {brief.district}</div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={speak}
+                  className="rounded-lg border border-[var(--color-border-strong)] px-3 py-1 text-xs text-[var(--color-text-dim)] hover:text-[var(--color-accent)]"
+                >
+                  {speaking ? "⏹ Stop" : "🔊 Listen"}
+                </button>
+                <button
+                  onClick={downloadPdf}
+                  className="rounded-lg border border-[var(--color-border-strong)] px-3 py-1 text-xs text-[var(--color-text-dim)] hover:text-[var(--color-accent)]"
+                >
+                  Download PDF
+                </button>
+              </div>
             </div>
             <div className="mb-4 grid grid-cols-3 gap-3">
               <div className="rounded-lg bg-[var(--color-bg)] p-3">
@@ -163,8 +190,33 @@ export default function Briefing() {
               </div>
             </div>
             <p className="text-sm leading-relaxed text-[var(--color-text-dim)]">{lang === "en" ? brief.en : brief.kn}</p>
+
+            {/* Command sheet — the digest pulls today's operational items from across NETRA */}
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+                <div className="mb-1.5 text-xs font-semibold text-[var(--color-text)]">🚓 Today's patrol focus</div>
+                {patrol ? (
+                  <div className="text-xs text-[var(--color-text-dim)]">{patrol.crimeType} · {patrol.riskLevel} risk · patrol window {patrol.patrolWindow}</div>
+                ) : (
+                  <div className="text-xs text-[var(--color-text-mute)]">No elevated hotspot flagged today.</div>
+                )}
+              </div>
+              <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+                <div className="mb-1.5 text-xs font-semibold text-[var(--color-text)]">⏳ Cases needing attention</div>
+                {coldRows.length ? (
+                  <ul className="space-y-0.5 text-[11px] text-[var(--color-text-dim)]">
+                    {coldRows.slice(0, 3).map((c) => (
+                      <li key={c.crimeNo} className="tnum">{c.crimeNo} · {c.type} · {Math.round(c.risk * 100)}% cold-risk</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="text-xs text-[var(--color-text-mute)]">—</div>
+                )}
+              </div>
+            </div>
+
             <div className="mt-6 text-[10px] text-[var(--color-text-mute)]">
-              Auto-generated from live district analytics · English &amp; Kannada · decision support, human-in-the-loop
+              Unifies live analytics, forecast &amp; at-risk cases · English &amp; Kannada (audio) · decision support, human-in-the-loop
             </div>
           </Card>
         )}

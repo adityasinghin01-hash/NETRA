@@ -39,6 +39,32 @@ function dot(a: number[], b: number[]) {
   return s;
 }
 
+function normalize(v: number[]) {
+  let s = 0;
+  for (const x of v) s += x * x;
+  s = Math.sqrt(s) || 1;
+  for (let i = 0; i < v.length; i++) v[i] /= s;
+}
+
+// Embed a piece of text into the shared vector space (English or Kannada).
+export async function embedText(text: string): Promise<number[]> {
+  const extractor = await getExtractor();
+  const out = await extractor(text, { pooling: "mean", normalize: true });
+  return Array.from(out.data) as number[];
+}
+
+// The learning FLYWHEEL, for real: feeding a confirmed FIR nudges that cluster's
+// signature vector toward it (and re-normalizes), so every subsequent match to the
+// same MO scores higher. Mutates the in-memory cluster vector — the more confirmed
+// examples NETRA sees, the sharper the signature. (Client-side demo; no persistence.)
+export async function reinforceCluster(clusterId: string, q: number[], alpha = 0.4) {
+  const data = await getClusters();
+  const c = data.clusters.find((x) => x.clusterId === clusterId);
+  if (!c) return;
+  for (let i = 0; i < c.vector.length; i++) c.vector[i] += alpha * q[i];
+  normalize(c.vector);
+}
+
 export async function embedMatch(text: string): Promise<MatchResult> {
   const [extractor, data] = await Promise.all([getExtractor(), getClusters()]);
   const out = await extractor(text, { pooling: "mean", normalize: true });

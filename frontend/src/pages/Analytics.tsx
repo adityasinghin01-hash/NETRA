@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine,
 } from "recharts";
 import ForceGraph2D from "react-force-graph-2d";
 import { useApi, Card, PageHeader, State } from "@/components/ui";
@@ -11,8 +11,12 @@ interface Outcome {
   chargesheeted: number; false: number; undetected: number; undetectedPct: number;
 }
 interface TrendSeries { districtId: number; name: string; points: { month: string; count: number }[] }
-interface NetNode { id: number; name: string; cases: number; cluster?: string | null }
-interface NetEdge { source: number; target: number; weight: number }
+interface Fc { future: string[]; mean: number[]; lo: number[]; hi: number[]; sigma: number; bridge: { month: string; count: number } }
+interface TrendForecast { horizon: number; state: Fc; districts: Record<string, Fc> }
+interface NetNode { id: number; name: string; cases: number; cluster?: string | null; community?: number; centrality?: number; kingpin?: boolean; bridge?: number }
+interface NetEdge { source: number; target: number; weight: number; predicted?: boolean }
+interface Ring { id: number; label: string; size: number; kingpinId: number; kingpin: string }
+interface Pred { source: number; target: number; score: number; community: number; via: string[]; sourceName: string; targetName: string; reason: string }
 interface DistrictStat {
   total: number; heinous: number; counts: number[];
   outcome: { chargesheeted: number; false: number; undetected: number; undetectedPct: number; detectionPct: number };
@@ -46,44 +50,143 @@ const OUTCOME_LEGEND = (
   </div>
 );
 
+const CLOCK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+function clockColor(t: number) {
+  const stops = [[13, 20, 40], [30, 100, 150], [56, 178, 178], [246, 180, 64], [206, 32, 52]];
+  const p = t * (stops.length - 1); const i = Math.floor(p); const f = p - i;
+  const a = stops[i]; const b = stops[Math.min(i + 1, stops.length - 1)];
+  return `rgb(${a.map((x, k) => Math.round(x + (b[k] - x) * f)).join(",")})`;
+}
+function CrimeClock({ matrix }: { matrix: number[][] }) {
+  const max = Math.max(1, ...matrix.flat());
+  return (
+    <div className="overflow-x-auto">
+      <div className="flex pl-9 text-[9px] text-[var(--color-text-mute)]">
+        {[0, 4, 8, 12, 16, 20].map((h) => (
+          <span key={h} style={{ width: 4 * 13 }}>{String(h).padStart(2, "0")}</span>
+        ))}
+      </div>
+      {CLOCK_DAYS.map((d, wd) => (
+        <div key={d} className="flex items-center gap-0.5 py-px">
+          <span className="w-8 text-[10px] text-[var(--color-text-dim)]">{d}</span>
+          {matrix[wd].map((v, h) => (
+            <span key={h} title={`${d} ${String(h).padStart(2, "0")}:00 — ${v} FIRs`}
+              style={{ width: 12, height: 12, background: clockColor(v / max), borderRadius: 2, display: "inline-block" }} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
 function TrendsTab({ scope, da }: { scope: string | null; da: DA | null }) {
   const state = useApi<TrendSeries[]>(scope ? null : "/stats/trends");
-  const chartData = useMemo(() => {
+  const [clock, setClock] = useState<{ state: number[][]; districts: Record<string, number[][]> } | null>(null);
+  const [fc, setFc] = useState<TrendForecast | null>(null);
+  useEffect(() => {
+    fetch(`${import.meta.env.BASE_URL}crime-clock.json`).then((r) => r.json()).then(setClock).catch(() => {});
+    fetch(`${import.meta.env.BASE_URL}trend-forecast.json`).then((r) => r.json()).then(setFc).catch(() => {});
+  }, []);
+  const clockMatrix = scope ? clock?.districts[scope] : clock?.state;
+  const seriesNames = scope ? [scope] : (state.data ?? []).map((s) => s.name);
+
+  // History rows + a forecast continuation (dashed line + confidence band for the scoped view).
+  const { chartData, firstFcMonth } = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let rows: Record<string, any>[] = [];
     if (scope && da?.districts[scope]) {
       const s = da.districts[scope];
-      return da.months.map((m, i) => ({ month: m, [scope]: s.counts[i] ?? 0 }));
+      rows = da.months.map((m, i) => ({ month: m, [scope]: s.counts[i] ?? 0 }));
+    } else {
+      const series = state.data ?? [];
+      if (series.length)
+        rows = series[0].points.map((p, i) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const row: Record<string, any> = { month: p.month };
+          series.forEach((s) => (row[s.name] = s.points[i]?.count ?? 0));
+          return row;
+        });
     }
-    const series = state.data ?? [];
-    if (!series.length) return [];
-    return series[0].points.map((p, i) => {
-      const row: Record<string, string | number> = { month: p.month };
-      series.forEach((s) => (row[s.name] = s.points[i]?.count ?? 0));
-      return row;
-    });
-  }, [scope, da, state.data]);
-  const seriesNames = scope ? [scope] : (state.data ?? []).map((s) => s.name);
+    if (!rows.length || !fc) return { chartData: rows, firstFcMonth: null as string | null };
+
+    // Bridge: connect the dashed forecast to the last real point.
+    const last = rows[rows.length - 1];
+    for (const name of seriesNames) {
+      const f = scope ? fc.districts[name] ?? fc.state : fc.districts[name];
+      if (!f) continue;
+      last[`${name}__fc`] = last[name];
+      if (scope) last[`${name}__band`] = [last[name], last[name]];
+    }
+    const futMonths = fc.state.future;
+    for (let j = 0; j < futMonths.length; j++) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const row: Record<string, any> = { month: futMonths[j] };
+      for (const name of seriesNames) {
+        const f = scope ? fc.districts[name] ?? fc.state : fc.districts[name];
+        if (!f) continue;
+        row[`${name}__fc`] = f.mean[j];
+        if (scope) row[`${name}__band`] = [f.lo[j], f.hi[j]];
+      }
+      rows.push(row);
+    }
+    return { chartData: rows, firstFcMonth: futMonths[0] };
+  }, [scope, da, state.data, fc, seriesNames]);
+
   const loading = scope ? !da : state.loading;
 
   return (
     <State loading={loading} error={state.error} empty={!chartData.length}>
+      <div className="space-y-4">
       <Card className="p-4">
-        <div className="mb-3 text-sm font-medium">Monthly FIRs — {scope ?? "top districts"}</div>
+        <div className="mb-1 flex items-center justify-between">
+          <div className="text-sm font-medium">Monthly FIRs — {scope ?? "top districts"}</div>
+          {firstFcMonth && (
+            <span className="flex items-center gap-1.5 text-[11px] text-[var(--color-text-mute)]">
+              <span className="inline-block h-0 w-4 border-t-2 border-dashed border-[var(--color-accent)]" /> forecast (±80%)
+            </span>
+          )}
+        </div>
         <div style={{ height: 340 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 4, left: -12 }}>
+            <ComposedChart data={chartData} margin={{ top: 8, right: 16, bottom: 4, left: -12 }}>
               <CartesianGrid stroke="#1e293b" vertical={false} />
               <XAxis dataKey="month" tick={{ fill: "#64748b", fontSize: 11 }} minTickGap={28} />
               <YAxis tick={{ fill: "#64748b", fontSize: 11 }} />
               <Tooltip contentStyle={{ background: "#111a2e", border: "1px solid #2b3a55", borderRadius: 8, fontSize: 12 }} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
+              {firstFcMonth && (
+                <ReferenceLine x={firstFcMonth} stroke="#334155" strokeDasharray="3 3"
+                  label={{ value: "today", fill: "#64748b", fontSize: 10, position: "insideTopRight" }} />
+              )}
+              {scope && (
+                <Area type="monotone" dataKey={`${scope}__band`} legendType="none" isAnimationActive={false}
+                  stroke="none" fill={LINE_COLORS[0]} fillOpacity={0.12} connectNulls activeDot={false} />
+              )}
               {seriesNames.map((name, i) => (
                 <Line key={name} type="monotone" dataKey={name}
-                  stroke={LINE_COLORS[i % LINE_COLORS.length]} strokeWidth={2} dot={false} />
+                  stroke={LINE_COLORS[i % LINE_COLORS.length]} strokeWidth={2} dot={false} connectNulls={false} />
               ))}
-            </LineChart>
+              {seriesNames.map((name, i) => (
+                <Line key={name + "__fc"} type="monotone" dataKey={`${name}__fc`} legendType="none"
+                  stroke={LINE_COLORS[i % LINE_COLORS.length]} strokeWidth={2} strokeDasharray="5 4"
+                  dot={false} connectNulls activeDot={{ r: 3 }} />
+              ))}
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
+        {firstFcMonth && (
+          <div className="mt-2 text-[11px] text-[var(--color-text-mute)]">
+            Dashed = projected next {fc?.horizon} months (linear trend + monthly seasonal index); shaded band = ~80% interval. Predictive, not just retrospective.
+          </div>
+        )}
       </Card>
+      {clockMatrix && (
+        <Card className="p-4">
+          <div className="text-sm font-medium">Crime Clock — when crime happens {scope ? `· ${scope}` : "· state-wide"}</div>
+          <div className="mb-3 text-xs text-[var(--color-text-dim)]">Darker = more crime. Reveals the exact hours to deploy patrols.</div>
+          <CrimeClock matrix={clockMatrix} />
+        </Card>
+      )}
+      </div>
     </State>
   );
 }
@@ -111,10 +214,42 @@ function RiskPanel({ risk }: { risk: RiskData | null }) {
   );
 }
 
+interface ColdCase { crimeNo: string; district: string; type: string; registered: string; daysOpen: number; risk: number; reason: string }
+function ColdCaseWorklist({ rows }: { rows: ColdCase[] }) {
+  if (!rows?.length) return null;
+  return (
+    <Card className="mb-4 p-4">
+      <div className="mb-1 flex items-center justify-between">
+        <div className="text-sm font-medium">⏳ Cases at risk of going cold</div>
+        <span className="text-xs text-[var(--color-text-mute)]">predicted to go undetected · intervene now</span>
+      </div>
+      <div className="mb-3 text-xs text-[var(--color-text-dim)]">A ranked worklist of open cases the model flags as most likely to end undetected — prescriptive, not just a statistic.</div>
+      <ul className="space-y-1.5">
+        {rows.slice(0, 8).map((c) => (
+          <li key={c.crimeNo} className="flex items-center gap-3 rounded-lg bg-[var(--color-bg)] p-2 text-xs">
+            <span className="tnum w-40 shrink-0 text-[var(--color-text-dim)]">{c.crimeNo}</span>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[var(--color-text)]">{c.type} · {c.district}</div>
+              <div className="text-[10px] text-[var(--color-text-mute)]">{c.reason}</div>
+            </div>
+            <div className="w-16 shrink-0">
+              <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-2)]"><div className="h-full bg-[var(--color-danger)]" style={{ width: `${Math.round(c.risk * 100)}%` }} /></div>
+              <div className="tnum mt-0.5 text-right text-[10px] text-[var(--color-danger)]">{Math.round(c.risk * 100)}%</div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
 function OutcomesTab({ scope, da, risk }: { scope: string | null; da: DA | null; risk: RiskData | null }) {
   const state = useApi<Outcome[]>(scope ? null : "/stats/outcomes");
   const rows = (state.data ?? []).slice().sort((a, b) => b.undetectedPct - a.undetectedPct);
   const riskByName = useMemo(() => new Map((risk?.districts ?? []).map((d) => [d.district, d.riskScore])), [risk]);
+  const [coldData, setColdData] = useState<{ state: ColdCase[]; districts: Record<string, ColdCase[]> } | null>(null);
+  useEffect(() => { fetch(`${import.meta.env.BASE_URL}cold-cases.json`).then((r) => r.json()).then(setColdData).catch(() => {}); }, []);
+  const cold = scope ? (coldData?.districts[scope] ?? []) : (coldData?.state ?? []);
 
   // scoped: single district
   if (scope) {
@@ -124,6 +259,7 @@ function OutcomesTab({ scope, da, risk }: { scope: string | null; da: DA | null;
       <State loading={!da} error={null} empty={!s}>
         {s && (
           <>
+            <ColdCaseWorklist rows={cold} />
             <RiskPanel risk={risk} />
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <Card className="p-4">
@@ -169,6 +305,7 @@ function OutcomesTab({ scope, da, risk }: { scope: string | null; da: DA | null;
   // HQ: state table
   return (
     <State loading={state.loading} error={state.error} empty={!rows.length}>
+      <ColdCaseWorklist rows={cold} />
       <RiskPanel risk={risk} />
       {OUTCOME_LEGEND}
       <Card className="p-4">
@@ -202,14 +339,25 @@ function OutcomesTab({ scope, da, risk }: { scope: string | null; da: DA | null;
   );
 }
 
-function NetworkTab({ scope }: { scope: string | null }) {
+const RING_COLORS = ["#22d3ee", "#f59e0b", "#ec4899", "#a3e635", "#a855f7", "#38bdf8", "#fb7185", "#2dd4bf"];
+
+function NetworkTab() {
   const ref = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fg = useRef<any>(null);
   const [w, setW] = useState(700);
   const [net, setNet] = useState<{ nodes: NetNode[]; links: NetEdge[] } | null>(null);
+  const [rings, setRings] = useState<Ring[]>([]);
+  const [preds, setPreds] = useState<Pred[]>([]);
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}network-graph.json`).then((r) => r.json()).then((d) => setNet({ nodes: d.nodes, links: d.edges })).catch(() => setNet(null));
+    fetch(`${import.meta.env.BASE_URL}network-graph.json`).then((r) => r.json())
+      .then((d) => {
+        const predicted: NetEdge[] = (d.predictedLinks ?? []).map((p: Pred) => ({ source: p.source, target: p.target, weight: 1, predicted: true }));
+        setNet({ nodes: d.nodes, links: [...d.edges, ...predicted] });
+        setRings(d.communities ?? []);
+        setPreds(d.predictedLinks ?? []);
+      })
+      .catch(() => setNet(null));
   }, []);
   useEffect(() => {
     if (!ref.current) return;
@@ -217,34 +365,84 @@ function NetworkTab({ scope }: { scope: string | null }) {
     ro.observe(ref.current);
     return () => ro.disconnect();
   }, []);
+  const colorOf = useMemo(() => {
+    const m = new Map<number, string>();
+    rings.forEach((r, i) => m.set(r.id, RING_COLORS[i % RING_COLORS.length]));
+    return m;
+  }, [rings]);
+  const kingpinIds = useMemo(() => new Set(rings.map((r) => r.kingpinId)), [rings]);
+
   return (
-    <Card className="p-4">
-      <div className="mb-1 text-sm font-medium">Offender network {scope && <span className="text-xs font-normal text-[var(--color-text-mute)]">· state-wide (serial offenders cross district borders)</span>}</div>
-      <div className="mb-3 text-xs text-[var(--color-text-dim)]">
-        Node size = cases · <span className="text-[var(--color-accent)]">cyan</span> = serial-cluster offender · links = co-offending
-      </div>
-      <div ref={ref} className="overflow-hidden rounded-lg bg-[var(--color-bg)]" style={{ height: 380 }}>
-        {net && (
-          <ForceGraph2D
-            ref={fg} graphData={net} width={w} height={380} backgroundColor="#0b1220" nodeRelSize={4}
-            nodeVal={(n) => Math.max(1.5, (n as NetNode).cases / 5)}
-            nodeColor={(n) => ((n as NetNode).cluster ? "#22d3ee" : "#64748b")}
-            nodeLabel={(n) => { const x = n as NetNode; return `${x.name} — ${x.cases} cases${x.cluster ? " · " + x.cluster : ""}`; }}
-            nodeCanvasObjectMode={() => "after"}
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            nodeCanvasObject={(node: any, ctx, scale) => {
-              if (!node.cluster) return;
-              const label = String(node.name).split(" ")[0]; const fs = 11 / scale;
-              ctx.font = `${fs}px Inter, sans-serif`; ctx.fillStyle = "#e2e8f0"; ctx.textAlign = "center";
-              ctx.fillText(label, node.x, node.y - 9 / scale);
-            }}
-            linkColor={(l) => ((l as NetEdge).weight > 3 ? "rgba(34,211,238,0.55)" : "rgba(148,163,184,0.3)")}
-            linkWidth={(l) => Math.max(1, Math.min(5, (l as NetEdge).weight / 1.5))}
-            cooldownTicks={100} onEngineStop={() => fg.current?.zoomToFit(400, 40)}
-          />
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <Card className="p-4 lg:col-span-2">
+        <div className="mb-1 text-sm font-medium">Organized-crime network</div>
+        <div className="mb-3 text-xs text-[var(--color-text-dim)]">
+          Colour = detected ring · size = influence (centrality) · ◎ ringed = kingpin · solid = co-offending · <span className="text-[var(--color-warn)]">dashed amber = predicted (emerging) tie</span>
+        </div>
+        <div ref={ref} className="overflow-hidden rounded-lg bg-[var(--color-bg)]" style={{ height: 380 }}>
+          {net && (
+            <ForceGraph2D
+              ref={fg} graphData={net} width={w} height={380} backgroundColor="#0b1220" nodeRelSize={4}
+              nodeVal={(n) => { const x = n as NetNode; return Math.max(1.2, (x.centrality ?? 0) * 14 + (x.kingpin ? 6 : 1.2)); }}
+              nodeColor={(n) => colorOf.get((n as NetNode).community ?? -1) ?? "#475569"}
+              nodeLabel={(n) => { const x = n as NetNode; return `${x.name} — ${x.cases} cases${x.kingpin ? " · KINGPIN" : ""}${x.cluster ? " · " + x.cluster : ""}`; }}
+              nodeCanvasObjectMode={() => "after"}
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              nodeCanvasObject={(node: any, ctx, scale) => {
+                if (!kingpinIds.has(node.id)) return;
+                ctx.beginPath(); ctx.arc(node.x, node.y, 8, 0, 2 * Math.PI);
+                ctx.strokeStyle = "#fde68a"; ctx.lineWidth = 1.6 / scale; ctx.stroke();
+                const label = String(node.name).split(" ")[0]; const fs = 11 / scale;
+                ctx.font = `700 ${fs}px Inter, sans-serif`; ctx.fillStyle = "#fde68a"; ctx.textAlign = "center";
+                ctx.fillText(label, node.x, node.y - 11 / scale);
+              }}
+              linkColor={(l) => ((l as NetEdge).predicted ? "rgba(245,158,11,0.75)" : (l as NetEdge).weight > 3 ? "rgba(34,211,238,0.5)" : "rgba(148,163,184,0.25)")}
+              linkWidth={(l) => ((l as NetEdge).predicted ? 1.4 : Math.max(1, Math.min(5, (l as NetEdge).weight / 1.5)))}
+              linkLineDash={(l) => ((l as NetEdge).predicted ? [4, 3] : null)}
+              cooldownTicks={100} onEngineStop={() => fg.current?.zoomToFit(400, 40)}
+            />
+          )}
+        </div>
+      </Card>
+      <Card className="p-4">
+        <div className="text-sm font-medium">Detected rings</div>
+        <div className="mb-3 text-xs text-[var(--color-text-dim)]">{rings.length} organized rings · Louvain communities + centrality</div>
+        <ul className="space-y-2">
+          {rings.map((r, i) => (
+            <li key={r.id} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-2.5">
+              <div className="flex items-center gap-2">
+                <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: RING_COLORS[i % RING_COLORS.length] }} />
+                <span className="truncate text-sm font-medium text-[var(--color-text)]">{r.label}</span>
+                <span className="ml-auto shrink-0 text-xs text-[var(--color-text-mute)]">{r.size} members</span>
+              </div>
+              <div className="mt-1 text-xs text-[var(--color-text-dim)]">👑 Kingpin: <span className="font-medium text-[var(--color-text)]">{r.kingpin}</span></div>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-3 text-[10px] leading-relaxed text-[var(--color-text-mute)]">
+          Remove the kingpin and the ring fragments — target the coordinator, not just foot-soldiers.
+        </div>
+
+        {preds.length > 0 && (
+          <div className="mt-4 border-t border-[var(--color-border)] pt-3">
+            <div className="flex items-center gap-1.5 text-sm font-medium text-[var(--color-text)]">
+              <span className="text-[var(--color-warn)]">⚡</span> Emerging ties <span className="text-xs font-normal text-[var(--color-text-mute)]">(predicted)</span>
+            </div>
+            <div className="mb-2 mt-0.5 text-[11px] text-[var(--color-text-dim)]">Graph-ML (Adamic-Adar) — co-offending links likely to form, not yet in any FIR.</div>
+            <ul className="space-y-1.5">
+              {preds.slice(0, 5).map((p) => (
+                <li key={`${p.source}-${p.target}`} className="rounded-lg border border-[var(--color-warn)]/30 bg-[var(--color-warn)]/[0.05] p-2">
+                  <div className="text-xs text-[var(--color-text)]">
+                    {p.sourceName} <span className="text-[var(--color-warn)]">⇢</span> {p.targetName}
+                  </div>
+                  <div className="mt-0.5 text-[10px] text-[var(--color-text-mute)]">via {p.via.join(", ")} · same ring · score {p.score}</div>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
-      </div>
-    </Card>
+      </Card>
+    </div>
   );
 }
 
@@ -270,7 +468,7 @@ export default function Analytics() {
       </div>
       {tab === "Trends" && <TrendsTab scope={scope} da={da} />}
       {tab === "Outcomes" && <OutcomesTab scope={scope} da={da} risk={risk} />}
-      {tab === "Network" && <NetworkTab scope={scope} />}
+      {tab === "Network" && <NetworkTab />}
     </div>
   );
 }

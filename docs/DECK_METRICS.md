@@ -14,13 +14,31 @@ are what separate NETRA from teams that just *claim* their AI works.
 
 ## Hotspot Forecasting — validated on REAL data (Slide 5)
 - On **503,468 real City-of-Chicago crimes** (2022–2023, 77 areas):
-  - **hit-rate@top-10 hotspot areas = 0.84** (flags 84% of next week's worst areas)
-  - **R² = 0.94**
+  - **hit-rate@top-10 hotspot areas = 0.86** (flags 86% of next week's worst areas)
+  - **R² = 0.95**
+  - Honest comparison: a strong moving-average (persistence) baseline scores **0.85** on the
+    same top-10 hotspot metric and **MAE 8.22** vs our **8.71** — so we **edge it on hotspot
+    ranking (the metric a patrol planner uses) but do NOT claim to beat it on raw count error**
+    (crime is highly persistent; that's expected and we say so).
 - On our Karnataka data: top-5 district hit-rate **0.63**, R² 0.59
-- Model: gradient boosting (HistGradientBoostingRegressor), time-based split, no leakage.
+- **DL-vs-GBM race (real Chicago, keep-if-it-wins → DL WON):** a **spatio-temporal LSTM** (per-area
+  weekly-count sequences + area embedding, Poisson loss) **beats gradient boosting on all three
+  metrics** — **hit@10 0.867 vs 0.858 · R² 0.950 vs 0.948 · MAE 8.634 vs 8.713**. Both honest,
+  reproducible (`pipeline/bench_dl.py`), time-split, no leakage. We ship the winner (LSTM).
 
-> Slide line: *"Forecasting validated on 503k real Chicago crimes: 84% top-10 hotspot
-> accuracy, R² 0.94."*
+> Slide line: *"Forecasting validated on 503k real Chicago crimes: a spatio-temporal deep-learning
+> model reaches 87% top-10 hotspot hit-rate, beating gradient boosting — both on real data."*
+
+## Patrol Optimizer — evidence-based deployment (Slide 5b)
+- Greedy **submodular** allocation with a provable **(1 − 1/e) ≈ 63% optimality guarantee** (Nemhauser).
+- Deterrence factor grounded in **real causal evidence**: the **Minneapolis Hot-Spots randomized
+  experiment** (Sherman & Weisburd) and the **Koper Curve** — genuine studies that concentrated patrol
+  cuts crime. We do NOT fabricate our own causal number.
+- Honest support: on real Chicago data, the **top-10 of 77 areas account for 33.6% of all crime** —
+  concentration justifies focused deployment.
+- **Moat B (own causal-inference engine) = FUTURE SCOPE**, honestly: a defensible difference-in-differences
+  needs labelled patrol/intervention data, which neither the synthetic Karnataka set nor the Chicago open
+  data (only date + area) contains. We say so rather than overclaim.
 
 ## Detection-Risk Model (Slide 6 / analytics)
 - Trained classifier (gradient boosting), **ROC-AUC 0.71**

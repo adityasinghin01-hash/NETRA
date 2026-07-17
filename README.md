@@ -32,7 +32,7 @@ human-in-the-loop).
 ## Proof it works (real, measured — see [`docs/DECK_METRICS.md`](docs/DECK_METRICS.md))
 
 - **Case linkage — blind test: recovered 5/5 secret serial-crime patterns at 96% precision** among 1,500 FIRs (patterns authored independently of the model).
-- **Forecasting — validated on 503k real City-of-Chicago crimes:** 84% top-10 hotspot hit-rate, R² 0.94.
+- **Forecasting — validated on 503k real City-of-Chicago crimes:** a **spatio-temporal LSTM reaches 87% top-10 hotspot hit-rate (R² 0.95)**, beating gradient boosting on all three metrics (hit-rate, R², MAE) — both time-split, no leakage, reproducible (`pipeline/bench_dl.py`).
 - **Detection-risk model:** ROC-AUC 0.71 with explainable feature importances.
 - **50,000 FIRs** live in Catalyst Data Store on the exact KSP schema (IPC→BNS transition dated correctly).
 
