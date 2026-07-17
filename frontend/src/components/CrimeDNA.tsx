@@ -6,7 +6,16 @@ import { useState } from "react";
 import { Badge } from "@/components/ui";
 
 interface DnaSig { dim: string; icon: string; value: string }
-interface DnaMember { caseNo: string; district: string; date: string; facts: string; language: string; solved?: boolean }
+export interface DnaForensic {
+  weapon: string; tools: string[]; evidenceRecovered: string[]; fingerprint: string;
+  seizure: { memoNo: string; panchnama: string; seizingOfficer: string; malkhana: string; custody: string };
+  fsl: { ref: string; status: string } | null;
+}
+export interface DnaAccused { name: string; priorCases?: number; historySheeter?: boolean }
+export interface DnaMember {
+  caseNo: string; district: string; date: string; facts: string; language: string; solved?: boolean;
+  accused?: DnaAccused | null; forensic?: DnaForensic;
+}
 export interface CrimeDna {
   clusterId: string;
   label: string;

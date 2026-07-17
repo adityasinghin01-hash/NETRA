@@ -1,8 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useApi, Card, PageHeader, State, Badge } from "@/components/ui";
-import { searchCases, type CaseRow } from "@/api/client";
+import { searchCases, type CaseRow, type Forensic } from "@/api/client";
 import { getSession } from "@/lib/auth";
-import { type CrimeDna } from "@/components/CrimeDNA";
+import { type CrimeDna, type DnaMember } from "@/components/CrimeDNA";
+import { embedText, preloadEmbedder } from "@/lib/embedMatch";
+
+interface CaseVec { crimeNo: string; district: string; date: string; crimeSubHead: string; clusterLabel: string; solved: boolean; facts: string; language: string; vector: number[] }
+function cosine(a: number[], b: number[]) { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; }
+function rowFromMember(m: DnaMember, crimeType: string): CaseRow {
+  return {
+    crimeNo: m.caseNo, crimeSubHead: crimeType, districtName: m.district, registeredDate: m.date,
+    status: m.solved ? "Charge Sheeted" : "Under Investigation", gravity: "Non-Heinous",
+    briefFacts: m.facts, language: m.language ?? "en",
+    accused: m.accused ? [{ name: m.accused.name, priorCases: m.accused.priorCases, historySheeter: m.accused.historySheeter }] : [],
+    forensic: m.forensic ?? null,
+  };
+}
 
 const CRIME_TYPES = [
   "Theft (Ordinary)", "House-Breaking & Burglary", "Motor Vehicle Theft", "Robbery",
@@ -67,6 +80,75 @@ function CaseTimeline({ status }: { status: string }) {
   );
 }
 
+// Full case dossier — parties (complainant + accused w/ prior record) and the
+// forensic / physical-evidence catalogue. Ethics: name/age/gender only, never
+// caste/religion/occupation.
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex gap-2 text-xs">
+      <span className="w-28 shrink-0 text-[var(--color-text-mute)]">{label}</span>
+      <span className="min-w-0 flex-1 text-[var(--color-text-dim)]">{children}</span>
+    </div>
+  );
+}
+function Dossier({ c }: { c: CaseRow }) {
+  const f: Forensic | null | undefined = c.forensic;
+  const hasParties = c.complainant || (c.accused && c.accused.length > 0);
+  if (!hasParties && !f) return null;
+  return (
+    <div className="mt-3 space-y-3">
+      {hasParties && (
+        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+          <div className="mb-2 text-xs font-semibold text-[var(--color-text)]">👥 Parties</div>
+          {c.complainant && (
+            <Field label="Complainant">
+              {c.complainant.name}{c.complainant.age ? ` · ${c.complainant.age}y` : ""}{c.complainant.gender ? ` · ${c.complainant.gender}` : ""}
+            </Field>
+          )}
+          {c.accused && c.accused.length > 0 && (
+            <div className="mt-1.5">
+              <div className="mb-1 text-[10px] uppercase tracking-wide text-[var(--color-text-mute)]">Accused ({c.accused.length})</div>
+              <ul className="space-y-1">
+                {c.accused.map((a, i) => (
+                  <li key={i} className="flex items-center gap-2 text-xs text-[var(--color-text-dim)]">
+                    <span className="text-[var(--color-text)]">{a.name}</span>
+                    {a.age ? <span className="text-[var(--color-text-mute)]">{a.age}y{a.gender ? ` · ${a.gender}` : ""}</span> : null}
+                    {a.historySheeter ? (
+                      <Badge tone="danger">history-sheeter · {a.priorCases}+ priors</Badge>
+                    ) : a.priorCases ? (
+                      <span className="text-[10px] text-[var(--color-warn)]">{a.priorCases} prior case{a.priorCases === 1 ? "" : "s"}</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+      {f && (
+        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+          <div className="mb-2 text-xs font-semibold text-[var(--color-text)]">🔬 Forensic &amp; physical evidence</div>
+          <div className="space-y-1.5">
+            <Field label="Weapon / tools">{f.weapon}{f.tools.length ? ` · ${f.tools.join(", ")}` : ""}</Field>
+            <Field label="Evidence">
+              <span className="flex flex-wrap gap-1">
+                {f.evidenceRecovered.map((e) => (
+                  <span key={e} className="rounded bg-[var(--color-surface-2)] px-1.5 py-0.5 text-[10px]">{e}</span>
+                ))}
+              </span>
+            </Field>
+            <Field label="Fingerprint / NAFIS">{f.fingerprint}</Field>
+            <Field label="Seizure">{f.seizure.memoNo} · {f.seizure.malkhana}</Field>
+            <Field label="Custody">{f.seizure.custody} · {f.seizure.panchnama}</Field>
+            {f.fsl && <Field label="FSL reference">{f.fsl.ref} — {f.fsl.status}</Field>}
+          </div>
+          <div className="mt-2 text-[10px] text-[var(--color-text-mute)]">Synthetic prototype evidence — realistic shape, not real. FSL owns forensic conclusions.</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Select({ value, onChange, options, placeholder }: {
   value: string; onChange: (v: string) => void; options: string[]; placeholder: string;
 }) {
@@ -108,6 +190,42 @@ export default function Cases() {
     if (dnaMap) for (const c of Object.values(dnaMap)) for (const mem of c.members) m[mem.caseNo] = c;
     return m;
   }, [dnaMap]);
+  // crimeNo → the member record (carries accused/forensic) + its cluster crimeType
+  const memberByCase = useMemo(() => {
+    const m: Record<string, { mem: DnaMember; crimeType: string }> = {};
+    if (dnaMap) for (const c of Object.values(dnaMap)) for (const mem of c.members) m[mem.caseNo] = { mem, crimeType: c.crimeType };
+    return m;
+  }, [dnaMap]);
+
+  // Semantic MO search — describe a crime in plain words, get the closest FIRs by meaning.
+  const [caseVecs, setCaseVecs] = useState<CaseVec[] | null>(null);
+  const [semQ, setSemQ] = useState("");
+  const [semRes, setSemRes] = useState<{ crimeNo: string; score: number; district: string; date: string; crimeSubHead: string; clusterLabel: string; facts: string }[] | null>(null);
+  const [semLoading, setSemLoading] = useState(false);
+  useEffect(() => {
+    fetch(`${import.meta.env.BASE_URL}case-embeddings.json`).then((r) => r.json()).then((d) => setCaseVecs(d.cases)).catch(() => {});
+    preloadEmbedder();
+  }, []);
+  async function semanticSearch() {
+    if (semQ.trim().length < 4 || !caseVecs) return;
+    setSemLoading(true);
+    try {
+      const q = await embedText(semQ);
+      const ranked = caseVecs
+        .map((c) => ({ crimeNo: c.crimeNo, district: c.district, date: c.date, crimeSubHead: c.crimeSubHead, clusterLabel: c.clusterLabel, facts: c.facts, score: Math.max(0, Math.round(cosine(q, c.vector) * 100)) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 6);
+      setSemRes(ranked);
+    } catch {
+      setSemRes([]);
+    } finally {
+      setSemLoading(false);
+    }
+  }
+  function openCrimeNo(crimeNo: string) {
+    const hit = memberByCase[crimeNo];
+    if (hit) setSelected(rowFromMember(hit.mem, hit.crimeType));
+  }
 
   useEffect(() => {
     let alive = true;
@@ -158,6 +276,43 @@ export default function Cases() {
         </div>
       </Card>
 
+      <Card className="mb-4 p-3">
+        <div className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-[var(--color-text)]">
+          🧠 Smart MO search <span className="text-xs font-normal text-[var(--color-text-mute)]">— describe the crime in plain words (English or ಕನ್ನಡ)</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            value={semQ}
+            onChange={(e) => setSemQ(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") semanticSearch(); }}
+            placeholder="e.g. midnight shop break-ins where cash and phones were taken"
+            className="min-w-0 flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-sm outline-none focus:border-[var(--color-accent)]"
+          />
+          <button
+            onClick={semanticSearch}
+            disabled={semQ.trim().length < 4 || semLoading || !caseVecs}
+            className="shrink-0 rounded-lg bg-[var(--color-accent)] px-4 py-1.5 text-sm font-medium text-[var(--color-bg)] disabled:opacity-40"
+          >
+            {semLoading ? "Searching…" : "Search"}
+          </button>
+        </div>
+        {semRes && (
+          <div className="mt-3 space-y-1.5">
+            {semRes.length === 0 && <div className="text-xs text-[var(--color-text-mute)]">No semantic matches.</div>}
+            {semRes.map((r) => (
+              <button key={r.crimeNo} onClick={() => openCrimeNo(r.crimeNo)}
+                className="flex w-full items-center gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-2 text-left hover:border-[var(--color-accent-dim)]">
+                <span className="tnum w-10 shrink-0 text-right text-sm font-semibold text-[var(--color-accent)]">{r.score}%</span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-xs text-[var(--color-text)]">{r.crimeSubHead} · <span className="text-[var(--color-text-mute)]">{r.district} · {r.date}</span></div>
+                  <div className="truncate text-[11px] text-[var(--color-text-dim)]">{r.facts}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </Card>
+
       {dnaMap && (
         <div className="mb-4 flex flex-wrap items-center gap-1.5 text-xs">
           <span className="text-[var(--color-text-mute)]">🔍 Serial cases with linked intelligence:</span>
@@ -167,6 +322,8 @@ export default function Cases() {
               crimeNo: m.caseNo, crimeSubHead: c.crimeType, districtName: m.district,
               registeredDate: m.date, status: m.solved ? "Charge Sheeted" : "Under Investigation",
               gravity: "Non-Heinous", briefFacts: m.facts, language: m.language ?? "en",
+              accused: m.accused ? [{ name: m.accused.name, priorCases: m.accused.priorCases, historySheeter: m.accused.historySheeter }] : [],
+              forensic: m.forensic ?? null,
             } as CaseRow;
             return (
               <button
@@ -244,6 +401,7 @@ export default function Cases() {
               <p className="mt-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-sm leading-relaxed text-[var(--color-text-dim)]">
                 {selected.briefFacts}
               </p>
+              <Dossier c={selected} />
               {clusterByCase[selected.crimeNo] && (() => {
                 const c = clusterByCase[selected.crimeNo];
                 const ns = spatialMap?.[c.clusterId]?.nextStrike;

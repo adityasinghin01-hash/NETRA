@@ -57,6 +57,15 @@ export interface MatchResult {
   matches: ClusterMatch[];
 }
 
+export interface Party { name: string; age?: number | null; gender?: string; priorCases?: number; historySheeter?: boolean }
+export interface Forensic {
+  weapon: string;
+  tools: string[];
+  evidenceRecovered: string[];
+  fingerprint: string;
+  seizure: { memoNo: string; panchnama: string; seizingOfficer: string; malkhana: string; custody: string };
+  fsl: { ref: string; status: string } | null;
+}
 export interface CaseRow {
   crimeNo: string;
   registeredDate: string;
@@ -66,6 +75,9 @@ export interface CaseRow {
   status: string;
   language: string;
   briefFacts: string;
+  complainant?: Party | null;
+  accused?: Party[];
+  forensic?: Forensic | null;
 }
 
 // Case search over the 50k Cases table (filters + FIR-number lookup, paginated).

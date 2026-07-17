@@ -14,6 +14,8 @@ import json
 import os
 from datetime import date
 
+from pipeline.generator.forensic import forensic_for
+
 DATA = "pipeline/data"
 REF = "pipeline/reference"
 OUT = "frontend/public/crime-dna.json"
@@ -60,6 +62,34 @@ def incident_date(c):
     return raw[:10]
 
 
+def _member(m, dmap, cs_type, submap, accused_by_case, priors):
+    solved = cs_type.get(m["caseMasterId"]) == "A"
+    subhead = submap[m["crimeMinorHeadId"]]["name"]
+    gravity = submap[m["crimeMinorHeadId"]]["gravity"]
+    acc = accused_by_case.get(m["caseMasterId"])
+    accused = None
+    if acc:
+        pc = priors.get(acc.get("offenderRef"), 1)
+        accused = {
+            "name": acc["accusedName"],
+            "priorCases": max(0, pc - 1),
+            "historySheeter": pc >= 3,
+        }
+    return {
+        "caseNo": m["crimeNo"],
+        "district": dmap[m["districtId"]]["name"],
+        "date": incident_date(m),
+        "lat": m.get("latitude"),
+        "lng": m.get("longitude"),
+        "solved": solved,
+        "facts": m["briefFacts"],
+        "language": m.get("language", "en"),
+        "accused": accused,
+        "forensic": forensic_for(m["crimeNo"], subhead, gravity, solved,
+                                 accused_name=(accused["name"] if accused else "")),
+    }
+
+
 def main():
     gt = jload(f"{DATA}/planted_patterns.json")
     tax = jload(f"{REF}/crime-taxonomy.json")
@@ -76,6 +106,15 @@ def main():
             x = json.loads(line)
             cs_type[x["caseMasterId"]] = x["cstype"]
     offname = {n["id"]: n["name"] for n in jload("frontend/public/network-graph.json")["nodes"]}
+
+    # Accused per case + prior-record count (from the offender registry) → dossier "parties"
+    # and the "history-sheeter" flag. First accused per case is representative.
+    accused_by_case = {}
+    with open(os.path.join(DATA, "accused.jsonl"), encoding="utf-8") as f:
+        for line in f:
+            a = json.loads(line)
+            accused_by_case.setdefault(a["caseMasterId"], a)  # first accused wins
+    priors = {o["offenderId"]: o.get("caseCount", 1) for o in jload(f"{DATA}/offenders.json")}
 
     out = {}
     for cl in gt["serialClusters"]:
@@ -118,16 +157,7 @@ def main():
             "span": {"first": dates[0] if dates else None,
                      "last": dates[-1] if dates else None,
                      "days": span_days, "cadenceDays": cadence},
-            "members": [{
-                "caseNo": m["crimeNo"],
-                "district": dmap[m["districtId"]]["name"],
-                "date": incident_date(m),
-                "lat": m.get("latitude"),
-                "lng": m.get("longitude"),
-                "solved": cs_type.get(m["caseMasterId"]) == "A",
-                "facts": m["briefFacts"],
-                "language": m.get("language", "en"),
-            } for m in members],
+            "members": [_member(m, dmap, cs_type, submap, accused_by_case, priors) for m in members],
             "offender": (offname.get(cl["sharedOffenderIds"][0]) if cl.get("sharedOffenderIds") else None),
             "unsolvedCount": sum(1 for m in members if cs_type.get(m["caseMasterId"]) != "A"),
             "unsolvedDistricts": sorted({dmap[m["districtId"]]["name"] for m in members

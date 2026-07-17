@@ -33,7 +33,15 @@ export default function DocumentCenter() {
       const tag = solved
         ? `<span class="tag" style="background:#e7f6ed;color:#1f8a5b">Chargesheeted</span>`
         : `<span class="tag" style="background:#fdecea;color:#c0392b">UNSOLVED</span>`;
-      return `<tr><td>${m.caseNo}</td><td>${m.district}</td><td>${m.date}</td><td>${tag}</td></tr>`;
+      const acc = (m as any).accused?.name ?? "—";
+      return `<tr><td>${m.caseNo}</td><td>${m.district}</td><td>${m.date}</td><td>${acc}</td><td>${tag}</td></tr>`;
+    }).join("");
+    // §D — Forensic & Physical Evidence catalogue, per linked FIR (from the case forensic layer).
+    const forRows = c.members.map((m) => {
+      const f = (m as any).forensic;
+      if (!f) return "";
+      const wt = `${f.weapon}${f.tools?.length ? "; " + f.tools.join(", ") : ""}`;
+      return `<tr><td>${m.caseNo}</td><td>${wt}</td><td>${(f.evidenceRecovered ?? []).join(", ")}</td><td>${f.fingerprint}</td><td>${f.seizure?.memoNo ?? "—"}</td><td>${f.fsl?.ref ?? "—"}</td></tr>`;
     }).join("");
     openReport({
       title: "Serial-Crime Linkage & Evidence Report",
@@ -42,11 +50,12 @@ export default function DocumentCenter() {
       sections: [
         { heading: "A · Serial Pattern Summary", html: `<p>${c.why} Strike cadence ~${c.span.cadenceDays ?? "—"} days over ${c.span.days} days. Spans: ${c.districts.join(", ")}.</p>` },
         { heading: "B · Modus Operandi (CCTNS-aligned)", html: c.signature.map((s) => `<p><b>${s.dim}:</b> ${s.value}</p>`).join("") },
-        { heading: "C · Linked-Cases Register", html: `<table><thead><tr><th>FIR No.</th><th>District</th><th>Date</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>` },
-        { heading: "D · NETRA AI Analysis", html: `<p>Linkage by multi-dimensional MO fingerprint (semantic text + geography + time + method + target). ${sp?.rossmo ? `Geographic profiling (Rossmo/CGT) predicts an operating-base <b>zone</b> near ${sp.rossmo.anchor.lat}, ${sp.rossmo.anchor.lng} — a place, not a person.` : ""} ${sp?.nextStrike ? `Predicted next strike: <b>${sp.nextStrike.district}</b>, ${sp.nextStrike.window}, ${sp.nextStrike.timeWindow} (${Math.round(sp.nextStrike.confidence * 100)}% confidence).` : ""}</p>` },
-        { heading: "E · Investigative Recommendation", html: `<p>${c.offender && c.unsolvedCount ? `Interrogate/arrest <b>${c.offender}</b> — could clear <b>${c.unsolvedCount} unsolved cases</b> in this series ("one arrest, many clearances"). ` : ""}Issue a lookout notice; alert the affected stations; concentrate the search on the profiled zone. Human-in-the-loop.</p>` },
-        { heading: "F · Methodology, Validation & Legal Note", html: `<p>Blind-validated (5/5 planted patterns recovered, precision@k 0.96) and method-validated on 503k real Chicago crimes. This is investigative <b>decision support, not primary evidence</b>; forensic conclusions rest with the accredited FSL; human verification required. Ethics: no caste/religion in any model; predicts patterns &amp; places, never guilt.</p>` },
-        { heading: "G · Signature", html: `<p>Prepared by: NETRA (system) &nbsp;·&nbsp; Reviewed by: ________________ (rank/no.) &nbsp;·&nbsp; Forwarded by SHO: ________________</p>` },
+        { heading: "C · Linked-Cases Register", html: `<table><thead><tr><th>FIR No.</th><th>District</th><th>Date</th><th>Accused</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>` },
+        { heading: "D · Forensic &amp; Physical Evidence Catalogue", html: `<table><thead><tr><th>FIR No.</th><th>Weapon / Tools</th><th>Evidence Recovered</th><th>Fingerprint / NAFIS</th><th>Seizure Memo</th><th>FSL Ref.</th></tr></thead><tbody>${forRows}</tbody></table><p style="margin-top:6px"><b>Chain of custody:</b> each seizure drawn on a memo before two independent panchas, entered in the PS malkhana register; exhibits forwarded to FSL where applicable. Forensic conclusions rest with the accredited FSL.</p>` },
+        { heading: "E · NETRA AI Analysis", html: `<p>Linkage by multi-dimensional MO fingerprint (semantic text + geography + time + method + target). ${sp?.rossmo ? `Geographic profiling (Rossmo/CGT) predicts an operating-base <b>zone</b> near ${sp.rossmo.anchor.lat}, ${sp.rossmo.anchor.lng} — a place, not a person.` : ""} ${sp?.nextStrike ? `Predicted next strike: <b>${sp.nextStrike.district}</b>, ${sp.nextStrike.window}, ${sp.nextStrike.timeWindow} (${Math.round(sp.nextStrike.confidence * 100)}% confidence).` : ""}</p>` },
+        { heading: "F · Investigative Recommendation", html: `<p>${c.offender && c.unsolvedCount ? `Interrogate/arrest <b>${c.offender}</b> — could clear <b>${c.unsolvedCount} unsolved cases</b> in this series ("one arrest, many clearances"). ` : ""}Issue a lookout notice; alert the affected stations; concentrate the search on the profiled zone. Human-in-the-loop.</p>` },
+        { heading: "G · Methodology, Validation & Legal Note", html: `<p>Blind-validated (5/5 planted patterns recovered, precision@k 0.96) and method-validated on 503k real Chicago crimes. This is investigative <b>decision support, not primary evidence</b>; forensic conclusions rest with the accredited FSL; human verification required. Ethics: no caste/religion in any model; predicts patterns &amp; places, never guilt.</p>` },
+        { heading: "H · Signature", html: `<p>Prepared by: NETRA (system) &nbsp;·&nbsp; Reviewed by: ________________ (rank/no.) &nbsp;·&nbsp; Forwarded by SHO: ________________</p>` },
       ],
     });
   }

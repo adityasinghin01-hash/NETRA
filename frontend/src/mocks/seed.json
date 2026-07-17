@@ -2210,56 +2210,738 @@
       "crimeNo": "100170006202300001",
       "caseNo": "202300001",
       "registeredDate": "2023-03-13",
-      "district": "Davanagere",
-      "crimeHead": "Crimes Against Property",
+      "districtName": "Davanagere",
       "crimeSubHead": "House-Breaking & Burglary",
       "gravity": "Non-Heinous",
-      "briefFacts": "Unknown miscreants, past midnight, committed house-breaking at a commercial shop by cutting the shutter lock and made off with cash and mobile phones from the counter.",
+      "status": "Closed - Undetected",
       "language": "en",
+      "briefFacts": "Unknown miscreants, past midnight, committed house-breaking at a commercial shop by cutting the shutter lock and made off with cash and mobile phones from the counter.",
       "latitude": 14.446755,
-      "longitude": 75.858872
+      "longitude": 75.858872,
+      "complainant": {
+        "name": "Darshan Gorur",
+        "age": 39,
+        "gender": "Male"
+      },
+      "accused": [],
+      "forensic": {
+        "weapon": "None — non-violent entry",
+        "tools": [
+          "gas cutter",
+          "iron rod"
+        ],
+        "evidenceRecovered": [
+          "Recovered stolen property",
+          "Chance fingerprints on window grille",
+          "Toolmark on shutter lock"
+        ],
+        "fingerprint": "Chance print lifted at PoC — NAFIS: no hit (enrolled to database)",
+        "seizure": {
+          "memoNo": "SM/0006/2023/298",
+          "panchnama": "Drawn at scene before two independent panchas",
+          "seizingOfficer": "Investigating Officer",
+          "malkhana": "PS Malkhana Reg. No. 2023/298",
+          "custody": "In PS Malkhana"
+        },
+        "fsl": null
+      }
     },
     {
       "caseMasterId": 2,
       "crimeNo": "100180003202300001",
       "caseNo": "202300001",
       "registeredDate": "2023-02-11",
-      "district": "Chitradurga",
-      "crimeHead": "Crimes Against Property",
+      "districtName": "Chitradurga",
       "crimeSubHead": "House-Breaking & Burglary",
       "gravity": "Non-Heinous",
-      "briefFacts": "Unknown miscreants, past midnight, committed house-breaking at a commercial shop by cutting the shutter lock and made off with cash and mobile phones from the counter.",
+      "status": "Closed - False",
       "language": "en",
+      "briefFacts": "Unknown miscreants, past midnight, committed house-breaking at a commercial shop by cutting the shutter lock and made off with cash and mobile phones from the counter.",
       "latitude": 14.183508,
-      "longitude": 76.56249
+      "longitude": 76.56249,
+      "complainant": {
+        "name": "Chandrashekar Shaikh",
+        "age": 28,
+        "gender": "Male"
+      },
+      "accused": [
+        {
+          "name": "John Chowdary",
+          "age": 41,
+          "gender": "Male",
+          "priorCases": 28,
+          "historySheeter": true
+        }
+      ],
+      "forensic": {
+        "weapon": "None — non-violent entry",
+        "tools": [
+          "duplicate key",
+          "crowbar"
+        ],
+        "evidenceRecovered": [
+          "Chance fingerprints on window grille",
+          "Toolmark on shutter lock",
+          "Footwear impression at rear wall"
+        ],
+        "fingerprint": "Chance print lifted at PoC — NAFIS: no hit (enrolled to database)",
+        "seizure": {
+          "memoNo": "SM/0003/2023/421",
+          "panchnama": "Drawn at scene before two independent panchas",
+          "seizingOfficer": "Investigating Officer",
+          "malkhana": "PS Malkhana Reg. No. 2023/421",
+          "custody": "In PS Malkhana"
+        },
+        "fsl": null
+      }
     },
     {
       "caseMasterId": 3,
       "crimeNo": "100170003202300002",
       "caseNo": "202300002",
       "registeredDate": "2023-06-04",
-      "district": "Davanagere",
-      "crimeHead": "Crimes Against Property",
+      "districtName": "Davanagere",
       "crimeSubHead": "House-Breaking & Burglary",
       "gravity": "Non-Heinous",
-      "briefFacts": "Unidentified thieves broke into a commercial shop past midnight by cutting the shutter lock, decamping with cash and mobile phones from the counter before fleeing.",
+      "status": "Under Investigation",
       "language": "en",
+      "briefFacts": "Unidentified thieves broke into a commercial shop past midnight by cutting the shutter lock, decamping with cash and mobile phones from the counter before fleeing.",
       "latitude": 14.66837,
-      "longitude": 75.791338
+      "longitude": 75.791338,
+      "complainant": {
+        "name": "Praveen Kulkarni",
+        "age": 51,
+        "gender": "Male"
+      },
+      "accused": [
+        {
+          "name": "John Chowdary",
+          "age": 26,
+          "gender": "Male",
+          "priorCases": 28,
+          "historySheeter": true
+        },
+        {
+          "name": "John Chowdary",
+          "age": 36,
+          "gender": "Male",
+          "priorCases": 28,
+          "historySheeter": true
+        },
+        {
+          "name": "John Chowdary",
+          "age": 22,
+          "gender": "Male",
+          "priorCases": 28,
+          "historySheeter": true
+        }
+      ],
+      "forensic": {
+        "weapon": "None — non-violent entry",
+        "tools": [
+          "gas cutter",
+          "crowbar"
+        ],
+        "evidenceRecovered": [
+          "Toolmark on shutter lock",
+          "CCTV footage (approach lane)",
+          "Chance fingerprints on window grille"
+        ],
+        "fingerprint": "Chance print lifted at PoC — NAFIS: no hit (enrolled to database)",
+        "seizure": {
+          "memoNo": "SM/0003/2023/258",
+          "panchnama": "Drawn at scene before two independent panchas",
+          "seizingOfficer": "Investigating Officer",
+          "malkhana": "PS Malkhana Reg. No. 2023/258",
+          "custody": "In PS Malkhana"
+        },
+        "fsl": null
+      }
     },
     {
-      "caseMasterId": 1,
-      "crimeNo": "100170006202300001",
-      "caseNo": "202300001",
-      "registeredDate": "2023-03-13",
-      "district": "Davanagere",
-      "crimeHead": "Crimes Against Property",
+      "caseMasterId": 4,
+      "crimeNo": "100170006202300002",
+      "caseNo": "202300002",
+      "registeredDate": "2023-05-21",
+      "districtName": "Davanagere",
       "crimeSubHead": "House-Breaking & Burglary",
       "gravity": "Non-Heinous",
-      "briefFacts": "Unknown miscreants, past midnight, committed house-breaking at a commercial shop by cutting the shutter lock and made off with cash and mobile phones from the counter.",
+      "status": "Under Investigation",
       "language": "en",
-      "latitude": 14.446755,
-      "longitude": 75.858872
+      "briefFacts": "On checking a commercial shop past midnight, the complainant found the premises burgled — entry made by cutting the shutter lock, and cash and mobile phones from the counter missing.",
+      "latitude": null,
+      "longitude": null,
+      "complainant": {
+        "name": "Gowramma Chowdary",
+        "age": 26,
+        "gender": "Female"
+      },
+      "accused": [
+        {
+          "name": "John Chowdary",
+          "age": 28,
+          "gender": "Male",
+          "priorCases": 28,
+          "historySheeter": true
+        },
+        {
+          "name": "John Chowdary",
+          "age": 42,
+          "gender": "Male",
+          "priorCases": 28,
+          "historySheeter": true
+        }
+      ],
+      "forensic": {
+        "weapon": "None — non-violent entry",
+        "tools": [
+          "iron rod",
+          "gas cutter"
+        ],
+        "evidenceRecovered": [
+          "Toolmark on shutter lock",
+          "CCTV footage (approach lane)",
+          "Recovered stolen property"
+        ],
+        "fingerprint": "No ridge-worthy chance prints recovered from scene",
+        "seizure": {
+          "memoNo": "SM/0006/2023/116",
+          "panchnama": "Drawn at scene before two independent panchas",
+          "seizingOfficer": "Investigating Officer",
+          "malkhana": "PS Malkhana Reg. No. 2023/116",
+          "custody": "In PS Malkhana"
+        },
+        "fsl": null
+      }
+    },
+    {
+      "caseMasterId": 5,
+      "crimeNo": "100060003202300003",
+      "caseNo": "202300003",
+      "registeredDate": "2023-03-14",
+      "districtName": "Tumakuru",
+      "crimeSubHead": "House-Breaking & Burglary",
+      "gravity": "Non-Heinous",
+      "status": "Charge Sheeted",
+      "language": "en",
+      "briefFacts": "The complainant returned to find a commercial shop ransacked; the intruders had entered by cutting the shutter lock past midnight and taken cash and mobile phones from the counter.",
+      "latitude": 13.360243,
+      "longitude": 77.071436,
+      "complainant": {
+        "name": "Manjunath Acharya",
+        "age": 28,
+        "gender": "Male"
+      },
+      "accused": [
+        {
+          "name": "John Chowdary",
+          "age": 19,
+          "gender": "Male",
+          "priorCases": 28,
+          "historySheeter": true
+        }
+      ],
+      "forensic": {
+        "weapon": "None — non-violent entry",
+        "tools": [
+          "gas cutter",
+          "iron rod"
+        ],
+        "evidenceRecovered": [
+          "Footwear impression at rear wall",
+          "CCTV footage (approach lane)",
+          "Recovered stolen property"
+        ],
+        "fingerprint": "No ridge-worthy chance prints recovered from scene",
+        "seizure": {
+          "memoNo": "SM/0003/2023/299",
+          "panchnama": "Drawn at scene before two independent panchas",
+          "seizingOfficer": "Investigating Officer",
+          "malkhana": "PS Malkhana Reg. No. 2023/299",
+          "custody": "In PS Malkhana"
+        },
+        "fsl": null
+      }
+    },
+    {
+      "caseMasterId": 9,
+      "crimeNo": "100010033202400001",
+      "caseNo": "202400001",
+      "registeredDate": "2024-08-05",
+      "districtName": "Bengaluru Urban",
+      "crimeSubHead": "Motor Vehicle Theft",
+      "gravity": "Non-Heinous",
+      "status": "Under Investigation",
+      "language": "en",
+      "briefFacts": "An unidentified person made away with a black Honda Activa scooter left at a bus stand late at night.",
+      "latitude": 12.956284,
+      "longitude": 77.603095,
+      "complainant": {
+        "name": "Umesh Setty",
+        "age": 32,
+        "gender": "Male"
+      },
+      "accused": [
+        {
+          "name": "Anthony Kotian",
+          "age": 32,
+          "gender": "Male",
+          "priorCases": 18,
+          "historySheeter": true
+        }
+      ],
+      "forensic": {
+        "weapon": "None — non-violent entry",
+        "tools": [
+          "gas cutter",
+          "duplicate key"
+        ],
+        "evidenceRecovered": [
+          "Chance fingerprints on window grille",
+          "Footwear impression at rear wall",
+          "CCTV footage (approach lane)"
+        ],
+        "fingerprint": "Chance print lifted at PoC — NAFIS: no hit (enrolled to database)",
+        "seizure": {
+          "memoNo": "SM/0033/2024/427",
+          "panchnama": "Drawn at scene before two independent panchas",
+          "seizingOfficer": "Investigating Officer",
+          "malkhana": "PS Malkhana Reg. No. 2024/427",
+          "custody": "In PS Malkhana"
+        },
+        "fsl": null
+      }
+    },
+    {
+      "caseMasterId": 11,
+      "crimeNo": "100010027202400001",
+      "caseNo": "202400001",
+      "registeredDate": "2024-12-18",
+      "districtName": "Bengaluru Urban",
+      "crimeSubHead": "Motor Vehicle Theft",
+      "gravity": "Non-Heinous",
+      "status": "Pending Trial",
+      "language": "kn",
+      "briefFacts": "ರಾತ್ರಿ ವೇಳೆ ನಿಲ್ಲಿಸಿದ್ದ ದ್ವಿಚಕ್ರ ವಾಹನವನ್ನು ಅಪರಿಚಿತರು ಕಳವು ಮಾಡಿದ್ದಾರೆ ಎಂದು ದೂರು ದಾಖಲಾಗಿದೆ.",
+      "latitude": 13.049134,
+      "longitude": 77.598289,
+      "complainant": {
+        "name": "Channabasappa Naik",
+        "age": 65,
+        "gender": "Male"
+      },
+      "accused": [
+        {
+          "name": "Anthony Kotian",
+          "age": 35,
+          "gender": "Male",
+          "priorCases": 18,
+          "historySheeter": true
+        }
+      ],
+      "forensic": {
+        "weapon": "None — non-violent entry",
+        "tools": [
+          "iron rod",
+          "screwdriver"
+        ],
+        "evidenceRecovered": [
+          "Toolmark on shutter lock",
+          "Chance fingerprints on window grille",
+          "Footwear impression at rear wall"
+        ],
+        "fingerprint": "Chance print lifted at PoC — NAFIS: MATCH → Anthony Kotian",
+        "seizure": {
+          "memoNo": "SM/0027/2024/088",
+          "panchnama": "Drawn at scene before two independent panchas",
+          "seizingOfficer": "Investigating Officer",
+          "malkhana": "PS Malkhana Reg. No. 2024/088",
+          "custody": "In PS Malkhana"
+        },
+        "fsl": null
+      }
+    },
+    {
+      "caseMasterId": 18,
+      "crimeNo": "100030003202500001",
+      "caseNo": "202500001",
+      "registeredDate": "2025-04-10",
+      "districtName": "Ramanagara",
+      "crimeSubHead": "Robbery",
+      "gravity": "Heinous",
+      "status": "Charge Sheeted",
+      "language": "en",
+      "briefFacts": "The victim was intercepted at a roadside in the evening by persons on a motorcycle, who robbed a gold chain using a knife.",
+      "latitude": 12.759827,
+      "longitude": 77.276809,
+      "complainant": {
+        "name": "Joseph Lobo",
+        "age": 62,
+        "gender": "Male"
+      },
+      "accused": [
+        {
+          "name": "Mohammed Biradar",
+          "age": 26,
+          "gender": "Male",
+          "priorCases": 16,
+          "historySheeter": true
+        }
+      ],
+      "forensic": {
+        "weapon": "Country-made 7.65mm pistol",
+        "tools": [
+          "broken bottle",
+          "kitchen knife"
+        ],
+        "evidenceRecovered": [
+          "Weapon of offence",
+          "Chance fingerprints",
+          "CCTV footage"
+        ],
+        "fingerprint": "Chance print lifted at PoC — NAFIS: MATCH → Mohammed Biradar",
+        "seizure": {
+          "memoNo": "SM/0003/2025/465",
+          "panchnama": "Drawn at scene before two independent panchas",
+          "seizingOfficer": "Investigating Officer",
+          "malkhana": "PS Malkhana Reg. No. 2025/465",
+          "custody": "In PS Malkhana"
+        },
+        "fsl": {
+          "ref": "FSL/BLR/2025/508",
+          "status": "Received — corroborative"
+        }
+      }
+    },
+    {
+      "caseMasterId": 20,
+      "crimeNo": "100030005202500001",
+      "caseNo": "202500001",
+      "registeredDate": "2025-01-23",
+      "districtName": "Ramanagara",
+      "crimeSubHead": "Robbery",
+      "gravity": "Heinous",
+      "status": "Under Investigation",
+      "language": "en",
+      "briefFacts": "The complainant stated that in the evening, on a motorcycle, the accused threatened the victim with a knife and robbed a gold chain at a roadside.",
+      "latitude": 12.748877,
+      "longitude": 77.269556,
+      "complainant": {
+        "name": "Channabasappa Gorur",
+        "age": 57,
+        "gender": "Male"
+      },
+      "accused": [
+        {
+          "name": "Mohammed Biradar",
+          "age": 38,
+          "gender": "Male",
+          "priorCases": 16,
+          "historySheeter": true
+        },
+        {
+          "name": "Mohammed Biradar",
+          "age": 41,
+          "gender": "Male",
+          "priorCases": 16,
+          "historySheeter": true
+        },
+        {
+          "name": "Mohammed Biradar",
+          "age": 35,
+          "gender": "Male",
+          "priorCases": 16,
+          "historySheeter": true
+        }
+      ],
+      "forensic": {
+        "weapon": "Iron rod",
+        "tools": [
+          "kitchen knife",
+          "chopper / machete"
+        ],
+        "evidenceRecovered": [
+          "CCTV footage",
+          "Weapon of offence",
+          "Bloodstained clothing"
+        ],
+        "fingerprint": "No ridge-worthy chance prints recovered from scene",
+        "seizure": {
+          "memoNo": "SM/0005/2025/011",
+          "panchnama": "Drawn at scene before two independent panchas",
+          "seizingOfficer": "Investigating Officer",
+          "malkhana": "PS Malkhana Reg. No. 2025/011",
+          "custody": "Forwarded to FSL, Bengaluru"
+        },
+        "fsl": {
+          "ref": "FSL/BLR/2025/610",
+          "status": "Report awaited"
+        }
+      }
+    },
+    {
+      "caseMasterId": 21,
+      "crimeNo": "100010024202500001",
+      "caseNo": "202500001",
+      "registeredDate": "2025-01-17",
+      "districtName": "Bengaluru Urban",
+      "crimeSubHead": "Robbery",
+      "gravity": "Heinous",
+      "status": "Charge Sheeted",
+      "language": "kn",
+      "briefFacts": "ಸಂಜೆ ವೇಳೆ ಆರೋಪಿಗಳು ಮಾರಕಾಸ್ತ್ರ ತೋರಿಸಿ ಬೆದರಿಸಿ ಚಿನ್ನದ ಸರ/ಹಣ ದರೋಡೆ ಮಾಡಿದ್ದಾರೆ.",
+      "latitude": 12.953859,
+      "longitude": 77.63208,
+      "complainant": {
+        "name": "Ashok Shaikh",
+        "age": 26,
+        "gender": "Male"
+      },
+      "accused": [
+        {
+          "name": "Mohammed Biradar",
+          "age": 19,
+          "gender": "Male",
+          "priorCases": 16,
+          "historySheeter": true
+        }
+      ],
+      "forensic": {
+        "weapon": "Chopper / long knife",
+        "tools": [
+          "iron rod",
+          "wooden club"
+        ],
+        "evidenceRecovered": [
+          "Chance fingerprints",
+          "Biological sample (victim/suspect)",
+          "CCTV footage"
+        ],
+        "fingerprint": "Chance print lifted at PoC — NAFIS: MATCH → Mohammed Biradar",
+        "seizure": {
+          "memoNo": "SM/0024/2025/436",
+          "panchnama": "Drawn at scene before two independent panchas",
+          "seizingOfficer": "Investigating Officer",
+          "malkhana": "PS Malkhana Reg. No. 2025/436",
+          "custody": "In PS Malkhana"
+        },
+        "fsl": {
+          "ref": "FSL/BLR/2025/708",
+          "status": "Received — corroborative"
+        }
+      }
+    },
+    {
+      "caseMasterId": 22,
+      "crimeNo": "100010017202500001",
+      "caseNo": "202500001",
+      "registeredDate": "2025-03-09",
+      "districtName": "Bengaluru Urban",
+      "crimeSubHead": "Robbery",
+      "gravity": "Heinous",
+      "status": "Charge Sheeted",
+      "language": "en",
+      "briefFacts": "The victim was intercepted at a roadside in the evening by persons on a motorcycle, who robbed a gold chain using a knife.",
+      "latitude": 12.927635,
+      "longitude": 77.59579,
+      "complainant": {
+        "name": "Deepak Kotian",
+        "age": 57,
+        "gender": "Male"
+      },
+      "accused": [
+        {
+          "name": "Mohammed Biradar",
+          "age": 48,
+          "gender": "Male",
+          "priorCases": 16,
+          "historySheeter": true
+        }
+      ],
+      "forensic": {
+        "weapon": "Wooden club",
+        "tools": [
+          "kitchen knife",
+          "broken bottle"
+        ],
+        "evidenceRecovered": [
+          "Bloodstained clothing",
+          "Biological sample (victim/suspect)",
+          "Chance fingerprints"
+        ],
+        "fingerprint": "Chance print lifted at PoC — NAFIS: MATCH → Mohammed Biradar",
+        "seizure": {
+          "memoNo": "SM/0017/2025/210",
+          "panchnama": "Drawn at scene before two independent panchas",
+          "seizingOfficer": "Investigating Officer",
+          "malkhana": "PS Malkhana Reg. No. 2025/210",
+          "custody": "In PS Malkhana"
+        },
+        "fsl": {
+          "ref": "FSL/BLR/2025/774",
+          "status": "Received — corroborative"
+        }
+      }
+    },
+    {
+      "caseMasterId": 23,
+      "crimeNo": "100010025202500001",
+      "caseNo": "202500001",
+      "registeredDate": "2025-02-07",
+      "districtName": "Bengaluru Urban",
+      "crimeSubHead": "Robbery",
+      "gravity": "Heinous",
+      "status": "Under Investigation",
+      "language": "en",
+      "briefFacts": "The complainant stated that in the evening, on a motorcycle, the accused threatened the victim with a knife and robbed a gold chain at a roadside.",
+      "latitude": null,
+      "longitude": null,
+      "complainant": {
+        "name": "Rajesh Sayed",
+        "age": 52,
+        "gender": "Male"
+      },
+      "accused": [
+        {
+          "name": "Mohammed Biradar",
+          "age": 50,
+          "gender": "Male",
+          "priorCases": 16,
+          "historySheeter": true
+        }
+      ],
+      "forensic": {
+        "weapon": "Broken glass bottle",
+        "tools": [
+          "broken bottle",
+          "wooden club"
+        ],
+        "evidenceRecovered": [
+          "Biological sample (victim/suspect)",
+          "Bloodstained clothing",
+          "Recovered stolen property"
+        ],
+        "fingerprint": "No ridge-worthy chance prints recovered from scene",
+        "seizure": {
+          "memoNo": "SM/0025/2025/290",
+          "panchnama": "Drawn at scene before two independent panchas",
+          "seizingOfficer": "Investigating Officer",
+          "malkhana": "PS Malkhana Reg. No. 2025/290",
+          "custody": "Forwarded to FSL, Bengaluru"
+        },
+        "fsl": {
+          "ref": "FSL/BLR/2025/410",
+          "status": "Report awaited"
+        }
+      }
+    },
+    {
+      "caseMasterId": 24,
+      "crimeNo": "100030004202500001",
+      "caseNo": "202500001",
+      "registeredDate": "2025-04-09",
+      "districtName": "Ramanagara",
+      "crimeSubHead": "Robbery",
+      "gravity": "Heinous",
+      "status": "Charge Sheeted",
+      "language": "en",
+      "briefFacts": "A robbery is reported: in the evening, the accused on a motorcycle accosted the victim at a roadside, showed a knife, and decamped with a gold chain.",
+      "latitude": 12.747143,
+      "longitude": 77.32998,
+      "complainant": {
+        "name": "Mary Patil",
+        "age": 62,
+        "gender": "Female"
+      },
+      "accused": [
+        {
+          "name": "Mohammed Biradar",
+          "age": 27,
+          "gender": "Male",
+          "priorCases": 16,
+          "historySheeter": true
+        },
+        {
+          "name": "Mohammed Biradar",
+          "age": 50,
+          "gender": "Male",
+          "priorCases": 16,
+          "historySheeter": true
+        }
+      ],
+      "forensic": {
+        "weapon": "Country-made 7.65mm pistol",
+        "tools": [
+          "kitchen knife",
+          "iron rod"
+        ],
+        "evidenceRecovered": [
+          "Chance fingerprints",
+          "CCTV footage",
+          "Weapon of offence"
+        ],
+        "fingerprint": "Chance print lifted at PoC — NAFIS: MATCH → Mohammed Biradar",
+        "seizure": {
+          "memoNo": "SM/0004/2025/091",
+          "panchnama": "Drawn at scene before two independent panchas",
+          "seizingOfficer": "Investigating Officer",
+          "malkhana": "PS Malkhana Reg. No. 2025/091",
+          "custody": "In PS Malkhana"
+        },
+        "fsl": {
+          "ref": "FSL/BLR/2025/752",
+          "status": "Received — corroborative"
+        }
+      }
+    },
+    {
+      "caseMasterId": 25,
+      "crimeNo": "100070004202300001",
+      "caseNo": "202300001",
+      "registeredDate": "2023-09-04",
+      "districtName": "Mysuru",
+      "crimeSubHead": "Theft (Ordinary)",
+      "gravity": "Non-Heinous",
+      "status": "Under Investigation",
+      "language": "en",
+      "briefFacts": "In the early hours, an unidentified person removed cash from the offering box from the temple premises and fled.",
+      "latitude": 12.244406,
+      "longitude": 76.707262,
+      "complainant": {
+        "name": "Geetha Lamani",
+        "age": 70,
+        "gender": "Female"
+      },
+      "accused": [
+        {
+          "name": "Gopal Shetty",
+          "age": 30,
+          "gender": "Male",
+          "priorCases": 24,
+          "historySheeter": true
+        }
+      ],
+      "forensic": {
+        "weapon": "None — non-violent entry",
+        "tools": [
+          "screwdriver",
+          "iron rod"
+        ],
+        "evidenceRecovered": [
+          "Toolmark on shutter lock",
+          "Recovered stolen property",
+          "Chance fingerprints on window grille"
+        ],
+        "fingerprint": "Chance print lifted at PoC — NAFIS: no hit (enrolled to database)",
+        "seizure": {
+          "memoNo": "SM/0004/2023/016",
+          "panchnama": "Drawn at scene before two independent panchas",
+          "seizingOfficer": "Investigating Officer",
+          "malkhana": "PS Malkhana Reg. No. 2023/016",
+          "custody": "In PS Malkhana"
+        },
+        "fsl": null
+      }
     }
   ],
   "briefings/today": {
