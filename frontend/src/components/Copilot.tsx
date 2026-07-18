@@ -42,7 +42,7 @@ function bold(t: string) {
   );
 }
 
-export default function Copilot({ onOpenTalk }: { onOpenTalk?: () => void }) {
+export default function Copilot() {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -129,11 +129,6 @@ export default function Copilot({ onOpenTalk }: { onOpenTalk?: () => void }) {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => { setOpen(false); onOpenTalk?.(); }}
-                title="Full-screen hands-free Voice Intelligence"
-                className="rounded-md border border-[var(--color-border)] px-2 py-1 text-[10px] text-[var(--color-text-mute)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
-              >🎙️ Talk</button>
               <button
                 onClick={() => setDeep((d) => !d)}
                 title="Deep-analysis mode (slower, step-by-step reasoning)"
