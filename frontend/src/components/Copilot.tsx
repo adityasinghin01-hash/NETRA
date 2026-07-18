@@ -8,7 +8,7 @@ import { askNetra, preloadCopilot, type NetraAnswer } from "@/lib/copilotEngine"
 import { getSession } from "@/lib/auth";
 import { recordFeedback, remember } from "@/lib/feedback";
 import { vlmExtract } from "@/lib/llm";
-import { speak, listen } from "@/lib/voice";
+import { speak, listen, stopSpeaking, isKannada } from "@/lib/voice";
 import type { UiAction } from "@/lib/copilotTools";
 import CopilotDiagram from "@/components/CopilotDiagram";
 import CopilotDocument from "@/components/CopilotDocument";
@@ -49,18 +49,24 @@ export default function Copilot() {
   const [thinking, setThinking] = useState(false);
   const [deep, setDeep] = useState(false);
   const [listening, setListening] = useState(false);
+  const [convo, setConvo] = useState(false); // hands-free voice conversation
   const [showTrace, setShowTrace] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const convoRef = useRef(false);
+  const openRef = useRef(false);
   const nav = useNavigate();
   const scope = getSession().district;
 
   useEffect(() => { preloadCopilot(); }, []);
+  useEffect(() => { convoRef.current = convo; }, [convo]);
+  useEffect(() => { openRef.current = open; if (!open) { stopSpeaking(); setConvo(false); } }, [open]);
   useEffect(() => { scrollRef.current?.scrollTo({ top: 9e9, behavior: "smooth" }); }, [msgs, thinking]);
 
-  async function send(text: string) {
+  async function send(text: string, fromVoice = false) {
     const t = text.trim();
     if (!t || thinking) return;
+    stopSpeaking();
     setMsgs((m) => [...m, { role: "user", text: t }]);
     setInput("");
     setThinking(true);
@@ -72,6 +78,10 @@ export default function Copilot() {
     }
     setThinking(false);
     setMsgs((m) => [...m, { role: "netra", text: a.text, q: t, cites: a.cites, cardIds: a.cardIds, follow: a.follow, trace: a.trace, confidence: a.confidence, actions: a.actions, grounded: a.grounded }]);
+    // Voice: speak the answer, and in conversation mode, listen again (hands-free loop).
+    if (fromVoice || convoRef.current) {
+      speak(a.text, isKannada(a.text) ? "kn-IN" : "en-IN", () => { if (convoRef.current && openRef.current) mic(); });
+    }
   }
 
   function feedback(i: number, up: boolean) {
@@ -99,7 +109,7 @@ export default function Copilot() {
     setMsgs((m) => [...m, { role: "netra", text: out || "No fields extracted.", grounded: true, trace: ["🖼️ Qwen VLM — OCR + field extraction (sovereign)"] }]);
   }
 
-  function mic() { listen((t) => { setInput(t); send(t); }, setListening, scope ? "en-IN" : "en-IN"); }
+  function mic() { listen((t) => { setInput(t); send(t, true); }, setListening, "en-IN"); }
 
   return (
     <>
@@ -125,6 +135,11 @@ export default function Copilot() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => { const n = !convo; setConvo(n); if (n) mic(); else stopSpeaking(); }}
+                title="Hands-free voice conversation (speak → spoken answer → listens again)"
+                className={`rounded-md border px-2 py-1 text-[10px] transition-colors ${convo ? "border-[var(--color-accent)] bg-[var(--color-accent)]/15 text-[var(--color-accent)]" : "border-[var(--color-border)] text-[var(--color-text-mute)]"}`}
+              >🎙️ Talk</button>
               <button
                 onClick={() => setDeep((d) => !d)}
                 title="Deep-analysis mode (slower, step-by-step reasoning)"

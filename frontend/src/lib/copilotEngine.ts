@@ -58,7 +58,28 @@ function suggestFollow(hits: Retrieved[]): string[] {
   return [...s].slice(0, 3);
 }
 
+// Small-talk / capability questions are NOT data queries — answer them directly so they
+// never trip the low-confidence "verify with a human" gate (which is for data answers).
+function metaAnswer(q: string): string | null {
+  const s = q.toLowerCase().trim();
+  if (/^(hi|hello|hey|yo|hola|namaste|namaskara|good (morning|evening|afternoon))\b/.test(s) || s.length < 3)
+    return "👋 Hi! I'm **NETRA** — your crime-intelligence assistant. Ask me about hotspots, serial series, crime rings & kingpins, cases at risk of going cold, or any district — in English or ಕನ್ನಡ. I can also draw diagrams, draft documents, read a scanned FIR, and talk by voice.";
+  if (/(what can you|what do you do|what are you|who are you|\bhelp\b|capabilit|how (do|to) (i|you) use|what should i ask)/.test(s))
+    return "I'm **NETRA Copilot** — grounded, cited and sovereign (no data leaves the police cloud). I can:\n• Answer anything from live intelligence — hotspots, serial clusters, rings & kingpins, cold cases, districts\n• Draw link charts, org-charts, timelines, money-trails & MO flows\n• Draft documents (FIR, charge-sheet, look-out notice…) for your sign-off\n• Read a scanned FIR/document (📎) and pull out the fields\n• Talk with you by voice (🎤)\nTry: **\"Which hotspots next week?\"** or **\"Draw the link chart for the shutter-cutting burglar.\"**";
+  if (/^(thanks|thank you|thx|great|nice|good job|well done|perfect|awesome)\b/.test(s))
+    return "Happy to help. Ask me anything else about the intelligence.";
+  if (/^(bye|goodbye|see you|ok bye|that'?s all)\b/.test(s))
+    return "Goodbye — stay safe out there. 👁️";
+  return null;
+}
+
 export async function askNetra(query: string, scope: string | null, opts: { thinking?: boolean } = {}): Promise<NetraAnswer> {
+  const meta = metaAnswer(query);
+  if (meta) return {
+    text: meta, cites: [], cardIds: [], confidence: 1, grounded: true, actions: [], trace: [],
+    follow: ["Which hotspots next week?", "Who are the crime kingpins?", "Cases at risk of going cold?"],
+  };
+
   // Scope-aware retrieval: fold the user's district into the query when unstated.
   const rq = scope && !query.toLowerCase().includes(scope.toLowerCase()) ? `${query} ${scope}` : query;
   const [hits, graph] = await Promise.all([retrieve(rq, 8), graphContext(rq)]);

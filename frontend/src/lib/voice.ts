@@ -2,16 +2,20 @@
 // (sovereign, no network); STT via Web Speech recognition for a spoken conversation.
 // (In-browser Whisper is the sovereign STT upgrade on the roadmap.)
 /* eslint-disable @typescript-eslint/no-explicit-any */
-let speaking = false;
+export function stopSpeaking() { window.speechSynthesis?.cancel(); }
+export const isKannada = (t: string) => /[ಀ-೿]/.test(t);
 
-export function speak(text: string, lang: "en-IN" | "kn-IN" = "en-IN"): void {
+// Speak text aloud (cancels anything in progress). onEnd fires when done — used to
+// chain back into listening for a hands-free conversation.
+export function speak(text: string, lang: "en-IN" | "kn-IN" = "en-IN", onEnd?: () => void): void {
   const synth = window.speechSynthesis;
-  if (!synth) return;
-  if (speaking) { synth.cancel(); speaking = false; return; }
-  const u = new SpeechSynthesisUtterance(text.replace(/\*\*/g, "").replace(/\[[^\]]+\]/g, ""));
+  const clean = text.replace(/\*\*/g, "").replace(/\[[^\]]+\]/g, "").replace(/[•📎📊📄🔧🧠⚠️👍👎🗺️👋]/g, "");
+  if (!synth || !clean.trim()) { onEnd?.(); return; }
+  synth.cancel();
+  const u = new SpeechSynthesisUtterance(clean);
   u.lang = lang;
-  u.onend = () => { speaking = false; };
-  speaking = true;
+  u.onend = () => onEnd?.();
+  u.onerror = () => onEnd?.();
   synth.speak(u);
 }
 
