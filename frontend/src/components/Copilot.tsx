@@ -42,25 +42,21 @@ function bold(t: string) {
   );
 }
 
-export default function Copilot() {
+export default function Copilot({ onOpenTalk }: { onOpenTalk?: () => void }) {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
   const [deep, setDeep] = useState(false);
   const [listening, setListening] = useState(false);
-  const [convo, setConvo] = useState(false); // hands-free voice conversation
   const [showTrace, setShowTrace] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const convoRef = useRef(false);
-  const openRef = useRef(false);
   const nav = useNavigate();
   const scope = getSession().district;
 
   useEffect(() => { preloadCopilot(); }, []);
-  useEffect(() => { convoRef.current = convo; }, [convo]);
-  useEffect(() => { openRef.current = open; if (!open) { stopSpeaking(); setConvo(false); } }, [open]);
+  useEffect(() => { if (!open) stopSpeaking(); }, [open]);
   useEffect(() => { scrollRef.current?.scrollTo({ top: 9e9, behavior: "smooth" }); }, [msgs, thinking]);
 
   async function send(text: string, fromVoice = false) {
@@ -78,10 +74,8 @@ export default function Copilot() {
     }
     setThinking(false);
     setMsgs((m) => [...m, { role: "netra", text: a.text, q: t, cites: a.cites, cardIds: a.cardIds, follow: a.follow, trace: a.trace, confidence: a.confidence, actions: a.actions, grounded: a.grounded }]);
-    // Voice: speak the answer, and in conversation mode, listen again (hands-free loop).
-    if (fromVoice || convoRef.current) {
-      speak(a.text, isKannada(a.text) ? "kn-IN" : "en-IN", () => { if (convoRef.current && openRef.current) mic(); });
-    }
+    // A voice-asked question speaks its reply (full hands-free lives in Talk mode).
+    if (fromVoice) speak(a.text, isKannada(a.text) ? "kn-IN" : "en-IN");
   }
 
   function feedback(i: number, up: boolean) {
@@ -136,9 +130,9 @@ export default function Copilot() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => { const n = !convo; setConvo(n); if (n) mic(); else stopSpeaking(); }}
-                title="Hands-free voice conversation (speak → spoken answer → listens again)"
-                className={`rounded-md border px-2 py-1 text-[10px] transition-colors ${convo ? "border-[var(--color-accent)] bg-[var(--color-accent)]/15 text-[var(--color-accent)]" : "border-[var(--color-border)] text-[var(--color-text-mute)]"}`}
+                onClick={() => { setOpen(false); onOpenTalk?.(); }}
+                title="Full-screen hands-free Voice Intelligence"
+                className="rounded-md border border-[var(--color-border)] px-2 py-1 text-[10px] text-[var(--color-text-mute)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
               >🎙️ Talk</button>
               <button
                 onClick={() => setDeep((d) => !d)}

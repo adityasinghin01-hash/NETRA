@@ -4,6 +4,7 @@ import { IS_MOCK } from "@/api/client";
 import { getSession, clearSession } from "@/lib/auth";
 import { Badge } from "./ui";
 import Copilot from "./Copilot";
+import VoiceMode from "./VoiceMode";
 
 const NAV = [
   { to: "/map", label: "Command Map", icon: "🗺️" },
@@ -20,6 +21,7 @@ export default function AppShell() {
   const session = getSession();
   const initials = session.roleLabel.split(" · ")[0];
   const [alertCount, setAlertCount] = useState(0);
+  const [talk, setTalk] = useState(false);
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}alerts-feed.json`).then((r) => r.json())
       .then((a: { severity: string }[]) => setAlertCount(a.filter((x) => x.severity === "high").length))
@@ -92,7 +94,8 @@ export default function AppShell() {
           <Outlet />
         </main>
       </div>
-      <Copilot />
+      <Copilot onOpenTalk={() => setTalk(true)} />
+      <VoiceMode open={talk} onClose={() => setTalk(false)} />
     </div>
   );
 }
