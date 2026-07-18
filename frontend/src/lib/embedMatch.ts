@@ -53,16 +53,46 @@ export async function embedText(text: string): Promise<number[]> {
   return Array.from(out.data) as number[];
 }
 
-// The learning FLYWHEEL, for real: feeding a confirmed FIR nudges that cluster's
-// signature vector toward it (and re-normalizes), so every subsequent match to the
-// same MO scores higher. Mutates the in-memory cluster vector — the more confirmed
-// examples NETRA sees, the sharper the signature. (Client-side demo; no persistence.)
-export async function reinforceCluster(clusterId: string, q: number[], alpha = 0.4) {
-  const data = await getClusters();
-  const c = data.clusters.find((x) => x.clusterId === clusterId);
-  if (!c) return;
-  for (let i = 0; i < c.vector.length; i++) c.vector[i] += alpha * q[i];
-  normalize(c.vector);
+// ── Per-FIR index (for the honest flywheel) ──────────────────────────────────
+// case-embeddings.json holds every series member FIR (solved + UNSOLVED) as a vector
+// in the SAME model space. This is the pool the "confirm link → surface cold cases"
+// loop reasons over — no fabricated confidence, just real cosine retrieval.
+export interface CaseVec {
+  crimeNo: string; district: string; date: string; crimeSubHead: string;
+  clusterId: string; clusterLabel: string; solved: boolean; facts: string;
+  language: string; vector: number[];
+}
+let casesP: Promise<{ cases: CaseVec[] }> | null = null;
+function getCases() {
+  if (!casesP) casesP = fetch(`${import.meta.env.BASE_URL}case-embeddings.json`).then((r) => r.json());
+  return casesP;
+}
+// The member FIRs of a series (used for its unsolved leads + its signature centroid).
+export async function seriesCases(clusterId: string): Promise<CaseVec[]> {
+  const { cases } = await getCases();
+  return cases.filter((c) => c.clusterId === clusterId);
+}
+// Normalized mean of vectors — the honest "signature" of a confirmed set of FIRs.
+export function centroid(vecs: number[][]): number[] {
+  const n = vecs[0].length;
+  const c = new Array(n).fill(0);
+  for (const v of vecs) for (let i = 0; i < n; i++) c[i] += v[i];
+  for (let i = 0; i < n; i++) c[i] /= vecs.length;
+  normalize(c);
+  return c;
+}
+// Scan the UNSOLVED case pool for cold cases whose MO matches a signature (cosine ≥ threshold),
+// excluding the series' own members. Returns real candidate cold cases for officer review.
+export async function scanUnsolved(
+  signature: number[], exclude: Set<string>, threshold = 0.7, topK = 8,
+): Promise<(CaseVec & { score: number })[]> {
+  const { cases } = await getCases();
+  return cases
+    .filter((c) => !c.solved && !exclude.has(c.crimeNo))
+    .map((c) => ({ ...c, score: dot(signature, c.vector) }))
+    .filter((c) => c.score >= threshold)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK);
 }
 
 export async function embedMatch(text: string): Promise<MatchResult> {

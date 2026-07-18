@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useApi, Card, PageHeader, State, Badge } from "@/components/ui";
 import { matchFir, type MatchResult } from "@/api/client";
-import { embedMatch, preloadEmbedder, embedText, reinforceCluster } from "@/lib/embedMatch";
+import { embedMatch, preloadEmbedder, embedText, seriesCases, centroid, scanUnsolved, type CaseVec } from "@/lib/embedMatch";
 import CrimeDNA, { type CrimeDna } from "@/components/CrimeDNA";
 import SpatialTriad, { type SpatialRec } from "@/components/SpatialTriad";
 
@@ -41,28 +41,49 @@ export default function Linkage() {
   const [exampleIdx, setExampleIdx] = useState(0);
   const [dnaMap, setDnaMap] = useState<Record<string, CrimeDna> | null>(null);
   const [spatialMap, setSpatialMap] = useState<Record<string, SpatialRec> | null>(null);
-  const [flywheel, setFlywheel] = useState<{ before: number; after: number; fed: number } | null>(null);
-  const [feeding, setFeeding] = useState(false);
+  // Honest flywheel state: the matched series' members (with unsolved leads), whether THIS FIR
+  // has been confirmed, and any cold cases the re-scan surfaced. No fabricated confidence.
+  const [cold, setCold] = useState<{ members: CaseVec[]; unsolved: CaseVec[]; count: number; confirmed: boolean; candidates: (CaseVec & { score: number })[] } | null>(null);
+  const [confirmedKeys, setConfirmedKeys] = useState<Set<string>>(new Set());
+  const [confirming, setConfirming] = useState(false);
+  const keyOf = (q: string) => q.trim().toLowerCase().replace(/\s+/g, " ");
 
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}crime-dna.json`).then((r) => r.json()).then(setDnaMap).catch(() => {});
     fetch(`${import.meta.env.BASE_URL}spatial.json`).then((r) => r.json()).then(setSpatialMap).catch(() => {});
   }, []);
 
-  // The learning flywheel: confirm this FIR into NETRA → its cluster signature is
-  // reinforced → re-match, and the confidence visibly sharpens. Real, in-browser.
-  async function feedFir() {
-    if (!result || result.method !== "semantic") return;
-    setFeeding(true);
+  // On a semantic match, load the series' member FIRs → surface how many are still UNSOLVED
+  // (potential clearances). This is the reliable, real value; no confidence is touched.
+  useEffect(() => {
+    if (!result || result.method !== "semantic") { setCold(null); return; }
+    let live = true;
+    seriesCases(result.best.clusterId).then((members) => {
+      if (!live) return;
+      setCold({
+        members, unsolved: members.filter((m) => !m.solved), count: members.length,
+        confirmed: confirmedKeys.has(keyOf(query)), candidates: [],
+      });
+    }).catch(() => {});
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
+
+  // The honest flywheel: confirming this FIR adds it as a member, recomputes the series' MO
+  // signature as the CENTROID of all members, and re-scans the unsolved pool for cold cases that
+  // match — surfacing cross-filed cases an officer would otherwise miss. One confirm per FIR.
+  async function confirmLink() {
+    if (!result || result.method !== "semantic" || !cold || cold.confirmed) return;
+    setConfirming(true);
     try {
-      const before = result.best.score;
-      const q = await embedText(query);
-      await reinforceCluster(result.best.clusterId, q);
-      const r2 = await embedMatch(query);
-      setResult(r2);
-      setFlywheel((f) => ({ before, after: r2.best.score, fed: (f?.fed ?? 0) + 1 }));
+      const qv = await embedText(query);
+      const signature = centroid([...cold.members.map((m) => m.vector), qv]);
+      const exclude = new Set(cold.members.map((m) => m.crimeNo));
+      const candidates = await scanUnsolved(signature, exclude, 0.7, 8);
+      setConfirmedKeys((s) => new Set(s).add(keyOf(query)));
+      setCold((c) => (c ? { ...c, confirmed: true, count: c.count + 1, candidates } : c));
     } finally {
-      setFeeding(false);
+      setConfirming(false);
     }
   }
 
@@ -79,7 +100,6 @@ export default function Linkage() {
 
   async function analyze() {
     setMatching(true);
-    setFlywheel(null);
     try {
       let r: MatchResult;
       try {
@@ -163,7 +183,7 @@ export default function Linkage() {
             {result.method === "semantic" && bestDna && (
               <div className="mt-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
                 <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text)]">
-                  🧬 Why this match — MO fingerprint alignment
+                  🧬 Why this match — MO signature alignment
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2 text-xs">
@@ -198,28 +218,66 @@ export default function Linkage() {
               </div>
             )}
 
-            {/* Learning flywheel — confirm this FIR into NETRA and watch the signature sharpen */}
-            {result.method === "semantic" && (
-              <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-                {flywheel ? (
-                  <div className="text-xs text-[var(--color-text-dim)]">
-                    🔄 <span className="font-medium text-[var(--color-text)]">Signature reinforced.</span> Match
-                    confidence <span className="tnum">{flywheel.before}%</span> →{" "}
-                    <span className="tnum font-semibold text-[var(--color-accent)]">{flywheel.after}%</span>
-                    <span className="text-[var(--color-text-mute)]"> · NETRA now recognises this MO more strongly (corpus +{flywheel.fed}). Every confirmed case sharpens the model — the compounding flywheel.</span>
+            {/* Honest flywheel — real cold-case value, no fabricated confidence.
+                (1) show how many FIRs in the matched series are still UNSOLVED = potential clearances;
+                (2) confirming this FIR extends the series + re-scans the unsolved pool for more matches. */}
+            {result.method === "semantic" && cold && (
+              <div className="mt-4 space-y-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+                <div>
+                  <div className="text-xs font-semibold text-[var(--color-text)]">
+                    Cold cases in this series — <span className="text-[var(--color-danger)]">{cold.unsolved.length}</span> of {cold.count} FIRs still unsolved
                   </div>
-                ) : (
-                  <div className="text-xs text-[var(--color-text-mute)]">
-                    🔄 Confirm this FIR belongs to the cluster — NETRA learns from it and future matches get sharper.
+                  <div className="mb-1.5 text-[10px] text-[var(--color-text-mute)]">
+                    Identifying this offender would clear these linked cases across districts.
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {cold.unsolved.map((m) => (
+                      <span key={m.crimeNo} title={m.facts} className="tnum rounded bg-[var(--color-surface-2)] px-2 py-0.5 text-[11px] text-[var(--color-text-dim)]">
+                        {m.crimeNo} · {m.district}
+                      </span>
+                    ))}
+                    {cold.unsolved.length === 0 && <span className="text-[11px] text-[var(--color-text-mute)]">All member FIRs already solved.</span>}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 border-t border-[var(--color-border)] pt-2">
+                  {cold.confirmed ? (
+                    <div className="text-xs text-[var(--color-text-dim)]">
+                      ✓ <span className="font-medium text-[var(--color-text)]">Confirmed as member #{cold.count}.</span> MO signature updated to the average of {cold.count} FIRs.
+                      {cold.candidates.length > 0 ? (
+                        <> Re-scan surfaced <span className="font-semibold text-[var(--color-accent)]">{cold.candidates.length} candidate cold case{cold.candidates.length > 1 ? "s" : ""}</span> matching this MO.</>
+                      ) : (
+                        <span className="text-[var(--color-text-mute)]"> No further unsolved cases cross the match threshold.</span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-[var(--color-text-mute)]">
+                      Confirm this FIR belongs to the series → it's added as a member and NETRA re-scans unsolved cases against the updated MO signature.
+                    </div>
+                  )}
+                  <button
+                    onClick={confirmLink}
+                    disabled={confirming || cold.confirmed}
+                    className="shrink-0 rounded-lg border border-[var(--color-accent-dim)] px-3 py-1.5 text-xs font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 disabled:opacity-40"
+                  >
+                    {confirming ? "Scanning…" : cold.confirmed ? "✓ Confirmed" : "Confirm link"}
+                  </button>
+                </div>
+
+                {cold.confirmed && cold.candidates.length > 0 && (
+                  <div className="border-t border-[var(--color-border)] pt-2">
+                    <div className="mb-1 text-[10px] text-[var(--color-text-mute)]">Candidate cold cases for review — unconfirmed, matched by MO signature:</div>
+                    <div className="space-y-1">
+                      {cold.candidates.map((c) => (
+                        <div key={c.crimeNo} className="flex items-center gap-2 text-[11px]" title={c.facts}>
+                          <span className="tnum w-9 text-right font-semibold text-[var(--color-accent)]">{Math.round(c.score * 100)}%</span>
+                          <span className="tnum text-[var(--color-text-dim)]">{c.crimeNo}</span>
+                          <span className="truncate text-[var(--color-text-mute)]">· {c.district} · {c.crimeSubHead}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
-                <button
-                  onClick={feedFir}
-                  disabled={feeding}
-                  className="shrink-0 rounded-lg border border-[var(--color-accent-dim)] px-3 py-1.5 text-xs font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 disabled:opacity-40"
-                >
-                  {feeding ? "Learning…" : flywheel ? "Feed again" : "Feed into NETRA"}
-                </button>
               </div>
             )}
           </div>

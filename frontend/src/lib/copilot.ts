@@ -114,7 +114,7 @@ export async function askCopilot(qRaw: string, scope: string | null): Promise<Co
     const all = Object.values<any>(d["crime-dna"] ?? {});
     if (all.length) {
       const list = all.slice(0, 5).map((c: any) => `**${c.label}** (${c.memberCount} cases)`).join("; ");
-      return { text: `NETRA has linked **${all.length} serial clusters** by modus operandi. E.g.: ${list}. Ask about any one for its MO fingerprint, route, predicted base and next strike.`, cites: [cite("Linkage · Crime-DNA")], follow: ["Tell me about the shutter-cutting burglar", "OTP bank-fraud call centre?"] };
+      return { text: `NETRA has linked **${all.length} serial clusters** by modus operandi. E.g.: ${list}. Ask about any one for its MO signature, route, predicted base and next strike.`, cites: [cite("Linkage · Crime-DNA")], follow: ["Tell me about the shutter-cutting burglar", "OTP bank-fraud call centre?"] };
     }
   }
 
