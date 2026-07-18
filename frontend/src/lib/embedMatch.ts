@@ -113,5 +113,7 @@ export async function embedMatch(text: string): Promise<MatchResult> {
       return { ...meta, score: Math.max(0, Math.round(dot(q, vector) * 100)) } as ClusterMatch;
     })
     .sort((a, b) => b.score - a.score);
-  return { method: "semantic", best: ranked[0], matches: ranked.slice(0, 5) };
+  // Return ALL clusters ranked (the live-match panel slices the top few; the cluster list uses
+  // the full set to re-rank every series card by its match % to the pasted FIR).
+  return { method: "semantic", best: ranked[0], matches: ranked };
 }

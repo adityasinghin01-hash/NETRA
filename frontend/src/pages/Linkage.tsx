@@ -101,6 +101,16 @@ export default function Linkage() {
   const cluster = matchedCluster ?? selected ?? data?.[0] ?? null;
   const bestDna = result && dnaMap ? dnaMap[result.best.clusterId] : null;
 
+  // After a credible Analyse, re-rank the whole series list by each series' MATCH % to the pasted
+  // FIR (not its static cohesion), strongest first — so the linked series rise to the top.
+  const clusterScore: Record<string, number> | null =
+    matched && result?.method === "semantic"
+      ? Object.fromEntries(result.matches.map((m) => [m.clusterId, m.score]))
+      : null;
+  const orderedClusters = clusterScore
+    ? [...(data ?? [])].sort((a, b) => (clusterScore[b.clusterId] ?? -1) - (clusterScore[a.clusterId] ?? -1))
+    : (data ?? []);
+
   // Warm up the semantic model in the background so the first Analyze is fast.
   useEffect(() => {
     preloadEmbedder();
@@ -312,8 +322,16 @@ export default function Linkage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         {/* Cluster list */}
         <div className="space-y-2 lg:col-span-2">
+          <div className="px-1 text-[11px] text-[var(--color-text-mute)]">
+            {clusterScore
+              ? "Serial series ranked by match to your FIR — % is how closely each series' MO fits the pasted case."
+              : "Serial series — % is cluster cohesion (how tightly the member FIRs share one MO)."}
+          </div>
           <State loading={loading} error={error} empty={(data ?? []).length === 0}>
-            {(data ?? []).map((c) => (
+            {orderedClusters.map((c) => {
+              const ms = clusterScore ? (clusterScore[c.clusterId] ?? 0) : null;
+              const linked = ms === null || ms >= MATCH_MIN; // below-threshold series dim after a match
+              return (
               <button
                 key={c.clusterId}
                 onClick={() => setSelected(c)}
@@ -321,11 +339,13 @@ export default function Linkage() {
                   cluster?.clusterId === c.clusterId
                     ? "border-[var(--color-accent-dim)] bg-[var(--color-surface-2)]"
                     : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-border-strong)]"
-                }`}
+                } ${linked ? "" : "opacity-45"}`}
               >
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-[var(--color-text)]">{c.label}</span>
-                  <Badge tone="accent">{Math.round(c.confidence * 100)}%</Badge>
+                  {ms === null
+                    ? <Badge tone="accent">{Math.round(c.confidence * 100)}%</Badge>
+                    : <Badge tone={ms >= MATCH_MIN ? "accent" : "mute"}>{ms}% match</Badge>}
                 </div>
                 <div className="mt-1 text-xs text-[var(--color-text-dim)]">
                   {c.crimeType} · {c.memberCount} cases
@@ -338,7 +358,8 @@ export default function Linkage() {
                   ))}
                 </div>
               </button>
-            ))}
+              );
+            })}
           </State>
         </div>
 
