@@ -254,6 +254,18 @@ export default function Linkage() {
                 <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text)]">
                   🧬 Why this match — MO signature alignment
                 </div>
+                {(() => {
+                  const shared = bestDna.signature.filter((s) => dimAlign(query, s.value).hits.length > 0);
+                  return (
+                    <p className="mb-2.5 text-xs leading-relaxed text-[var(--color-text-dim)]">
+                      {shared.length > 0 ? (
+                        <>Linked because your FIR shares this series&rsquo; {shared.map((s) => `${s.dim.toLowerCase()} (${s.value})`).join(", ")} — the same modus operandi.</>
+                      ) : (
+                        <>Linked by overall narrative similarity: the pasted FIR reads like this series even without identical phrases.</>
+                      )}
+                    </p>
+                  );
+                })()}
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2 text-xs">
                     <span className="flex w-40 shrink-0 items-center gap-1 text-[var(--color-text-dim)]">

@@ -70,9 +70,23 @@ function highlight(text: string, phrases: string[]) {
 
 // `scores` (crimeNo → cosine to the officer's pasted FIR) is passed only when this series is the
 // live match — then the member FIRs are ranked by how closely each matches the new case, with a %.
+function mode(arr: string[]): string {
+  const c = new Map<string, number>();
+  for (const x of arr) if (x) c.set(x, (c.get(x) ?? 0) + 1);
+  let best = "", n = 0;
+  for (const [k, v] of c) if (v > n) { n = v; best = k; }
+  return best;
+}
+
 export default function CrimeDNA({ dna, scores }: { dna: CrimeDna; scores?: Record<string, number> }) {
   const phrases = dna.signature.map((s) => s.value);
   const cadence = dna.span.cadenceDays;
+  // Forensic markers recurring across the series — corroborate the MO link beyond the narrative.
+  const forensics = dna.members.map((m) => m.forensic).filter(Boolean) as DnaForensic[];
+  const topTool = mode(forensics.flatMap((f) => f.tools ?? []));
+  const evidenceKinds = new Set(forensics.flatMap((f) => f.evidenceRecovered ?? []));
+  const printLifts = forensics.filter((f) => /lift|chance print|latent|recovered/i.test(f.fingerprint ?? "")).length;
+  const fslCount = forensics.filter((f) => f.fsl).length;
   const rankedMembers = scores
     ? [...dna.members].sort((a, b) => (scores[b.caseNo] ?? -1) - (scores[a.caseNo] ?? -1))
     : dna.members;
@@ -137,6 +151,31 @@ export default function CrimeDNA({ dna, scores }: { dna: CrimeDna; scores?: Reco
         </div>
       </div>
 
+      {/* Forensic markers — the physical-evidence signature recurring across the series */}
+      {forensics.length > 0 && (
+        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+          <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text)]">
+            🔬 Forensic markers across the series
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {[
+              ["Recurring tool", topTool || "—"],
+              ["Evidence types", `${evidenceKinds.size} kinds`],
+              ["Fingerprints lifted", `${printLifts} of ${total} FIRs`],
+              ["FSL / DNA reports", fslCount ? `${fslCount}` : "—"],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-md bg-[var(--color-surface-2)] px-2.5 py-1.5">
+                <div className="text-[10px] uppercase tracking-wide text-[var(--color-text-mute)]">{label}</div>
+                <div className="truncate text-xs text-[var(--color-text)]" title={value}>{value}</div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-1.5 text-[10px] leading-relaxed text-[var(--color-text-mute)]">
+            The same physical evidence recurs across the linked FIRs — this corroborates the MO link beyond the narrative, and populates the evidence report.
+          </div>
+        </div>
+      )}
+
       {/* Why one series */}
       <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-sm leading-relaxed text-[var(--color-text-dim)]">
         <span className="font-medium text-[var(--color-text)]">Why one series: </span>{dna.why}
@@ -155,6 +194,9 @@ export default function CrimeDNA({ dna, scores }: { dna: CrimeDna; scores?: Reco
             and those {unsolved.length} open case{unsolved.length === 1 ? "" : "s"} across {unsolvedDistricts.length} district{unsolvedDistricts.length === 1 ? "" : "s"}
             {" "}({unsolvedDistricts.join(", ")}) clear in one go — one arrest, {unsolved.length} clearance{unsolved.length === 1 ? "" : "s"}.
           </p>
+          <div className="mt-1.5 text-[10px] leading-relaxed text-[var(--color-text-mute)]">
+            Why this offender: MO cohesion {Math.round(dna.confidence * 100)}% across {total} FIRs · active in {dna.districts.join(", ")}{cadence ? ` · strikes ~every ${cadence} days` : ""}{topTool ? ` · recurring tool: ${topTool}` : ""}.
+          </div>
           <button
             onClick={() => setShowClear((v) => !v)}
             className="mt-2 rounded-lg border border-[var(--color-ok)]/50 px-2.5 py-1 text-[11px] font-medium text-[var(--color-ok)] hover:bg-[var(--color-ok)]/10"
