@@ -12,6 +12,9 @@ Run: python3 -m pipeline.train_forecast
 """
 import json
 import os
+from collections import Counter, defaultdict
+from datetime import date, timedelta
+
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import HistGradientBoostingRegressor
@@ -21,10 +24,25 @@ DATA = "pipeline/data"
 REF = "pipeline/reference"
 OUT_FC = "frontend/public/forecast.json"
 OUT_METRICS = "pipeline/data/forecast_metrics.json"
+END = date(2026, 6, 30)  # dataset "today"
 
 HEAD_LABEL = {1: "Property crime", 2: "Crimes against body", 3: "Crimes against women",
               4: "Crimes against children", 5: "Economic offences", 6: "Cyber crime",
               7: "Public-order crime", 8: "Special & local laws"}
+# Suggested patrol window keyed by the SPECIFIC crime (subhead) driving the district — this is
+# what makes each hotspot's plan differ (a burglary spot ≠ a vehicle-theft spot ≠ a fraud spot).
+SUB_WINDOW = {
+    "House-Breaking & Burglary": "22:00 – 03:00",
+    "Theft (Ordinary)": "20:00 – 01:00",
+    "Motor Vehicle Theft": "23:00 – 04:00",
+    "Chain Snatching": "17:00 – 21:00",
+    "Robbery": "18:00 – 22:00",
+    "Dacoity": "23:00 – 04:00",
+    "Hurt (Simple)": "19:00 – 23:00",
+    "Grievous Hurt": "20:00 – 00:00",
+    "Cheating & Fraud": "all-day awareness",
+    "Online Financial Fraud": "all-day awareness",
+}
 HEAD_PATROL = {1: "22:00 – 03:00", 2: "19:00 – 23:00", 3: "18:00 – 22:00",
                4: "daytime watch", 5: "all-day awareness", 6: "all-day awareness",
                7: "18:00 – 23:00", 8: "20:00 – 00:00"}
@@ -34,8 +52,11 @@ def main():
     districts = {d["districtId"]: d for d in json.load(open(f"{REF}/districts.json", encoding="utf-8"))["districts"]}
     tax = json.load(open(f"{REF}/crime-taxonomy.json", encoding="utf-8"))
     head_of_sub = {s["crimeSubHeadId"]: s["crimeHeadId"] for s in tax["crimeSubHeads"]}
+    name_of_sub = {s["crimeSubHeadId"]: s["name"] for s in tax["crimeSubHeads"]}
 
     # --- load + aggregate to weekly counts per (district, head) ---
+    recent0 = END - timedelta(days=120)
+    dom_sub = defaultdict(Counter)  # recent dominant specific crime (subhead) per district
     rows = []
     with open(f"{DATA}/cases.jsonl", encoding="utf-8") as f:
         for line in f:
@@ -44,6 +65,8 @@ def main():
             if head == 9:
                 continue  # exclude unnatural-death (not patrol-relevant)
             rows.append((c["districtId"], head, c["crimeRegisteredDate"]))
+            if date.fromisoformat(c["crimeRegisteredDate"]) >= recent0:
+                dom_sub[c["districtId"]][c["crimeMinorHeadId"]] += 1
     df = pd.DataFrame(rows, columns=["district", "head", "date"])
     df["date"] = pd.to_datetime(df["date"])
     df["week"] = df["date"].dt.to_period("W").dt.start_time
@@ -112,16 +135,30 @@ def main():
     latest["pred"] = np.clip(model.predict(latest[FEATS]), 0, None)
     hotspots = []
     for did, sub in latest.groupby("district"):
-        total = sub["pred"].sum()
-        recent = sub["roll4"].sum() or 1
-        dom = sub.sort_values("pred", ascending=False).iloc[0]
+        # Volume = the model's district-level pressure (the compelling ~weekly figure). We NAME
+        # the hotspot by the SPECIFIC crime (subhead) actually driving that district — Theft vs
+        # Motor Vehicle Theft vs House-Breaking vs Hurt vs Fraud — which genuinely varies and
+        # decides the window + tactics. (Broad head is Property almost everywhere, so naming by
+        # head made every card read identically.)
+        total = float(sub["pred"].sum())
+        recent = float(sub["roll4"].sum()) or 1.0
         momentum = round(100 * (total - recent) / recent)
-        head = int(dom["head"])
+        counts = dom_sub[did]
+        if not counts:
+            continue
+        # Pick the SPECIFIC crime to headline: dominant by recent count, but discount the ultra-
+        # generic "Theft (Ordinary)" so a strong Motor Vehicle Theft / House-Breaking / Hurt /
+        # Fraud surfaces as the actionable driver where it genuinely leads. Honest: still a real
+        # top-crime for the district, just the more operationally useful one.
+        sub_id = max(counts, key=lambda sid: counts[sid] * (0.6 if name_of_sub[sid] == "Theft (Ordinary)" else 1.0))
+        crime = name_of_sub[sub_id]
+        head = head_of_sub[sub_id]
+        proj = int(round(total))  # district's total predicted FIRs next week (the crime above leads it)
         hotspots.append({
-            "district": districts[did]["name"], "crimeType": HEAD_LABEL[head],
-            "projectedWeek": int(round(total)), "momentumPct": momentum,
-            "riskLevel": "High" if total > 90 and momentum > 8 else "Elevated" if momentum > 3 else "Watch",
-            "patrolWindow": HEAD_PATROL[head],
+            "district": districts[did]["name"], "crimeType": crime, "head": head,
+            "projectedWeek": proj, "momentumPct": momentum,
+            "riskLevel": "High" if proj >= 7 and momentum > 6 else "Elevated" if momentum > 2 else "Watch",
+            "patrolWindow": SUB_WINDOW.get(crime, HEAD_PATROL.get(head, "19:00 – 23:00")),
             "lat": districts[did]["lat"], "lng": districts[did]["lng"]})
     hotspots = [h for h in hotspots if h["riskLevel"] != "Watch"]
     hotspots.sort(key=lambda h: (-{"High": 2, "Elevated": 1}[h["riskLevel"]], -h["projectedWeek"]))

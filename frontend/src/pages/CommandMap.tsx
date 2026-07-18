@@ -42,7 +42,7 @@ interface Forecast {
   model?: string;
   metrics?: { hitRateTop5: number; r2: number };
   hotspots: {
-    district: string; crimeType: string; projectedWeek: number;
+    district: string; crimeType: string; head?: number; projectedWeek: number;
     momentumPct: number; riskLevel: string; patrolWindow: string;
     lat?: number; lng?: number;
   }[];
@@ -63,10 +63,17 @@ export default function CommandMap() {
   const [da, setDa] = useState<Record<string, { outcome: { detectionPct: number } }> | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [focus, setFocus] = useState<PatrolPlan | null>(null);
+  // Real FIR points [lat,lng,head,,district,...] → used to place pickets on actual crime pockets.
+  const [inc, setInc] = useState<{ lat: number; lng: number; head: number; district: string }[]>([]);
   const mapCardRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}forecast.json`).then((r) => r.json()).then(setForecast).catch(() => {});
     fetch(`${import.meta.env.BASE_URL}district-analytics.json`).then((r) => r.json()).then((d) => setDa(d.districts)).catch(() => {});
+    fetch(`${import.meta.env.BASE_URL}incident-points.json`)
+      .then((r) => r.json())
+      .then((raw: [number, number, number, string, string][]) =>
+        setInc(raw.map((p) => ({ lat: p[0], lng: p[1], head: p[2], district: p[4] }))))
+      .catch(() => {});
   }, []);
 
   // Role-based scoping: HQ sees the whole state; District/Station see only their jurisdiction.
@@ -94,8 +101,14 @@ export default function CommandMap() {
         }
       : s.data;
 
-  // Plain-language patrol plans, one per forecast pocket (optimizer decides units state-wide).
-  const plans: PatrolPlan[] = fcHotspots.map((h) => buildPlan(h));
+  // Plain-language patrol plans, one per forecast pocket. Each plan's pickets are placed on the
+  // REAL FIR pockets in that district (matched to the crime head), so they differ district to
+  // district; falls back to a ring only where a district has too few incidents to cluster.
+  const plans: PatrolPlan[] = fcHotspots.map((h) => {
+    let local = inc.filter((p) => p.district === h.district && (h.head == null || p.head === h.head));
+    if (local.length < 6) local = inc.filter((p) => p.district === h.district); // any crime in-district
+    return buildPlan(h, local);
+  });
   const sel = selected !== null ? plans[selected] ?? null : null;
 
   // Full-state patrol optimizer over the forecast hotspots (fixed nightly strength).
@@ -227,7 +240,8 @@ export default function CommandMap() {
                     <span className="text-sm font-medium text-[var(--color-text)]">{p.district}</span>
                     <Badge tone={RISK_TONE[p.risk] ?? "mute"}>{p.risk}</Badge>
                   </div>
-                  <div className="mt-1.5 text-sm text-[var(--color-text-dim)]">{p.headline}</div>
+                  <div className="mt-1 text-xs font-medium text-[var(--color-accent)]">{p.crimeType}</div>
+                  <div className="mt-0.5 text-sm text-[var(--color-text-dim)]">{p.headline}</div>
                   <div className="mt-2 flex items-center justify-between text-[11px]">
                     <span className="text-[var(--color-text-mute)]">worst <span className="text-[var(--color-text-dim)]">{p.window}</span></span>
                     <span className="text-[var(--color-text-mute)]">
@@ -277,7 +291,9 @@ export default function CommandMap() {
                 ))}
               </div>
               <div className="mt-2 text-[10px] text-[var(--color-text-mute)]">
-                NETRA marks a predicted <span className="text-[var(--color-text-dim)]">zone</span> (≈1.3 km around the forecast centroid) and suggests picket positions — it does not name an exact address.
+                {sel.grounded
+                  ? "Pickets are placed on the pockets where FIRs actually cluster in this district — NETRA marks a predicted zone, not a fabricated exact address."
+                  : "Too few located FIRs here to pinpoint pockets, so NETRA marks a predicted zone around the district centre — not a fabricated exact address."}
               </div>
             </div>
           )}

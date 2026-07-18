@@ -576,7 +576,7 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
               Patrol focus · {focus.district} · {focus.crimeType}
             </div>
             <div className="truncate text-[10px] text-[var(--color-text-mute)]">
-              {focus.units} units · {focus.window} · predicted zone (~1.3 km), not an exact address
+              {focus.units} units · {focus.window} · predicted zone (~{(focus.radiusM / 1000).toFixed(1)} km), not an exact address
             </div>
           </div>
           <button
