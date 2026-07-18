@@ -72,7 +72,14 @@ export default function CrimeDNA({ dna }: { dna: CrimeDna }) {
   const phrases = dna.signature.map((s) => s.value);
   const cadence = dna.span.cadenceDays;
   const [showClear, setShowClear] = useState(false);
+  // SINGLE SOURCE OF TRUTH: every unsolved/solved/total number below is derived from dna.members,
+  // so the "one arrest → clearances" headline, the reveal button, the clearable list and the
+  // member dots can never disagree — for any cluster, even if a data rebuild drifts the
+  // precomputed counts. (Precomputed dna.unsolvedCount/unsolvedDistricts are no longer trusted.)
+  const total = dna.members.length;
   const unsolved = dna.members.filter((m) => m.solved === false);
+  const solvedCount = dna.members.filter((m) => m.solved === true).length;
+  const unsolvedDistricts = [...new Set(unsolved.map((m) => m.district))];
 
   return (
     <div className="space-y-4">
@@ -112,7 +119,8 @@ export default function CrimeDNA({ dna }: { dna: CrimeDna }) {
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-lg bg-[var(--color-bg)] p-3">
           <div className="text-[10px] uppercase tracking-wide text-[var(--color-text-mute)]">Linked FIRs</div>
-          <div className="tnum text-lg font-semibold text-[var(--color-text)]">{dna.memberCount}</div>
+          <div className="tnum text-lg font-semibold text-[var(--color-text)]">{total}</div>
+          <div className="text-[10px] text-[var(--color-text-mute)]">{solvedCount} solved · {unsolved.length} unsolved</div>
         </div>
         <div className="rounded-lg bg-[var(--color-bg)] p-3">
           <div className="text-[10px] uppercase tracking-wide text-[var(--color-text-mute)]">Districts</div>
@@ -130,23 +138,23 @@ export default function CrimeDNA({ dna }: { dna: CrimeDna }) {
       </div>
 
       {/* One arrest → many clearances */}
-      {dna.offender && (dna.unsolvedCount ?? 0) > 0 && (
+      {dna.offender && unsolved.length > 0 && (
         <div className="rounded-xl border border-[var(--color-ok)]/40 bg-[var(--color-ok)]/[0.06] p-3">
           <div className="flex items-center gap-2 text-sm">
             <span>⚖️</span>
             <span className="font-semibold text-[var(--color-text)]">One arrest → many clearances</span>
           </div>
           <p className="mt-1.5 text-xs leading-relaxed text-[var(--color-text-dim)]">
-            <span className="font-semibold text-[var(--color-ok)]">{dna.unsolvedCount} of the {dna.memberCount} linked FIRs</span> in this series are still unsolved.
-            Arrest <span className="font-medium text-[var(--color-accent)]">{dna.offender}</span> — the shared hand across all {dna.memberCount} —
-            and those {dna.unsolvedCount} open case{dna.unsolvedCount === 1 ? "" : "s"} across {dna.unsolvedDistricts?.length} district{dna.unsolvedDistricts?.length === 1 ? "" : "s"}
-            {" "}({dna.unsolvedDistricts?.join(", ")}) clear in one go — one arrest, {dna.unsolvedCount} clearance{dna.unsolvedCount === 1 ? "" : "s"}.
+            <span className="font-semibold text-[var(--color-ok)]">{unsolved.length} of the {total} linked FIRs</span> in this series are still unsolved.
+            Arrest <span className="font-medium text-[var(--color-accent)]">{dna.offender}</span> — the shared hand across all {total} —
+            and those {unsolved.length} open case{unsolved.length === 1 ? "" : "s"} across {unsolvedDistricts.length} district{unsolvedDistricts.length === 1 ? "" : "s"}
+            {" "}({unsolvedDistricts.join(", ")}) clear in one go — one arrest, {unsolved.length} clearance{unsolved.length === 1 ? "" : "s"}.
           </p>
           <button
             onClick={() => setShowClear((v) => !v)}
             className="mt-2 rounded-lg border border-[var(--color-ok)]/50 px-2.5 py-1 text-[11px] font-medium text-[var(--color-ok)] hover:bg-[var(--color-ok)]/10"
           >
-            {showClear ? "Hide clearable cases" : `Reveal ${dna.unsolvedCount} clearable cases`}
+            {showClear ? "Hide clearable cases" : `Reveal ${unsolved.length} clearable case${unsolved.length === 1 ? "" : "s"}`}
           </button>
           {showClear && (
             <ul className="mt-2 space-y-1">
@@ -163,12 +171,15 @@ export default function CrimeDNA({ dna }: { dna: CrimeDna }) {
 
       {/* Member FIRs with MO phrases highlighted */}
       <div>
-        <div className="mb-2 flex items-center justify-between gap-2 text-xs uppercase tracking-wide text-[var(--color-text-mute)]">
+        <div className="mb-1 flex items-center justify-between gap-2 text-xs uppercase tracking-wide text-[var(--color-text-mute)]">
           <span>Member FIRs — same MO, different wording</span>
           <span className="flex items-center gap-2 normal-case tracking-normal text-[10px]">
             <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-ok)]" /> solved</span>
             <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-warn)]" /> unsolved</span>
           </span>
+        </div>
+        <div className="mb-2 text-[10px] text-[var(--color-text-mute)]">
+          {total} linked FIRs = <span className="text-[var(--color-ok)]">{solvedCount} solved</span> + <span className="text-[var(--color-warn)]">{unsolved.length} unsolved</span>. The {unsolved.length} unsolved are the clearable cases above.
         </div>
         <ul className="space-y-2">
           {dna.members.map((m) => (
