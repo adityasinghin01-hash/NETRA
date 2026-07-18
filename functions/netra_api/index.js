@@ -8,9 +8,84 @@ const catalyst = require("zcatalyst-sdk-node");
 const INDEX = require("./clusters_index.json");
 
 const app = express();
-app.use(express.json({ limit: "64kb" }));
+app.use(express.json({ limit: "6mb" })); // larger for Copilot context + VLM images
 
 const VALID_KEY = /^[a-z0-9/_-]+$/;
+
+// ---- Sovereign LLM (Catalyst QuickML: GLM-4.7 + Qwen VLM) ----
+// Creds (refresh token) live in the Data Store Store table under a private '_llm_creds'
+// key — never in the repo. Seeded once over HTTPS via /llm-seed. The function mints
+// short-lived access tokens from the refresh token and proxies to QuickML.
+const QML_BASE = "https://api.catalyst.zoho.in/quickml/v1/project/55012000000013048";
+const QML_ORG = "60077866273";
+let _creds = null, _tok = null, _tokExp = 0;
+
+async function loadCreds(req) {
+  if (_creds) return _creds;
+  const app_ = catalyst.initialize(req);
+  const rows = await app_.zcql().executeZCQLQuery("SELECT Store.rvalue FROM Store WHERE Store.rkey = '_llm_creds'");
+  if (!rows || !rows.length) return null;
+  _creds = JSON.parse((rows[0].Store || rows[0]).rvalue);
+  return _creds;
+}
+async function accessToken(req) {
+  if (_tok && Date.now() < _tokExp - 60000) return _tok;
+  const c = await loadCreds(req);
+  if (!c) throw new Error("LLM not configured");
+  const body = new URLSearchParams({ grant_type: "refresh_token", client_id: c.client_id, client_secret: c.client_secret, refresh_token: c.refresh_token });
+  const r = await fetch("https://accounts.zoho.in/oauth/v2/token", { method: "POST", body });
+  const j = await r.json();
+  if (!j.access_token) throw new Error("token refresh failed");
+  _tok = j.access_token; _tokExp = Date.now() + (j.expires_in || 3600) * 1000;
+  return _tok;
+}
+async function callQml(req, pathSuffix, payload) {
+  const t = await accessToken(req);
+  const r = await fetch(`${QML_BASE}/${pathSuffix}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Zoho-oauthtoken ${t}`, "CATALYST-ORG": QML_ORG },
+    body: JSON.stringify(payload),
+  });
+  return { status: r.status, json: await r.json().catch(() => ({})) };
+}
+
+// One-time seed (trust-on-first-use): stores the refresh-token creds in Data Store if absent.
+app.post(/\/llm-seed$/, async (req, res) => {
+  try {
+    if (await loadCreds(req)) return res.status(409).json({ error: "already seeded" });
+    const { refresh_token, client_id, client_secret } = req.body || {};
+    if (!refresh_token || !client_id || !client_secret) return res.status(400).json({ error: "missing creds" });
+    const app_ = catalyst.initialize(req);
+    await app_.datastore().table("Store").insertRow({ rkey: "_llm_creds", rvalue: JSON.stringify({ refresh_token, client_id, client_secret }) });
+    _creds = null;
+    return res.json({ ok: true });
+  } catch (err) { return res.status(500).json({ error: String(err && err.message ? err.message : err) }); }
+});
+
+app.post(/\/glm$/, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const payload = {
+      model: "crm-di-glm47b_30b_it", messages: b.messages,
+      max_tokens: b.max_tokens ?? 700, temperature: b.temperature ?? 0.2, stream: false,
+      chat_template_kwargs: { enable_thinking: !!b.thinking },
+      ...(b.tools ? { tools: b.tools, tool_choice: b.tool_choice ?? "auto" } : {}),
+    };
+    const { status, json } = await callQml(req, "glm/chat", payload);
+    return res.status(status).json(json);
+  } catch (err) { return res.status(500).json({ error: String(err && err.message ? err.message : err) }); }
+});
+
+app.post(/\/vlm$/, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const payload = { model: "VL-Qwen3.6-35B-A3B", prompt: b.prompt, images: b.images,
+      system_prompt: b.system_prompt ?? "You are an OCR + extraction engine. Output only what is asked.",
+      temperature: 0.2, top_k: 50, top_p: 0.9, max_tokens: b.max_tokens ?? 800 };
+    const { status, json } = await callQml(req, "vlm/chat", payload);
+    return res.status(status).json(json);
+  } catch (err) { return res.status(500).json({ error: String(err && err.message ? err.message : err) }); }
+});
 
 // ---- linkage matcher (v1, keyword TF-IDF) ----
 const STOP = new Set(("the a an and or of to in on at for with by from is was were are be been " +
@@ -108,6 +183,7 @@ app.get(/.*/, async (req, res) => {
   if (!m) return res.json({ ok: true, service: "netra_api" });
   const rkey = decodeURIComponent(m[1]).replace(/\/+$/, "");
   if (!VALID_KEY.test(rkey)) return res.status(400).json({ error: "invalid key" });
+  if (rkey.startsWith("_")) return res.status(404).json({ error: "not found" }); // private keys (e.g. _llm_creds)
   try {
     const app_ = catalyst.initialize(req);
     const rows = await app_.zcql().executeZCQLQuery(
