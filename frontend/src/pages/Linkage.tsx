@@ -81,7 +81,7 @@ export default function Linkage() {
       const exclude = new Set(cold.members.map((m) => m.crimeNo));
       const candidates = await scanUnsolved(signature, exclude, 0.7, 8);
       setConfirmedKeys((s) => new Set(s).add(keyOf(query)));
-      setCold((c) => (c ? { ...c, confirmed: true, count: c.count + 1, candidates } : c));
+      setCold((c) => (c ? { ...c, confirmed: true, candidates } : c));
     } finally {
       setConfirming(false);
     }
@@ -225,10 +225,10 @@ export default function Linkage() {
               <div className="mt-4 space-y-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
                 <div>
                   <div className="text-xs font-semibold text-[var(--color-text)]">
-                    Cold cases in this series — <span className="text-[var(--color-danger)]">{cold.unsolved.length}</span> of {cold.count} FIRs still unsolved
+                    Clearable cases — <span className="text-[var(--color-danger)]">{cold.unsolved.length}</span> of {cold.count} linked FIRs still unsolved
                   </div>
-                  <div className="mb-1.5 text-[10px] text-[var(--color-text-mute)]">
-                    Identifying this offender would clear these linked cases across districts.
+                  <div className="mb-1.5 text-[10px] leading-relaxed text-[var(--color-text-mute)]">
+                    These {cold.count} FIRs are one serial series. {cold.unsolved.length} of them are still open — identify this one offender and all {cold.unsolved.length} clear together (one arrest → {cold.unsolved.length} clearance{cold.unsolved.length === 1 ? "" : "s"}).
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {cold.unsolved.map((m) => (
@@ -243,7 +243,7 @@ export default function Linkage() {
                 <div className="flex items-center justify-between gap-3 border-t border-[var(--color-border)] pt-2">
                   {cold.confirmed ? (
                     <div className="text-xs text-[var(--color-text-dim)]">
-                      ✓ <span className="font-medium text-[var(--color-text)]">Confirmed as member #{cold.count}.</span> MO signature updated to the average of {cold.count} FIRs.
+                      ✓ <span className="font-medium text-[var(--color-text)]">This FIR is now linked to the series.</span> NETRA re-scanned unsolved cases against the updated MO signature.
                       {cold.candidates.length > 0 ? (
                         <> Re-scan surfaced <span className="font-semibold text-[var(--color-accent)]">{cold.candidates.length} candidate cold case{cold.candidates.length > 1 ? "s" : ""}</span> matching this MO.</>
                       ) : (

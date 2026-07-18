@@ -137,10 +137,10 @@ export default function CrimeDNA({ dna }: { dna: CrimeDna }) {
             <span className="font-semibold text-[var(--color-text)]">One arrest → many clearances</span>
           </div>
           <p className="mt-1.5 text-xs leading-relaxed text-[var(--color-text-dim)]">
-            Arrest <span className="font-medium text-[var(--color-accent)]">{dna.offender}</span> — the shared hand across this
-            series — and <span className="font-semibold text-[var(--color-ok)]">{dna.unsolvedCount} unsolved case{dna.unsolvedCount === 1 ? "" : "s"}</span>
-            {" "}across {dna.unsolvedDistricts?.length} district{dna.unsolvedDistricts?.length === 1 ? "" : "s"}
-            {" "}({dna.unsolvedDistricts?.join(", ")}) sharing his MO can be cleared in one go.
+            <span className="font-semibold text-[var(--color-ok)]">{dna.unsolvedCount} of the {dna.memberCount} linked FIRs</span> in this series are still unsolved.
+            Arrest <span className="font-medium text-[var(--color-accent)]">{dna.offender}</span> — the shared hand across all {dna.memberCount} —
+            and those {dna.unsolvedCount} open case{dna.unsolvedCount === 1 ? "" : "s"} across {dna.unsolvedDistricts?.length} district{dna.unsolvedDistricts?.length === 1 ? "" : "s"}
+            {" "}({dna.unsolvedDistricts?.join(", ")}) clear in one go — one arrest, {dna.unsolvedCount} clearance{dna.unsolvedCount === 1 ? "" : "s"}.
           </p>
           <button
             onClick={() => setShowClear((v) => !v)}
@@ -163,8 +163,12 @@ export default function CrimeDNA({ dna }: { dna: CrimeDna }) {
 
       {/* Member FIRs with MO phrases highlighted */}
       <div>
-        <div className="mb-2 text-xs uppercase tracking-wide text-[var(--color-text-mute)]">
-          Member FIRs — same MO, different wording
+        <div className="mb-2 flex items-center justify-between gap-2 text-xs uppercase tracking-wide text-[var(--color-text-mute)]">
+          <span>Member FIRs — same MO, different wording</span>
+          <span className="flex items-center gap-2 normal-case tracking-normal text-[10px]">
+            <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-ok)]" /> solved</span>
+            <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-warn)]" /> unsolved</span>
+          </span>
         </div>
         <ul className="space-y-2">
           {dna.members.map((m) => (
