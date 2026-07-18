@@ -9,9 +9,10 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { HexagonLayer } from "@deck.gl/aggregation-layers";
-import { ScatterplotLayer } from "@deck.gl/layers";
+import { ScatterplotLayer, PathLayer, TextLayer } from "@deck.gl/layers";
 import { LightingEffect, AmbientLight, DirectionalLight } from "@deck.gl/core";
 import type { Layer } from "@deck.gl/core";
+import { KIND_COLOR, type PatrolPlan } from "@/lib/patrolPlan";
 
 // Main base: OpenFreeMap dark (OSM vector — streets, labels, and 3D BUILDINGS on deep zoom),
 // themed to NETRA. CartoDB dark is the auto-fallback if the community tiles hiccup.
@@ -185,6 +186,81 @@ function buildLayers(mode: Mode, data: Pt[], z: number): Layer[] {
   ];
 }
 
+// Patrol-focus overlay: the predicted zone (translucent disc), the suggested picket ring, a
+// dashed beat loop tying the pickets together, and text labels. Drawn over satellite/streets
+// so a DSP sees the plan sitting on the actual ground. Honest: a ZONE, not an exact address.
+function focusLayers(plan: PatrolPlan, ctx: Pt[]): Layer[] {
+  const center: [number, number] = [plan.lng, plan.lat];
+  const loop = [...plan.pickets.map((p) => [p.lng, p.lat] as [number, number])];
+  if (loop.length > 1) loop.push(loop[0]);
+  return [
+    // Predicted risk zone — a soft filled disc + bright edge.
+    new ScatterplotLayer<{ position: [number, number] }>({
+      id: "focus-zone",
+      data: [{ position: center }],
+      getPosition: (d) => d.position,
+      getRadius: plan.radiusM,
+      radiusUnits: "meters",
+      getFillColor: [34, 211, 238, 28],
+      stroked: true,
+      getLineColor: [34, 211, 238, 180],
+      lineWidthMinPixels: 2,
+      pickable: false,
+    }),
+    // Nearby real incidents inside the pocket → context (dim).
+    new ScatterplotLayer<Pt>({
+      id: "focus-ctx",
+      data: ctx,
+      getPosition: (d) => d.position,
+      getFillColor: [148, 163, 184, 150],
+      getRadius: 60,
+      radiusMinPixels: 2,
+      radiusMaxPixels: 5,
+      pickable: false,
+    }),
+    // Beat loop tying the pickets together.
+    new PathLayer<{ path: [number, number][] }>({
+      id: "focus-loop",
+      data: loop.length > 2 ? [{ path: loop }] : [],
+      getPath: (d) => d.path,
+      getColor: [34, 211, 238, 140],
+      getWidth: 2.5,
+      widthUnits: "pixels",
+    }),
+    // Suggested picket positions, coloured by kind.
+    new ScatterplotLayer<PatrolPlan["pickets"][number]>({
+      id: "focus-pickets",
+      data: plan.pickets,
+      getPosition: (p) => [p.lng, p.lat],
+      getRadius: 130,
+      radiusMinPixels: 7,
+      radiusMaxPixels: 16,
+      getFillColor: (p) => [...KIND_COLOR[p.kind], 235] as [number, number, number, number],
+      stroked: true,
+      getLineColor: [8, 14, 26],
+      lineWidthMinPixels: 1.5,
+      pickable: false,
+    }),
+    // Labels above each picket.
+    new TextLayer<PatrolPlan["pickets"][number]>({
+      id: "focus-labels",
+      data: plan.pickets,
+      getPosition: (p) => [p.lng, p.lat],
+      getText: (p) => p.label,
+      getSize: 12,
+      getColor: [226, 232, 240, 255],
+      getPixelOffset: [0, -18],
+      background: true,
+      getBackgroundColor: [10, 16, 30, 205],
+      backgroundPadding: [5, 3],
+      fontWeight: 600,
+      outlineWidth: 0,
+      getTextAnchor: "middle",
+      getAlignmentBaseline: "bottom",
+    }),
+  ];
+}
+
 // A drag joystick that pans the map continuously while held (game-pad feel).
 function Joystick({ onTick }: { onTick: (nx: number, ny: number) => void }) {
   const [knob, setKnob] = useState({ x: 0, y: 0 });
@@ -244,7 +320,7 @@ function CtrlBtn({ onClick, label, title, active }: { onClick: () => void; label
   );
 }
 
-export default function DeckMap({ districts }: { districts?: DistrictGeo[] }) {
+export default function DeckMap({ districts, focus, onExitFocus }: { districts?: DistrictGeo[]; focus?: PatrolPlan | null; onExitFocus?: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const overlayRef = useRef<MapboxOverlay | null>(null);
@@ -256,6 +332,8 @@ export default function DeckMap({ districts }: { districts?: DistrictGeo[] }) {
   navRef.current = nav;
   const districtsRef = useRef<DistrictGeo[]>([]);
   useEffect(() => { districtsRef.current = districts ?? []; }, [districts]);
+  const focusRef = useRef(false);
+  useEffect(() => { focusRef.current = !!focus; }, [focus]);
   const [hover, setHover] = useState<{ x: number; y: number; name: string; count: number } | null>(null);
   const [pts, setPts] = useState<Pt[] | null>(null);
   const [mode, setMode] = useState<Mode>("hex");
@@ -354,6 +432,7 @@ export default function DeckMap({ districts }: { districts?: DistrictGeo[] }) {
     // only if within ~16px on screen. Fresh every click — no stale deck picking buffer (the bug
     // where every click kept showing the first FIR).
     map.on("click", (e) => {
+      if (focusRef.current) return; // patrol-focus mode — no FIR popups
       const data = ptsRef.current;
       if (!data.length) return;
       const ll = map.unproject(e.point);
@@ -431,13 +510,41 @@ export default function DeckMap({ districts }: { districts?: DistrictGeo[] }) {
     map.setStyle(base === "dark" ? OFM_DARK : SAT_STYLE);
   }, [base]);
 
+  // Patrol focus: fly into the predicted pocket (satellite + street detail) so the plan sits on
+  // the real ground; exiting flies back to the state overview and restores the previous base.
+  const prevBase = useRef<Base>("dark");
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (focus) {
+      prevBase.current = base;
+      if (base !== "satellite") setBase("satellite");
+      popupRef.current?.remove();
+      map.easeTo({ center: [focus.lng, focus.lat], zoom: 13.2, pitch: 55, bearing: 0, duration: 1500 });
+    } else {
+      map.easeTo({ center: [76.2, 14.9], zoom: 5.9, pitch: 48, bearing: -12, duration: 900 });
+      if (prevBase.current !== base) setBase(prevBase.current);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus]);
+  // Real incidents inside the focused pocket → light context under the plan.
+  const focusCtx = useMemo(() => {
+    if (!focus || !pts) return [];
+    return pts.filter((p) => Math.abs(p.position[0] - focus.lng) < 0.045 && Math.abs(p.position[1] - focus.lat) < 0.045);
+  }, [focus, pts]);
+
   useEffect(() => {
     if (!overlayRef.current || !pts) return;
+    if (focus) {
+      // Patrol-focus mode replaces the density/incident layers with the deployment overlay.
+      overlayRef.current.setProps({ layers: focusLayers(focus, focusCtx), effects: [LIGHTING] });
+      return;
+    }
     // Density hexbins are for the overview; past street zoom, show incident dots instead
     // (a single deep hexbin becomes a giant pillar that blocks the 3D buildings).
     const effMode: Mode = mode === "hex" && z > 12.5 ? "points" : mode;
     overlayRef.current.setProps({ layers: buildLayers(effMode, visible, z), effects: [LIGHTING] });
-  }, [visible, mode, z, pts]);
+  }, [visible, mode, z, pts, focus, focusCtx]);
 
   // Keep a ref of points for the (once-bound) click handler.
   useEffect(() => { ptsRef.current = pts ?? []; }, [pts]);
@@ -460,8 +567,29 @@ export default function DeckMap({ districts }: { districts?: DistrictGeo[] }) {
         </div>
       )}
 
+      {/* Patrol-focus banner + legend + exit */}
+      {focus && (
+        <div className="absolute left-1/2 top-3 z-[1200] flex max-w-[92%] -translate-x-1/2 items-center gap-3 rounded-lg border border-[var(--color-accent)]/40 bg-[var(--color-surface)]/95 px-3 py-2 backdrop-blur">
+          <span className="flex h-2 w-2 shrink-0 animate-pulse rounded-full bg-[var(--color-accent)]" />
+          <div className="min-w-0">
+            <div className="truncate text-xs font-semibold text-[var(--color-text)]">
+              Patrol focus · {focus.district} · {focus.crimeType}
+            </div>
+            <div className="truncate text-[10px] text-[var(--color-text-mute)]">
+              {focus.units} units · {focus.window} · predicted zone (~1.3 km), not an exact address
+            </div>
+          </div>
+          <button
+            onClick={() => onExitFocus?.()}
+            className="ml-1 shrink-0 rounded-md border border-[var(--color-border-strong)] px-2 py-1 text-[11px] text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
+          >
+            Exit ✕
+          </button>
+        </div>
+      )}
+
       {/* Controls: base + mode */}
-      <div className="absolute left-3 top-3 z-[1000] flex flex-col gap-2">
+      <div className={`absolute left-3 top-3 z-[1000] flex flex-col gap-2 ${focus ? "pointer-events-none opacity-40" : ""}`}>
         <div className="flex overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur">
           {MODES.map((m) => (
             <button

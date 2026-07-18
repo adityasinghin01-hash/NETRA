@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useApi, StatTile, Card, PageHeader, State, Badge } from "@/components/ui";
 import DeckMap from "@/components/DeckMap";
 import LiveAlerts from "@/components/LiveAlerts";
 import { getSession } from "@/lib/auth";
 import { optimize, type Area } from "@/lib/optimizer";
+import { buildPlan, KIND_COLOR, type PatrolPlan } from "@/lib/patrolPlan";
 import { openReport } from "@/lib/pdf";
 
 interface Summary {
@@ -50,6 +51,7 @@ interface Forecast {
 const RISK_TONE: Record<string, "danger" | "warn" | "mute"> = {
   High: "danger", Elevated: "warn", Watch: "mute",
 };
+const DEPLOY_UNITS = 10; // nightly patrol strength the state deployment optimises over
 
 export default function CommandMap() {
   const s = useApi<Summary>("/stats/summary");
@@ -59,7 +61,9 @@ export default function CommandMap() {
   const oc = useApi<{ name: string; chargesheeted: number; false: number; undetected: number }[]>("/stats/outcomes");
   const [forecast, setForecast] = useState<Forecast | null>(null);
   const [da, setDa] = useState<Record<string, { outcome: { detectionPct: number } }> | null>(null);
-  const [units, setUnits] = useState(8);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [focus, setFocus] = useState<PatrolPlan | null>(null);
+  const mapCardRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}forecast.json`).then((r) => r.json()).then(setForecast).catch(() => {});
     fetch(`${import.meta.env.BASE_URL}district-analytics.json`).then((r) => r.json()).then((d) => setDa(d.districts)).catch(() => {});
@@ -90,18 +94,26 @@ export default function CommandMap() {
         }
       : s.data;
 
-  // Patrol optimizer over the forecast hotspots (recomputes live on the units slider).
+  // Plain-language patrol plans, one per forecast pocket (optimizer decides units state-wide).
+  const plans: PatrolPlan[] = fcHotspots.map((h) => buildPlan(h));
+  const sel = selected !== null ? plans[selected] ?? null : null;
+
+  // Full-state patrol optimizer over the forecast hotspots (fixed nightly strength).
   const areas: Area[] = fcHotspots.map((h) => ({
     district: h.district, lambda: h.projectedWeek || 1, crimeType: h.crimeType,
     patrolWindow: h.patrolWindow, lat: h.lat ?? 0, lng: h.lng ?? 0,
   }));
-  const opt = areas.length ? optimize(areas, units) : null;
+  const opt = areas.length ? optimize(areas, DEPLOY_UNITS) : null;
+  function viewOnMap(p: PatrolPlan) {
+    setFocus(p);
+    mapCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
   function dutyChart() {
     if (!opt) return;
     const rows = opt.alloc.map((a) => `<tr><td>${a.district}</td><td>${a.units}</td><td>${a.crimeType}</td><td>${a.tactic}</td></tr>`).join("");
     openReport({
-      title: "Patrol Duty Chart",
-      subtitle: `${units} units · covers ~${Math.round(opt.coveredPct * 100)}% of the 7-day forecast crime`,
+      title: "State Patrol Deployment Order",
+      subtitle: `${DEPLOY_UNITS} units · covers ~${Math.round(opt.coveredPct * 100)}% of the 7-day forecast crime`,
       classification: "DEPLOYMENT ORDER",
       sections: [
         { heading: "Deployment", html: `<table><thead><tr><th>Area</th><th>Units</th><th>Focus</th><th>Tactics</th></tr></thead><tbody>${rows}</tbody></table>` },
@@ -132,9 +144,11 @@ export default function CommandMap() {
       </State>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="h-[420px] overflow-hidden p-0 lg:col-span-2">
-          <DeckMap districts={d.data ?? []} />
-        </Card>
+        <div ref={mapCardRef} className="lg:col-span-2">
+          <Card className="h-[420px] overflow-hidden p-0">
+            <DeckMap districts={d.data ?? []} focus={focus} onExitFocus={() => setFocus(null)} />
+          </Card>
+        </div>
 
         <div className="flex h-[420px] flex-col gap-4">
           <Card className="shrink-0 p-4">
@@ -170,75 +184,103 @@ export default function CommandMap() {
         </div>
       </div>
 
-      {forecast && fcHotspots.length > 0 && (
+      {forecast && plans.length > 0 && (
         <Card className="mt-4 p-4">
-          <div className="mb-1 flex items-center justify-between">
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm font-medium text-[var(--color-text)]">
-              7-Day Forecast &amp; Patrol Plan
+              This week's forecast &amp; where to patrol
             </div>
-            <span className="text-xs text-[var(--color-text-mute)]">
-              next {forecast.horizonDays} days · gradient-boosting model
-              {forecast.metrics && ` · top-5 hit-rate ${Math.round(forecast.metrics.hitRateTop5 * 100)}%`}
-            </span>
-          </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            {fcHotspots.slice(0, 8).map((h, i) => (
-              <div key={i} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-[var(--color-text)]">{h.district}</span>
-                  <Badge tone={RISK_TONE[h.riskLevel] ?? "mute"}>{h.riskLevel}</Badge>
-                </div>
-                <div className="mt-1 text-xs text-[var(--color-text-dim)]">{h.crimeType}</div>
-                <div className="mt-2 flex items-center justify-between text-xs">
-                  <span className="text-[var(--color-text-mute)]">
-                    trend <span className="text-[var(--color-danger)]">+{h.momentumPct}%</span>
-                  </span>
-                  <span className="tnum text-[var(--color-text-dim)]">{h.patrolWindow}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-2 text-[10px] text-[var(--color-text-mute)]">
-            Recommendation: allocate patrols to the windows above · decision support, human-in-the-loop
-          </div>
-        </Card>
-      )}
-
-      {opt && (
-        <Card className="mt-4 p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <div className="text-sm font-medium text-[var(--color-text)]">Predictive Deployment Board</div>
-            <span className="text-xs text-[var(--color-text-mute)]">optimal patrol allocation · (1−1/e) bound · Koper-curve</span>
-          </div>
-          <div className="mb-3 flex flex-wrap items-center gap-x-6 gap-y-3">
             <div className="flex items-center gap-3">
-              <span className="text-xs text-[var(--color-text-dim)]">Patrol units tonight</span>
-              <input type="range" min={2} max={16} value={units} onChange={(e) => setUnits(+e.target.value)} className="accent-[var(--color-accent)]" />
-              <span className="tnum w-6 text-sm font-semibold text-[var(--color-text)]">{units}</span>
+              <span className="text-xs text-[var(--color-text-mute)]">
+                next {forecast.horizonDays} days
+                {forecast.metrics && ` · ${Math.round(forecast.metrics.hitRateTop5 * 100)}% of hotspots caught in top-5`}
+              </span>
+              {opt && (
+                <button
+                  onClick={dutyChart}
+                  className="rounded-lg border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/10 px-3 py-1 text-xs font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20"
+                  title={`Optimally deploy ${DEPLOY_UNITS} units — covers ~${Math.round(opt.coveredPct * 100)}% of forecast crime`}
+                >
+                  🚔 Full state deployment
+                </button>
+              )}
             </div>
-            <div className="text-sm">
-              <span className="text-[var(--color-text-dim)]">Optimal deployment covers </span>
-              <span className="tnum text-lg font-semibold text-[var(--color-ok)]">{Math.round(opt.coveredPct * 100)}%</span>
-              <span className="text-[var(--color-text-dim)]"> of forecast crime</span>
-            </div>
-            <button onClick={dutyChart} className="ml-auto rounded-lg border border-[var(--color-border-strong)] px-3 py-1 text-xs text-[var(--color-text-dim)] hover:text-[var(--color-accent)]">
-              Generate duty chart
-            </button>
           </div>
-          <div className="space-y-1.5">
-            {opt.alloc.map((a) => (
-              <div key={a.district} className="flex items-start gap-3 rounded-lg bg-[var(--color-bg)] p-2.5 text-xs">
-                <span className="tnum flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent)]/15 font-semibold text-[var(--color-accent)]">{a.units}</span>
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium text-[var(--color-text)]">{a.district} · {a.crimeType}</div>
-                  <div className="text-[10px] text-[var(--color-text-mute)]">{a.tactic}</div>
+          <div className="mb-3 text-[11px] text-[var(--color-text-mute)]">
+            Tap a pocket to see the patrol plan, then put it on the map. Decision support — human-in-the-loop.
+          </div>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {plans.slice(0, 8).map((p, i) => {
+              const on = selected === i;
+              return (
+                <button
+                  key={i}
+                  onClick={() => setSelected(on ? null : i)}
+                  className={`rounded-lg border p-3 text-left transition-colors ${
+                    on
+                      ? "border-[var(--color-accent)] bg-[var(--color-accent)]/10"
+                      : "border-[var(--color-border)] bg-[var(--color-bg)] hover:border-[var(--color-border-strong)]"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-[var(--color-text)]">{p.district}</span>
+                    <Badge tone={RISK_TONE[p.risk] ?? "mute"}>{p.risk}</Badge>
+                  </div>
+                  <div className="mt-1.5 text-sm text-[var(--color-text-dim)]">{p.headline}</div>
+                  <div className="mt-2 flex items-center justify-between text-[11px]">
+                    <span className="text-[var(--color-text-mute)]">worst <span className="text-[var(--color-text-dim)]">{p.window}</span></span>
+                    <span className="text-[var(--color-text-mute)]">
+                      {p.trendPct >= 0 ? "rising " : "easing "}
+                      <span className={p.trendPct >= 0 ? "text-[var(--color-danger)]" : "text-[var(--color-ok)]"}>{p.trendPct >= 0 ? "+" : ""}{p.trendPct}%</span>
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {sel && (
+            <div className="mt-3 rounded-xl border border-[var(--color-accent)]/30 bg-[var(--color-bg)] p-4">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div className="text-sm font-semibold text-[var(--color-text)]">
+                    {sel.district} · {sel.crimeType}
+                  </div>
+                  <div className="mt-0.5 text-xs text-[var(--color-text-dim)]">
+                    {sel.headline} · worst {sel.window} · suggest <span className="font-medium text-[var(--color-text)]">{sel.units} units</span>
+                  </div>
                 </div>
+                <button
+                  onClick={() => viewOnMap(sel)}
+                  className="shrink-0 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-[var(--color-bg)] hover:opacity-90"
+                >
+                  📍 View on map
+                </button>
               </div>
-            ))}
-          </div>
-          <div className="mt-2 text-[10px] text-[var(--color-text-mute)]">
-            Greedy submodular maximisation — provable (1−1/e)≈63% optimality guarantee · Koper-Curve deterrence with diminishing returns · decision support, human-in-the-loop.
-          </div>
+
+              <ol className="mt-3 space-y-1.5">
+                {sel.steps.map((s, k) => (
+                  <li key={k} className="flex gap-2.5 text-xs text-[var(--color-text-dim)]">
+                    <span className="tnum flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent)]/15 text-[10px] font-semibold text-[var(--color-accent)]">{k + 1}</span>
+                    <span className="leading-relaxed">{s}</span>
+                  </li>
+                ))}
+              </ol>
+
+              <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 border-t border-[var(--color-border)] pt-2">
+                {sel.pickets.map((pk, k) => (
+                  <span key={k} className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-mute)]">
+                    <span className="inline-block h-2 w-2 rounded-full" style={{ background: `rgb(${KIND_COLOR[pk.kind].join(",")})` }} />
+                    {pk.label}
+                  </span>
+                ))}
+              </div>
+              <div className="mt-2 text-[10px] text-[var(--color-text-mute)]">
+                NETRA marks a predicted <span className="text-[var(--color-text-dim)]">zone</span> (≈1.3 km around the forecast centroid) and suggests picket positions — it does not name an exact address.
+              </div>
+            </div>
+          )}
         </Card>
       )}
     </div>
