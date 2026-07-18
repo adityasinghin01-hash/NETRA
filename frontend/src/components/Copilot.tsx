@@ -68,7 +68,7 @@ export default function Copilot() {
     setThinking(true);
     let a: NetraAnswer;
     try {
-      a = await askNetra(t, scope, { thinking: deep });
+      a = await askNetra(t, scope, { thinking: deep, history: msgs.map((m) => ({ role: m.role, text: m.text })) });
     } catch {
       a = { text: "Something went wrong reading the intelligence. Please try again.", cites: [], cardIds: [], follow: [], trace: [], actions: [], confidence: 0, grounded: false };
     }

@@ -4,7 +4,7 @@
 // template composer answers from the same cards — so it never hallucinates and never fails.
 import { retrieve, confidenceFrom, preloadRetrieval, type Retrieved } from "@/lib/retrieval";
 import { graphContext, preloadGraph } from "@/lib/graph";
-import { glmChat, type ToolDef, type ToolCall } from "@/lib/llm";
+import { glmChat, type ToolDef, type ToolCall, type LlmMsg } from "@/lib/llm";
 import { TOOLS, runTool, type UiAction } from "@/lib/copilotTools";
 import { preloadEmbedder } from "@/lib/embedMatch";
 import { recallMemory } from "@/lib/feedback";
@@ -58,27 +58,35 @@ function suggestFollow(hits: Retrieved[]): string[] {
   return [...s].slice(0, 3);
 }
 
-// Small-talk / capability questions are NOT data queries — answer them directly so they
-// never trip the low-confidence "verify with a human" gate (which is for data answers).
-function metaAnswer(q: string): string | null {
+// Persona for conversational turns — GLM replies naturally (not a canned script).
+const CONV_SYS = `You are NETRA, an AI crime-intelligence assistant for the Karnataka State Police — warm, concise and professional. This message is conversational (a greeting, small-talk, or a question about you or your abilities). Reply naturally and specifically to what the user actually said, in their language (English or Kannada). Do NOT paste a fixed feature list unless they ask what you can do — and even then keep it brief and human, varying your wording. Your abilities: answer questions grounded in live crime intelligence (hotspots, serial clusters, rings & kingpins, cold cases, district stats) with citations; draw diagrams (link charts, org-charts, timelines, money-trails, MO flows); draft police documents (FIR, charge-sheet, look-out notice) for human sign-off; read scanned documents (OCR). Everything stays in the police cloud (sovereign). Never invent crime facts, names, FIR numbers or statistics.`;
+
+// True for greetings / small-talk / questions about the assistant — NOT data questions.
+const DATA_HINT = /(hotspot|forecast|next week|predict|patrol|serial|cluster|link|kingpin|ring|gang|network|cold|undetected|unsolved|worklist|district|clock|peak|rossmo|strike|arrest|clear|burglar|theft|fraud|snatch|murder|robber|chargesheet|\bfir\b|\bcase|draft|diagram|chart|\bmap\b|offender|detection|heinous|\bstat)/i;
+function isConversational(q: string): boolean {
   const s = q.toLowerCase().trim();
-  if (/^(hi|hello|hey|yo|hola|namaste|namaskara|good (morning|evening|afternoon))\b/.test(s) || s.length < 3)
-    return "👋 Hi! I'm **NETRA** — your crime-intelligence assistant. Ask me about hotspots, serial series, crime rings & kingpins, cases at risk of going cold, or any district — in English or ಕನ್ನಡ. I can also draw diagrams, draft documents, read a scanned FIR, and talk by voice.";
-  if (/(what can you|what do you do|what are you|who are you|\bhelp\b|capabilit|how (do|to) (i|you) use|what should i ask)/.test(s))
-    return "I'm **NETRA Copilot** — grounded, cited and sovereign (no data leaves the police cloud). I can:\n• Answer anything from live intelligence — hotspots, serial clusters, rings & kingpins, cold cases, districts\n• Draw link charts, org-charts, timelines, money-trails & MO flows\n• Draft documents (FIR, charge-sheet, look-out notice…) for your sign-off\n• Read a scanned FIR/document (📎) and pull out the fields\n• Talk with you by voice (🎤)\nTry: **\"Which hotspots next week?\"** or **\"Draw the link chart for the shutter-cutting burglar.\"**";
-  if (/^(thanks|thank you|thx|great|nice|good job|well done|perfect|awesome)\b/.test(s))
-    return "Happy to help. Ask me anything else about the intelligence.";
-  if (/^(bye|goodbye|see you|ok bye|that'?s all)\b/.test(s))
-    return "Goodbye — stay safe out there. 👁️";
-  return null;
+  if (DATA_HINT.test(s)) return false;
+  return /^(hi|hello|hey|yo|hola|namaste|namaskara|sup|good (morning|evening|afternoon))\b/.test(s)
+    || /(what can you|what do you do|what are you|who are you|who (made|built)|can you help|help me|how are you|how'?s it going|are you (there|real|an ai)|introduce|your name|thank|thanks|thx|goodbye|see you|nice|cool|great job|well done|good job|awesome|hmm|okay\b|test\b)/.test(s)
+    || /^(ok|k|bye|hm+)\b/.test(s) || s.length < 3;
 }
 
-export async function askNetra(query: string, scope: string | null, opts: { thinking?: boolean } = {}): Promise<NetraAnswer> {
-  const meta = metaAnswer(query);
-  if (meta) return {
-    text: meta, cites: [], cardIds: [], confidence: 1, grounded: true, actions: [], trace: [],
-    follow: ["Which hotspots next week?", "Who are the crime kingpins?", "Cases at risk of going cold?"],
-  };
+type Turn = { role: "user" | "netra"; text: string };
+const toMsgs = (h: Turn[]): LlmMsg[] => h.slice(-6).map((t) => ({ role: t.role === "netra" ? "assistant" : "user", content: t.text }));
+
+export async function askNetra(query: string, scope: string | null, opts: { thinking?: boolean; history?: Turn[] } = {}): Promise<NetraAnswer> {
+  const hist = toMsgs(opts.history ?? []);
+  const followDefault = ["Which hotspots next week?", "Who are the crime kingpins?", "Cases at risk of going cold?"];
+
+  // Conversational turn → natural GLM reply, no retrieval, no confidence gate.
+  if (isConversational(query)) {
+    try {
+      const r = await glmChat([{ role: "system", content: CONV_SYS }, ...hist, { role: "user", content: query }], { max_tokens: 350, temperature: 0.6 });
+      if (r.text.trim())
+        return { text: r.text, cites: [], cardIds: [], confidence: 1, grounded: true, actions: [], trace: ["conversational"], follow: followDefault };
+    } catch { /* fall through to a simple non-LLM reply */ }
+    return { text: "Hi — I'm NETRA. Ask me about hotspots, serial series, rings & kingpins, cold cases or any district; I can also draw diagrams and draft documents.", cites: [], cardIds: [], confidence: 1, grounded: false, actions: [], trace: [], follow: followDefault };
+  }
 
   // Scope-aware retrieval: fold the user's district into the query when unstated.
   const rq = scope && !query.toLowerCase().includes(scope.toLowerCase()) ? `${query} ${scope}` : query;
@@ -94,9 +102,10 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
   try {
     // GLM answers from context and may call action tools (map/diagram/document/search).
     // Tools are ACTIONS, not data the model needs back — so one call, execute, done.
-    const msgs = [
-      { role: "system" as const, content: SYS },
-      { role: "user" as const, content: `${context}\n\nQUESTION: ${query}` },
+    const msgs: LlmMsg[] = [
+      { role: "system", content: SYS },
+      ...hist,
+      { role: "user", content: `${context}\n\nQUESTION: ${query}` },
     ];
     const first = await glmChat(msgs, { tools: TOOLS as ToolDef[], thinking: opts.thinking, max_tokens: 700 });
     grounded = true;
