@@ -89,6 +89,64 @@ export function scoreByCrimeNo(qv: number[], cases: CaseVec[]): Record<string, n
   return out;
 }
 
+// ── Hybrid retrieval (the sidebar's matching-FIR list) ───────────────────────
+// Dense embeddings catch MEANING; BM25 catches EXACT terms (section codes, FIR nos, rare words)
+// that semantics can miss. We rank each FIR by both and fuse with Reciprocal Rank Fusion (RRF),
+// then tag WHY each surfaced (semantic / keyword / both) so the officer sees the reasoning.
+export interface HybridCase {
+  crimeNo: string; district: string; date: string; crimeSubHead: string;
+  clusterId: string; clusterLabel: string; solved: boolean; facts: string; language: string;
+  cos: number; method: "both" | "semantic" | "keyword";
+}
+const STOP = new Set("the a an and or of to in on at by for with from is was were be been being this that these those had has have made off near next found kept were".split(" "));
+const tokenize = (s: string) => (s.toLowerCase().match(/[a-z]{3,}/g) ?? []).filter((w) => !STOP.has(w));
+function bm25(query: string, docsTok: string[][]): number[] {
+  const N = docsTok.length || 1;
+  const avgdl = docsTok.reduce((s, d) => s + d.length, 0) / N;
+  const df = new Map<string, number>();
+  for (const d of docsTok) for (const w of new Set(d)) df.set(w, (df.get(w) ?? 0) + 1);
+  const qt = [...new Set(tokenize(query))];
+  const k1 = 1.5, b = 0.75;
+  return docsTok.map((d) => {
+    const tf = new Map<string, number>();
+    for (const w of d) tf.set(w, (tf.get(w) ?? 0) + 1);
+    let s = 0;
+    for (const w of qt) {
+      const f = tf.get(w) ?? 0;
+      if (!f) continue;
+      const idf = Math.log(1 + (N - (df.get(w) ?? 0) + 0.5) / ((df.get(w) ?? 0) + 0.5));
+      s += idf * (f * (k1 + 1)) / (f + k1 * (1 - b + (b * d.length) / avgdl));
+    }
+    return s;
+  });
+}
+function rankOf(scores: number[]): number[] {
+  const order = scores.map((_, i) => i).sort((a, b) => scores[b] - scores[a]);
+  const rank = new Array<number>(scores.length);
+  order.forEach((i, r) => { rank[i] = r; });
+  return rank;
+}
+export async function hybridCases(query: string, qv: number[], topK = 12): Promise<HybridCase[]> {
+  const { cases } = await getCases();
+  const cos = cases.map((c) => dot(qv, c.vector));
+  const bm = bm25(query, cases.map((c) => tokenize(c.facts)));
+  const dRank = rankOf(cos);
+  const sRank = rankOf(bm);
+  const K = 60;
+  const fused = cases.map((_, i) => 1 / (K + dRank[i]) + (bm[i] > 0 ? 1 / (K + sRank[i]) : 0));
+  return cases
+    .map((_, i) => i)
+    .sort((a, b) => fused[b] - fused[a])
+    .slice(0, topK)
+    .map((i) => {
+      const hasD = dRank[i] < 15;
+      const hasS = bm[i] > 0 && sRank[i] < 15;
+      const { vector, ...meta } = cases[i];
+      void vector;
+      return { ...meta, cos: cos[i], method: hasD && hasS ? "both" : hasS ? "keyword" : "semantic" } as HybridCase;
+    });
+}
+
 // Scan the UNSOLVED case pool for cold cases whose MO matches a signature (cosine ≥ threshold),
 // excluding the series' own members. Returns real candidate cold cases for officer review.
 export async function scanUnsolved(

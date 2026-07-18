@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useApi, Card, PageHeader, State, Badge } from "@/components/ui";
 import { matchFir, type MatchResult } from "@/api/client";
-import { embedMatch, preloadEmbedder, embedText, seriesCases, centroid, scanUnsolved, scoreByCrimeNo, type CaseVec } from "@/lib/embedMatch";
+import { embedMatch, preloadEmbedder, embedText, seriesCases, centroid, scanUnsolved, scoreByCrimeNo, hybridCases, type CaseVec, type HybridCase } from "@/lib/embedMatch";
 import CrimeDNA, { type CrimeDna } from "@/components/CrimeDNA";
 import SpatialTriad, { type SpatialRec } from "@/components/SpatialTriad";
 
@@ -32,6 +32,18 @@ interface Cluster {
   memberCaseNos: string[];
 }
 
+// Persistent confirmed-links ledger (survives refresh) — a distinct FIR can be confirmed into a
+// series ONCE, ever, so the button can't be farmed for meaningless "training". Production would
+// write these to a Data Store ConfirmedLinks table; here they live in localStorage per browser.
+const CONFIRM_KEY = "netra_confirmed_links";
+type ConfirmLedger = Record<string, { at: string; series: string; label: string }>;
+function loadConfirmed(): ConfirmLedger {
+  try { return JSON.parse(localStorage.getItem(CONFIRM_KEY) || "{}"); } catch { return {}; }
+}
+function saveConfirmed(m: ConfirmLedger) {
+  try { localStorage.setItem(CONFIRM_KEY, JSON.stringify(m)); } catch { /* ignore */ }
+}
+
 export default function Linkage() {
   const { data, loading, error } = useApi<Cluster[]>("/linkage/clusters");
   const [selected, setSelected] = useState<Cluster | null>(null);
@@ -43,10 +55,11 @@ export default function Linkage() {
   const [spatialMap, setSpatialMap] = useState<Record<string, SpatialRec> | null>(null);
   // Honest flywheel state: the matched series' members (with unsolved leads), whether THIS FIR
   // has been confirmed, and any cold cases the re-scan surfaced. No fabricated confidence.
-  const [cold, setCold] = useState<{ members: CaseVec[]; unsolved: CaseVec[]; count: number; confirmed: boolean; candidates: (CaseVec & { score: number })[]; scores: Record<string, number>; qvec: number[] } | null>(null);
-  const [confirmedKeys, setConfirmedKeys] = useState<Set<string>>(new Set());
+  const [cold, setCold] = useState<{ members: CaseVec[]; unsolved: CaseVec[]; count: number; confirmed: boolean; confirmedAt: string | null; candidates: (CaseVec & { score: number })[]; scores: Record<string, number>; qvec: number[]; hybrid: HybridCase[] } | null>(null);
+  const [ledger, setLedger] = useState<ConfirmLedger>(() => loadConfirmed());
   const [confirming, setConfirming] = useState(false);
   const keyOf = (q: string) => q.trim().toLowerCase().replace(/\s+/g, " ");
+  const isConfirmed = (k: string) => k in ledger;
   // A semantic match below this cosine % is NOT a real link — a genuine in-series FIR scores
   // ~75-90%, while unrelated/gibberish text scores well under this. Below it we say so honestly.
   const MATCH_MIN = 55;
@@ -66,11 +79,17 @@ export default function Linkage() {
       const members = await seriesCases(result.best.clusterId);
       let scores: Record<string, number> = {};
       let qvec: number[] = [];
-      try { qvec = await embedText(query); scores = scoreByCrimeNo(qvec, members); } catch { /* model busy */ }
+      let hybrid: HybridCase[] = [];
+      try {
+        qvec = await embedText(query);
+        scores = scoreByCrimeNo(qvec, members);
+        hybrid = await hybridCases(query, qvec, 12); // all matching FIRs, semantic + keyword
+      } catch { /* model busy */ }
       if (!live) return;
       setCold({
         members, unsolved: members.filter((m) => !m.solved), count: members.length,
-        confirmed: confirmedKeys.has(keyOf(query)), candidates: [], scores, qvec,
+        confirmed: isConfirmed(keyOf(query)), confirmedAt: ledger[keyOf(query)]?.at ?? null,
+        candidates: [], scores, qvec, hybrid,
       });
     })();
     return () => { live = false; };
@@ -88,8 +107,11 @@ export default function Linkage() {
       const signature = centroid([...cold.members.map((m) => m.vector), qv]);
       const exclude = new Set(cold.members.map((m) => m.crimeNo));
       const candidates = await scanUnsolved(signature, exclude, 0.7, 8);
-      setConfirmedKeys((s) => new Set(s).add(keyOf(query)));
-      setCold((c) => (c ? { ...c, confirmed: true, candidates } : c));
+      const at = new Date().toISOString().slice(0, 10);
+      const next: ConfirmLedger = { ...ledger, [keyOf(query)]: { at, series: result.best.clusterId, label: result.best.label } };
+      setLedger(next);
+      saveConfirmed(next); // permanent — survives refresh, can't be re-confirmed
+      setCold((c) => (c ? { ...c, confirmed: true, confirmedAt: at, candidates } : c));
     } finally {
       setConfirming(false);
     }
@@ -110,6 +132,18 @@ export default function Linkage() {
   const orderedClusters = clusterScore
     ? [...(data ?? [])].sort((a, b) => (clusterScore[b.clusterId] ?? -1) - (clusterScore[a.clusterId] ?? -1))
     : (data ?? []);
+
+  // After a credible match, the sidebar becomes the ranked list of matching FIRs (hybrid search).
+  const showCases = matched && (cold?.hybrid.length ?? 0) > 0;
+  function openSeries(clusterId: string) {
+    const c = data?.find((x) => x.clusterId === clusterId);
+    if (c) setSelected(c);
+  }
+  const METHOD_CHIP: Record<HybridCase["method"], { label: string; cls: string }> = {
+    both: { label: "semantic + keyword", cls: "bg-[var(--color-accent)]/15 text-[var(--color-accent)]" },
+    semantic: { label: "semantic", cls: "bg-[var(--color-ok)]/15 text-[var(--color-ok)]" },
+    keyword: { label: "keyword", cls: "bg-[var(--color-warn)]/15 text-[var(--color-warn)]" },
+  };
 
   // Warm up the semantic model in the background so the first Analyze is fast.
   useEffect(() => {
@@ -278,16 +312,14 @@ export default function Linkage() {
                 <div className="flex items-center justify-between gap-3 border-t border-[var(--color-border)] pt-2">
                   {cold.confirmed ? (
                     <div className="text-xs text-[var(--color-text-dim)]">
-                      ✓ <span className="font-medium text-[var(--color-text)]">This FIR is now linked to the series.</span> NETRA re-scanned unsolved cases against the updated MO signature.
-                      {cold.candidates.length > 0 ? (
+                      ✓ <span className="font-medium text-[var(--color-text)]">Linked & confirmed{cold.confirmedAt ? ` on ${cold.confirmedAt}` : ""}.</span> This link is recorded — it can't be confirmed again.
+                      {cold.candidates.length > 0 && (
                         <> Re-scan surfaced <span className="font-semibold text-[var(--color-accent)]">{cold.candidates.length} candidate cold case{cold.candidates.length > 1 ? "s" : ""}</span> matching this MO.</>
-                      ) : (
-                        <span className="text-[var(--color-text-mute)]"> No further unsolved cases cross the match threshold.</span>
                       )}
                     </div>
                   ) : (
                     <div className="text-xs text-[var(--color-text-mute)]">
-                      Confirm this FIR belongs to the series → it's added as a member and NETRA re-scans unsolved cases against the updated MO signature.
+                      Confirm this FIR belongs to the series → it's linked into the series (once, permanently) and NETRA re-scans unsolved cases against the updated MO signature.
                     </div>
                   )}
                   <button
@@ -298,6 +330,11 @@ export default function Linkage() {
                     {confirming ? "Scanning…" : cold.confirmed ? "✓ Confirmed" : "Confirm link"}
                   </button>
                 </div>
+                {Object.keys(ledger).length > 0 && (
+                  <div className="text-[10px] text-[var(--color-text-mute)]">
+                    Confirmed-links ledger: <span className="text-[var(--color-text-dim)]">{Object.keys(ledger).length}</span> link{Object.keys(ledger).length === 1 ? "" : "s"} recorded in this browser (production: a Data Store table).
+                  </div>
+                )}
 
                 {cold.confirmed && cold.candidates.length > 0 && (
                   <div className="border-t border-[var(--color-border)] pt-2">
@@ -320,8 +357,42 @@ export default function Linkage() {
       </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-        {/* Cluster list */}
+        {/* Sidebar: matching FIRs after a query (hybrid search), else browse serial series */}
         <div className="space-y-2 lg:col-span-2">
+          {showCases ? (
+            <>
+              <div className="px-1 text-[11px] leading-relaxed text-[var(--color-text-mute)]">
+                <span className="font-medium text-[var(--color-text-dim)]">Matching FIRs ({cold!.hybrid.length})</span> — hybrid search fuses semantic meaning with exact keywords, so it also finds cases pure meaning-search misses. Tap one to open its series. % = semantic similarity to your FIR.
+              </div>
+              {cold!.hybrid.map((h) => (
+                <button
+                  key={h.crimeNo}
+                  onClick={() => openSeries(h.clusterId)}
+                  className={`w-full rounded-xl border p-3 text-left transition-colors ${
+                    cluster?.clusterId === h.clusterId
+                      ? "border-[var(--color-accent-dim)] bg-[var(--color-surface-2)]"
+                      : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-border-strong)]"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="tnum text-xs font-medium text-[var(--color-text)]">{h.crimeNo}</span>
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <span className={`rounded px-1 py-0.5 text-[9px] font-medium ${METHOD_CHIP[h.method].cls}`}>{METHOD_CHIP[h.method].label}</span>
+                      <Badge tone="accent">{Math.round(h.cos * 100)}%</Badge>
+                    </span>
+                  </div>
+                  <div className="mt-1 truncate text-xs text-[var(--color-text-dim)]">
+                    {h.clusterLabel} · {h.district} · {h.date}{h.language === "kn" ? " · ಕನ್ನಡ" : ""}
+                  </div>
+                  <div className="mt-0.5 truncate text-[10px] text-[var(--color-text-mute)]">{h.facts}</div>
+                </button>
+              ))}
+              <div className="px-1 pt-1 text-[10px] text-[var(--color-text-mute)]">
+                Searches NETRA's indexed serial-case corpus (synthetic data).
+              </div>
+            </>
+          ) : (
+          <>
           <div className="px-1 text-[11px] text-[var(--color-text-mute)]">
             {clusterScore
               ? "Serial series ranked by match to your FIR — % is how closely each series' MO fits the pasted case."
@@ -361,6 +432,8 @@ export default function Linkage() {
               );
             })}
           </State>
+          </>
+          )}
         </div>
 
         {/* Detail */}
