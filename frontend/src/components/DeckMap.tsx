@@ -60,16 +60,19 @@ function injectBuildings(map: maplibregl.Map) {
     if (!map.getSource("openmaptiles")) map.addSource("openmaptiles", OMT_SOURCE);
     const firstSym = map.getStyle().layers?.find((l) => l.type === "symbol")?.id;
     if (!map.getLayer("netra-buildings-3d")) map.addLayer(BUILDINGS_3D as any, firstSym);
-    // District lines within the state — dimmer slate, distinct from the bright state edge.
+    // District lines within the state — warm amber, clearly visible and distinct from the
+    // cyan state edge. OpenFreeMap's tiles carry only admin_level 4 (state) for India, so we
+    // draw Karnataka's district outlines from our own bundled GeoJSON (sovereign, offline-safe).
+    if (!map.getSource("netra-districts"))
+      map.addSource("netra-districts", { type: "geojson", data: `${import.meta.env.BASE_URL}karnataka-districts.geojson` } as any);
     if (!map.getLayer("netra-district-border"))
       map.addLayer({
-        id: "netra-district-border", type: "line", source: "openmaptiles", "source-layer": "boundary",
-        filter: [">=", ["get", "admin_level"], 5],
+        id: "netra-district-border", type: "line", source: "netra-districts",
         paint: {
-          "line-color": "hsl(215,20%,42%)",
-          "line-width": ["interpolate", ["linear"], ["zoom"], 6, 0.5, 10, 1.1, 13, 1.6],
-          "line-opacity": ["interpolate", ["linear"], ["zoom"], 6, 0.35, 9, 0.5],
-          "line-dasharray": [3, 2],
+          "line-color": "hsl(38,90%,60%)",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.7, 8, 1.3, 11, 1.9, 14, 2.6],
+          "line-opacity": ["interpolate", ["linear"], ["zoom"], 5, 0.45, 8, 0.58, 11, 0.68],
+          "line-dasharray": [2.5, 1.5],
         },
       } as any, firstSym);
     // Karnataka's edge — bright cyan, above the district lines.
