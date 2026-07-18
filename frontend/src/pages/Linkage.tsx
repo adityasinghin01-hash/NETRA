@@ -47,6 +47,10 @@ export default function Linkage() {
   const [confirmedKeys, setConfirmedKeys] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState(false);
   const keyOf = (q: string) => q.trim().toLowerCase().replace(/\s+/g, " ");
+  // A semantic match below this cosine % is NOT a real link — a genuine in-series FIR scores
+  // ~75-90%, while unrelated/gibberish text scores well under this. Below it we say so honestly.
+  const MATCH_MIN = 55;
+  const matched = !!result && (result.method === "keyword" || result.best.score >= MATCH_MIN);
 
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}crime-dna.json`).then((r) => r.json()).then(setDnaMap).catch(() => {});
@@ -56,7 +60,7 @@ export default function Linkage() {
   // On a semantic match, load the series' member FIRs → surface how many are still UNSOLVED
   // (potential clearances). This is the reliable, real value; no confidence is touched.
   useEffect(() => {
-    if (!result || result.method !== "semantic") { setCold(null); return; }
+    if (!result || result.method !== "semantic" || result.best.score < MATCH_MIN) { setCold(null); return; }
     let live = true;
     (async () => {
       const members = await seriesCases(result.best.clusterId);
@@ -91,7 +95,7 @@ export default function Linkage() {
     }
   }
 
-  const matchedCluster = result?.best
+  const matchedCluster = matched && result?.best
     ? data?.find((c) => c.clusterId === result.best.clusterId)
     : null;
   const cluster = matchedCluster ?? selected ?? data?.[0] ?? null;
@@ -112,8 +116,11 @@ export default function Linkage() {
         r = await matchFir(query); // keyword fallback (server) if model unavailable
       }
       setResult(r);
-      const hit = data?.find((c) => c.clusterId === r.best.clusterId);
-      if (hit) setSelected(hit);
+      // Only auto-open the matched series when the match is actually credible.
+      if (r.method === "keyword" || r.best.score >= MATCH_MIN) {
+        const hit = data?.find((c) => c.clusterId === r.best.clusterId);
+        if (hit) setSelected(hit);
+      }
     } catch {
       setResult(null);
     } finally {
@@ -153,7 +160,21 @@ export default function Linkage() {
           </button>
         </div>
 
-        {result && (
+        {/* No credible link — don't dress a weak/gibberish match up as a result. */}
+        {result && !matched && (
+          <div className="mt-4 rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-bg)] p-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-[var(--color-text)]">
+              <span>🔍</span> No known serial series matches this FIR
+            </div>
+            <p className="mt-1.5 text-xs leading-relaxed text-[var(--color-text-dim)]">
+              The closest series was <span className="text-[var(--color-text)]">{result.best.label}</span> at only{" "}
+              <span className="tnum text-[var(--color-warn)]">{result.best.score}%</span> — below the {MATCH_MIN}% NETRA needs to call it a link.
+              This reads as an isolated incident or a new pattern, not part of a known series. Paste the full FIR narrative for a reliable match.
+            </p>
+          </div>
+        )}
+
+        {result && matched && (
           <div className="mt-4 rounded-lg border border-[var(--color-accent-dim)] bg-[var(--color-surface-2)] p-4">
             <div className="flex items-center gap-4">
               <div className="tnum text-3xl font-semibold text-[var(--color-accent)]">{result.best.score}%</div>
