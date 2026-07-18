@@ -12,6 +12,8 @@ import json
 import os
 import random
 
+from pipeline.generator.forensic import forensic_for
+
 DATA = "pipeline/data"
 REF = "pipeline/reference"
 OUT = "frontend/public/incident-points.json"
@@ -25,8 +27,10 @@ def jload(p):
 
 def main():
     tax = jload(f"{REF}/crime-taxonomy.json")
+    lk = jload(f"{REF}/lookups.json")
     submap = {s["crimeSubHeadId"]: s for s in tax["crimeSubHeads"]}
     dmap = {d["districtId"]: d["name"] for d in jload(f"{REF}/districts.json")["districts"]}
+    status_name = {s["caseStatusId"]: s["caseStatusName"] for s in lk["caseStatus"]}
 
     rows = []
     with open(os.path.join(DATA, "cases.jsonl"), encoding="utf-8") as f:
@@ -43,10 +47,16 @@ def main():
     for c in sample:
         sub = submap.get(c["crimeMinorHeadId"], {})
         head = sub.get("crimeHeadId", 9)
+        subhead = sub.get("name", "—")
+        gravity = sub.get("gravity", "Non-Heinous")
+        status = status_name.get(c.get("caseStatusId"), "Under Investigation")
+        solved = c.get("caseStatusId") in (2, 3, 4)
+        weapon = forensic_for(c["crimeNo"], subhead, gravity, solved).get("weapon", "—")
         date = (c.get("incidentFromDate") or c.get("crimeRegisteredDate") or "")[:10]
         pts.append([
             round(c["latitude"], 5), round(c["longitude"], 5), head,
-            c["crimeNo"], dmap.get(c["districtId"], "—"), date, sub.get("name", "—"),
+            c["crimeNo"], dmap.get(c["districtId"], "—"), date, subhead,
+            gravity, status, weapon,
         ])
 
     json.dump(pts, open(OUT, "w"), ensure_ascii=False)

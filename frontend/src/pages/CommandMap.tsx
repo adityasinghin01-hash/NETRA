@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useApi, StatTile, Card, PageHeader, State, Badge } from "@/components/ui";
-import CrimeMap from "@/components/CrimeMap";
 import DeckMap from "@/components/DeckMap";
 import { getSession } from "@/lib/auth";
 import { optimize, type Area } from "@/lib/optimizer";
@@ -17,6 +16,8 @@ interface Summary {
 interface District {
   districtId: number;
   name: string;
+  lat: number;
+  lng: number;
   caseCount: number;
   heinousCount: number;
 }
@@ -57,7 +58,6 @@ export default function CommandMap() {
   const oc = useApi<{ name: string; chargesheeted: number; false: number; undetected: number }[]>("/stats/outcomes");
   const [forecast, setForecast] = useState<Forecast | null>(null);
   const [da, setDa] = useState<Record<string, { outcome: { detectionPct: number } }> | null>(null);
-  const [map3d, setMap3d] = useState(true);
   const [units, setUnits] = useState(8);
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}forecast.json`).then((r) => r.json()).then(setForecast).catch(() => {});
@@ -114,25 +114,7 @@ export default function CommandMap() {
       <PageHeader
         title="Command Map"
         desc="State-wide crime intelligence overview"
-        right={
-          <div className="flex items-center gap-2">
-            <div className="flex overflow-hidden rounded-lg border border-[var(--color-border)]">
-              <button
-                onClick={() => setMap3d(true)}
-                className={`px-2.5 py-1 text-xs ${map3d ? "bg-[var(--color-accent)] text-[var(--color-bg)]" : "text-[var(--color-text-dim)]"}`}
-              >
-                3D
-              </button>
-              <button
-                onClick={() => setMap3d(false)}
-                className={`px-2.5 py-1 text-xs ${!map3d ? "bg-[var(--color-accent)] text-[var(--color-bg)]" : "text-[var(--color-text-dim)]"}`}
-              >
-                2D
-              </button>
-            </div>
-            {dq.data && <Badge tone="mute">{dq.data.geocodedPct}% geocoded</Badge>}
-          </div>
-        }
+        right={dq.data ? <Badge tone="mute">{dq.data.geocodedPct}% geocoded</Badge> : undefined}
       />
 
       <State loading={s.loading} error={s.error}>
@@ -150,7 +132,7 @@ export default function CommandMap() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="h-[420px] overflow-hidden p-0 lg:col-span-2">
-          {map3d ? <DeckMap /> : <CrimeMap districts={d.data ?? []} focusDistrict={scope} />}
+          <DeckMap districts={d.data ?? []} />
         </Card>
 
         <div className="flex h-[420px] flex-col gap-4">

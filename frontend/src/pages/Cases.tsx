@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useApi, Card, PageHeader, State, Badge } from "@/components/ui";
 import { searchCases, type CaseRow, type Forensic } from "@/api/client";
 import { getSession } from "@/lib/auth";
@@ -167,7 +168,8 @@ function Select({ value, onChange, options, placeholder }: {
 export default function Cases() {
   const scope = getSession().district; // district/station users locked to their district
   const districts = useApi<{ name: string }[]>("/geo/districts");
-  const [q, setQ] = useState("");
+  const [params] = useSearchParams();
+  const [q, setQ] = useState(params.get("q") ?? ""); // deep-link from a map dot → search that FIR
   const [district, setDistrict] = useState(scope ?? "");
   const [type, setType] = useState("");
   const [gravity, setGravity] = useState("");

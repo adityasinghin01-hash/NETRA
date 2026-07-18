@@ -4,6 +4,7 @@
 // MapboxOverlay (robust under React 19 / Vite). Data: public/incident-points.json
 // ([lat, lng, crimeHead, crimeNo, district, date, crimeType]).
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { MapboxOverlay } from "@deck.gl/mapbox";
@@ -50,14 +51,30 @@ const SAT_STYLE: maplibregl.StyleSpecification = {
 // Karnataka bounds → the map is locked to the state (deep zoom, can't wander off).
 const KA_BOUNDS: [[number, number], [number, number]] = [[73.4, 11.2], [78.9, 18.7]];
 
-// Add the vector source (if missing) + the 3D-buildings layer, under the first label layer.
+// After each style load: add the vector source, 3D buildings, a glowing state border (so
+// Karnataka reads distinct from its neighbours), and tame POI labels at low zoom so the
+// overview stays clean while detail floods in on deep zoom.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function injectBuildings(map: maplibregl.Map) {
   try {
     if (!map.getSource("openmaptiles")) map.addSource("openmaptiles", OMT_SOURCE);
-    if (!map.getLayer("netra-buildings-3d")) {
-      const firstSym = map.getStyle().layers?.find((l) => l.type === "symbol")?.id;
-      map.addLayer(BUILDINGS_3D as any, firstSym);
+    const firstSym = map.getStyle().layers?.find((l) => l.type === "symbol")?.id;
+    if (!map.getLayer("netra-buildings-3d")) map.addLayer(BUILDINGS_3D as any, firstSym);
+    if (!map.getLayer("netra-state-border"))
+      map.addLayer({
+        id: "netra-state-border", type: "line", source: "openmaptiles", "source-layer": "boundary",
+        filter: ["==", ["get", "admin_level"], 4],
+        paint: {
+          "line-color": "hsl(190,75%,55%)",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 5, 1.2, 9, 2.4, 13, 3],
+          "line-opacity": 0.55,
+        },
+      } as any, firstSym);
+    // Tame busy POI/minor labels below z11 so the state overview isn't cluttered.
+    for (const l of map.getStyle().layers ?? []) {
+      if (l.type === "symbol" && /poi|housenum|minor|village|hamlet|suburb/i.test(l.id)) {
+        try { map.setLayerZoomRange(l.id, 11, 24); } catch { /* layer may lack zoom range */ }
+      }
     }
   } catch { /* source/style not ready yet */ }
 }
@@ -79,9 +96,10 @@ const LIGHTING = new LightingEffect({
   fill: new DirectionalLight({ color: [140, 180, 255], intensity: 0.7, direction: [2, 2, -1] }),
 });
 
-type Pt = { position: [number, number]; head: number; crimeNo: string; district: string; date: string; crimeType: string; t: number };
+type Pt = { position: [number, number]; head: number; crimeNo: string; district: string; date: string; crimeType: string; gravity: string; status: string; weapon: string; t: number };
 type Mode = "hex" | "points";
 type Base = "dark" | "satellite";
+export interface DistrictGeo { name: string; lat: number; lng: number; caseCount: number }
 
 // Time-lapse: month index since Jan-2021, and a label for the scrubber.
 const BASE_YEAR = 2021;
@@ -97,8 +115,8 @@ const MODES: { id: Mode; label: string }[] = [
 
 // Zoom-adaptive params — the fix for "looks good at one zoom, bad at another".
 const hexRadius = (z: number) => Math.round(Math.max(300, 3400 / Math.pow(2, Math.max(0, z - 6) * 0.62)));
-// Capped so the "terrain" reads as gentle mounds, not towering spikes, at every zoom.
-const hexElev = (z: number) => Math.min(42, 12 + Math.max(0, z - 7) * 4);
+// Visible mounds at overview, still capped so deep zoom never spikes.
+const hexElev = (z: number) => Math.min(50, 24 + Math.max(0, z - 7) * 3);
 
 function buildLayers(mode: Mode, data: Pt[], z: number): Layer[] {
   if (mode === "hex")
@@ -109,7 +127,7 @@ function buildLayers(mode: Mode, data: Pt[], z: number): Layer[] {
         getPosition: (d) => d.position,
         radius: hexRadius(z),
         elevationScale: hexElev(z),
-        elevationRange: [0, 1100],
+        elevationRange: [0, 1400],
         extruded: true,
         coverage: 0.92,
         pickable: false,
@@ -210,13 +228,19 @@ function CtrlBtn({ onClick, label, title, active }: { onClick: () => void; label
   );
 }
 
-export default function DeckMap() {
+export default function DeckMap({ districts }: { districts?: DistrictGeo[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const overlayRef = useRef<MapboxOverlay | null>(null);
   const zoomBucket = useRef(6);
   const ptsRef = useRef<Pt[]>([]);
   const popupRef = useRef<maplibregl.Popup | null>(null);
+  const nav = useNavigate();
+  const navRef = useRef(nav);
+  navRef.current = nav;
+  const districtsRef = useRef<DistrictGeo[]>([]);
+  useEffect(() => { districtsRef.current = districts ?? []; }, [districts]);
+  const [hover, setHover] = useState<{ x: number; y: number; name: string; count: number } | null>(null);
   const [pts, setPts] = useState<Pt[] | null>(null);
   const [mode, setMode] = useState<Mode>("hex");
   const [base, setBase] = useState<Base>("dark");
@@ -253,10 +277,12 @@ export default function DeckMap() {
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}incident-points.json`)
       .then((r) => r.json())
-      .then((raw: [number, number, number, string, string, string, string][]) =>
+      .then((raw: [number, number, number, string, string, string, string, string, string, string][]) =>
         setPts(
-          raw.map(([lat, lng, head, crimeNo, district, date, crimeType]) => ({
-            position: [lng, lat], head, crimeNo, district, date, crimeType, t: monthIndex(date),
+          raw.map(([lat, lng, head, crimeNo, district, date, crimeType, gravity, status, weapon]) => ({
+            position: [lng, lat], head, crimeNo, district, date, crimeType,
+            gravity: gravity ?? "Non-Heinous", status: status ?? "Under Investigation", weapon: weapon ?? "—",
+            t: monthIndex(date),
           }))
         )
       )
@@ -302,12 +328,17 @@ export default function DeckMap() {
       if (!best) return popupRef.current?.remove();
       const sp = map.project(best.position);
       if (Math.hypot(sp.x - e.point.x, sp.y - e.point.y) > 16) return popupRef.current?.remove();
+      const grav = best.gravity.startsWith("Hein") ? "#f87171" : "#94a3b8";
+      const weaponLine = best.weapon && !best.weapon.startsWith("None")
+        ? `<div style="color:#cbd5e1;font-size:11px;margin-top:2px">🔪 ${best.weapon}</div>` : "";
       const html =
-        `<div style="line-height:1.55">` +
-        `<div style="font-variant-numeric:tabular-nums;color:#94a3b8;font-size:11px">${best.crimeNo}</div>` +
+        `<div style="line-height:1.5;min-width:184px">` +
+        `<div style="font-variant-numeric:tabular-nums;color:#64748b;font-size:10px">${best.crimeNo}</div>` +
         `<div style="font-weight:600;color:#e2e8f0;margin-top:2px">${best.crimeType}</div>` +
-        `<div style="color:#94a3b8;margin-top:1px">${best.district} · ${best.date}</div>` +
-        `<div style="color:#64748b;font-size:10px;margin-top:4px">Real FIR from the 50k dataset</div>` +
+        `<div style="margin-top:4px"><span style="font-size:10px;padding:1px 6px;border-radius:6px;background:rgba(148,163,184,0.15);color:${grav}">${best.gravity}</span> <span style="font-size:10px;color:#94a3b8">· ${best.status}</span></div>` +
+        weaponLine +
+        `<div style="color:#94a3b8;font-size:11px;margin-top:3px">${best.district} · ${best.date}</div>` +
+        `<a href="#" class="netra-open-case" data-cn="${best.crimeNo}" style="display:inline-block;margin-top:6px;font-size:11px;color:#22d3ee;text-decoration:none">Open in Case Search →</a>` +
         `</div>`;
       if (!popupRef.current)
         popupRef.current = new maplibregl.Popup({
@@ -317,6 +348,23 @@ export default function DeckMap() {
       // whichever dot is nearest the new click.
       popupRef.current.setLngLat(best.position).setHTML(html).addTo(map);
     });
+    // "Open in Case Search" link inside the FIR popup → route there with the FIR number.
+    map.getContainer().addEventListener("click", (ev) => {
+      const a = (ev.target as HTMLElement)?.closest?.(".netra-open-case") as HTMLElement | null;
+      if (a) { ev.preventDefault(); navRef.current(`/cases?q=${a.getAttribute("data-cn")}`); }
+    });
+    // Hover (zoomed out) → nearest district's FIR count, for a quick DSP compare.
+    map.on("mousemove", (e) => {
+      const ds = districtsRef.current;
+      if (!ds.length || map.getZoom() >= 9.5) { setHover((h) => (h ? null : h)); return; }
+      let best: DistrictGeo | null = null, bestD = Infinity;
+      for (const d of ds) {
+        const dx = d.lng - e.lngLat.lng, dy = d.lat - e.lngLat.lat, dd = dx * dx + dy * dy;
+        if (dd < bestD) { bestD = dd; best = d; }
+      }
+      if (best) setHover({ x: e.point.x, y: e.point.y, name: best.name, count: best.caseCount });
+    });
+    map.on("mouseout", () => setHover(null));
     // Zoom-adaptive: bucket zoom to 0.3 steps so layers refine as you go deep without thrashing.
     map.on("zoom", () => {
       const nz = map.getZoom();
@@ -345,7 +393,10 @@ export default function DeckMap() {
 
   useEffect(() => {
     if (!overlayRef.current || !pts) return;
-    overlayRef.current.setProps({ layers: buildLayers(mode, visible, z), effects: [LIGHTING] });
+    // Density hexbins are for the overview; past street zoom, show incident dots instead
+    // (a single deep hexbin becomes a giant pillar that blocks the 3D buildings).
+    const effMode: Mode = mode === "hex" && z > 12.5 ? "points" : mode;
+    overlayRef.current.setProps({ layers: buildLayers(effMode, visible, z), effects: [LIGHTING] });
   }, [visible, mode, z, pts]);
 
   // Keep a ref of points for the (once-bound) click handler.
@@ -357,6 +408,17 @@ export default function DeckMap() {
   return (
     <div className="relative h-full w-full overflow-hidden rounded-xl" style={{ background: "#0b1220" }}>
       <div ref={containerRef} className="h-full w-full" />
+
+      {/* District hover-count (zoomed out) */}
+      {hover && (
+        <div
+          className="pointer-events-none absolute z-[1500] rounded-md border border-[var(--color-border-strong)] bg-[var(--color-surface)]/95 px-2 py-1 text-[11px] backdrop-blur"
+          style={{ left: hover.x + 12, top: hover.y + 12 }}
+        >
+          <span className="font-medium text-[var(--color-text)]">{hover.name}</span>
+          <span className="tnum ml-1.5 text-[var(--color-accent)]">{hover.count.toLocaleString()} FIRs</span>
+        </div>
+      )}
 
       {/* Controls: base + mode */}
       <div className="absolute left-3 top-3 z-[1000] flex flex-col gap-2">
