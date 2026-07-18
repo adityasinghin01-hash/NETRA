@@ -60,14 +60,27 @@ function injectBuildings(map: maplibregl.Map) {
     if (!map.getSource("openmaptiles")) map.addSource("openmaptiles", OMT_SOURCE);
     const firstSym = map.getStyle().layers?.find((l) => l.type === "symbol")?.id;
     if (!map.getLayer("netra-buildings-3d")) map.addLayer(BUILDINGS_3D as any, firstSym);
+    // District lines within the state — dimmer slate, distinct from the bright state edge.
+    if (!map.getLayer("netra-district-border"))
+      map.addLayer({
+        id: "netra-district-border", type: "line", source: "openmaptiles", "source-layer": "boundary",
+        filter: [">=", ["get", "admin_level"], 5],
+        paint: {
+          "line-color": "hsl(215,20%,42%)",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 6, 0.5, 10, 1.1, 13, 1.6],
+          "line-opacity": ["interpolate", ["linear"], ["zoom"], 6, 0.35, 9, 0.5],
+          "line-dasharray": [3, 2],
+        },
+      } as any, firstSym);
+    // Karnataka's edge — bright cyan, above the district lines.
     if (!map.getLayer("netra-state-border"))
       map.addLayer({
         id: "netra-state-border", type: "line", source: "openmaptiles", "source-layer": "boundary",
         filter: ["==", ["get", "admin_level"], 4],
         paint: {
-          "line-color": "hsl(190,75%,55%)",
-          "line-width": ["interpolate", ["linear"], ["zoom"], 5, 1.2, 9, 2.4, 13, 3],
-          "line-opacity": 0.55,
+          "line-color": "hsl(190,80%,58%)",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 5, 1.4, 9, 2.6, 13, 3.2],
+          "line-opacity": 0.65,
         },
       } as any, firstSym);
     // Tame busy POI/minor labels below z11 so the state overview isn't cluttered.
@@ -257,6 +270,19 @@ export default function DeckMap({ districts }: { districts?: DistrictGeo[] }) {
     return c;
   }, [pts, maxT]);
   const maxMonthCount = useMemo(() => Math.max(1, ...monthCounts), [monthCounts]);
+  // Smooth filled area path (0..1000 × 0..100) for the professional timeline sparkline.
+  const tlPath = useMemo(() => {
+    const W = 1000, H = 100, m = Math.max(1, maxT);
+    const pts = monthCounts.map((c, t) => `${((t / m) * W).toFixed(1)},${(H - (c / maxMonthCount) * 86).toFixed(1)}`);
+    return pts.length ? `M0,${H} L${pts.join(" L")} L${W},${H} Z` : "";
+  }, [monthCounts, maxT, maxMonthCount]);
+  const tlRef = useRef<SVGSVGElement>(null);
+  function tlSeek(clientX: number) {
+    const el = tlRef.current; if (!el || !maxT) return;
+    const r = el.getBoundingClientRect();
+    const frac = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+    setPlaying(false); setTimelapse(true); setCurT(Math.round(frac * maxT));
+  }
   // Points visible at the current time-lapse frame (trailing window). Off → everything.
   const visible = useMemo(() => {
     if (!pts) return [];
@@ -275,7 +301,8 @@ export default function DeckMap({ districts }: { districts?: DistrictGeo[] }) {
   function exitTimelapse() { setPlaying(false); setTimelapse(false); }
 
   // Map-control cluster (joystick + buttons) → drive the MapLibre camera.
-  const panTick = (nx: number, ny: number) => mapRef.current?.panBy([nx * 16, ny * 16], { duration: 0 });
+  // Eased, lower-sensitivity pan (quadratic) so the joystick glides instead of darting.
+  const panTick = (nx: number, ny: number) => mapRef.current?.panBy([nx * Math.abs(nx) * 9, ny * Math.abs(ny) * 9], { duration: 0 });
   const rotate = (deg: number) => { const m = mapRef.current; if (m) m.easeTo({ bearing: m.getBearing() + deg, duration: 300 }); };
   const tilt = (d: number) => { const m = mapRef.current; if (m) m.easeTo({ pitch: Math.max(0, Math.min(75, m.getPitch() + d)), duration: 300 }); };
   const zoomBy = (d: number) => { const m = mapRef.current; if (m) m.easeTo({ zoom: m.getZoom() + d, duration: 250 }); };
@@ -310,6 +337,9 @@ export default function DeckMap({ districts }: { districts?: DistrictGeo[] }) {
       bearing: -12,
       attributionControl: false,
       dragRotate: true,
+      fadeDuration: 0,            // tiles pop in instantly instead of a slow cross-fade
+      maxTileCacheSize: 800,     // keep more tiles cached → snappy pan/zoom + repeat views
+      refreshExpiredTiles: false,
     });
     // 3D buildings after every style load; if OpenFreeMap is unreachable, fall back to CartoDB dark.
     map.on("style.load", () => injectBuildings(map));
@@ -525,29 +555,29 @@ export default function DeckMap({ districts }: { districts?: DistrictGeo[] }) {
             {timelapse && playing ? "⏸" : "▶"}
           </button>
           <div className="min-w-0 flex-1">
-            <div className="mb-1 flex items-center justify-between text-[9px] text-[var(--color-text-mute)]">
-              <span>{tLabel(0)}</span>
-              <span className="font-medium text-[var(--color-text)]">{timelapse ? tLabel(curT) : "All months"}</span>
-              <span>{tLabel(maxT)}</span>
+            <div className="mb-0.5 flex items-center justify-between text-[9px] text-[var(--color-text-mute)]">
+              <span>{2021 + Math.floor(0)}</span>
+              <span className="font-medium text-[var(--color-text)]">{timelapse ? tLabel(curT) : "All months · incident volume"}</span>
+              <span>{2021 + Math.floor(maxT / 12)}</span>
             </div>
-            <div className="flex h-8 items-end gap-px">
-              {monthCounts.map((c, t) => {
-                const inWindow = timelapse && t <= curT && t > curT - TL_WINDOW;
-                const isCur = timelapse && t === curT;
-                return (
-                  <button
-                    key={t}
-                    onClick={() => { setPlaying(false); setTimelapse(true); setCurT(t); }}
-                    title={`${tLabel(t)} · ${c} incidents`}
-                    className="min-w-0 flex-1 rounded-t-sm transition-colors"
-                    style={{
-                      height: `${Math.max(6, (c / maxMonthCount) * 100)}%`,
-                      background: isCur ? "var(--color-accent)" : inWindow ? "var(--color-accent-dim)" : "var(--color-border-strong)",
-                    }}
-                  />
-                );
-              })}
-            </div>
+            <svg
+              ref={tlRef} viewBox="0 0 1000 100" preserveAspectRatio="none" className="h-8 w-full cursor-ew-resize"
+              onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); tlSeek(e.clientX); }}
+              onPointerMove={(e) => { if (e.buttons) tlSeek(e.clientX); }}
+            >
+              {/* year gridlines */}
+              {Array.from({ length: Math.floor(maxT / 12) + 1 }, (_, y) => (
+                <line key={y} x1={(y * 12 / Math.max(1, maxT)) * 1000} y1="0" x2={(y * 12 / Math.max(1, maxT)) * 1000} y2="100" stroke="rgba(148,163,184,0.12)" strokeWidth="1" />
+              ))}
+              <path d={tlPath} fill="rgba(148,163,184,0.10)" stroke="rgba(148,163,184,0.45)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+              {timelapse && (
+                <g>
+                  <rect x={(Math.max(0, curT - TL_WINDOW) / Math.max(1, maxT)) * 1000} y="0"
+                    width={((Math.min(curT, TL_WINDOW)) / Math.max(1, maxT)) * 1000} height="100" fill="var(--color-accent)" fillOpacity="0.14" />
+                  <line x1={(curT / Math.max(1, maxT)) * 1000} y1="0" x2={(curT / Math.max(1, maxT)) * 1000} y2="100" stroke="var(--color-accent)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                </g>
+              )}
+            </svg>
           </div>
           {timelapse && (
             <button onClick={exitTimelapse} className="mb-0.5 shrink-0 rounded-md border border-[var(--color-border)] px-2 py-1 text-[10px] text-[var(--color-text-mute)] hover:text-[var(--color-text)]" title="Show all months">All</button>
