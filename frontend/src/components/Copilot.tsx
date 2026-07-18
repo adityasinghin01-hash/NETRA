@@ -68,7 +68,7 @@ export default function Copilot() {
     try {
       a = await askNetra(t, scope, { thinking: deep });
     } catch {
-      a = { text: "Something went wrong reading the intelligence. Please try again.", cites: [], follow: [], trace: [], actions: [], confidence: 0, grounded: false };
+      a = { text: "Something went wrong reading the intelligence. Please try again.", cites: [], cardIds: [], follow: [], trace: [], actions: [], confidence: 0, grounded: false };
     }
     setThinking(false);
     setMsgs((m) => [...m, { role: "netra", text: a.text, q: t, cites: a.cites, cardIds: a.cardIds, follow: a.follow, trace: a.trace, confidence: a.confidence, actions: a.actions, grounded: a.grounded }]);
