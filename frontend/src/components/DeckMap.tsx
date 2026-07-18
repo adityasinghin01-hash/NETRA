@@ -12,27 +12,55 @@ import { ScatterplotLayer } from "@deck.gl/layers";
 import { LightingEffect, AmbientLight, DirectionalLight } from "@deck.gl/core";
 import type { Layer } from "@deck.gl/core";
 
-const DARK_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+// Main base: OpenFreeMap dark (OSM vector — streets, labels, and 3D BUILDINGS on deep zoom),
+// themed to NETRA. CartoDB dark is the auto-fallback if the community tiles hiccup.
+const OFM_DARK = "https://tiles.openfreemap.org/styles/dark";
+const FALLBACK_DARK = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+const OMT_SOURCE: maplibregl.VectorSourceSpecification = { type: "vector", url: "https://tiles.openfreemap.org/planet" };
+const GLYPHS = "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf";
+
+// Dark 3D building extrusions — injected after each style load (setStyle wipes custom layers).
+// Height-graded colour so blocks read with depth on the dark base.
+const BUILDINGS_3D = {
+  id: "netra-buildings-3d", type: "fill-extrusion" as const, source: "openmaptiles", "source-layer": "building",
+  minzoom: 13.5,
+  paint: {
+    "fill-extrusion-base": ["get", "render_min_height"],
+    "fill-extrusion-height": ["get", "render_height"],
+    "fill-extrusion-color": ["interpolate", ["linear"], ["get", "render_height"], 0, "hsl(214,26%,20%)", 25, "hsl(210,30%,32%)", 80, "hsl(202,45%,46%)"],
+    "fill-extrusion-opacity": 0.92,
+  },
+};
+
+// Satellite base (Esri imagery) + the same vector source so 3D buildings also work over it.
 const SAT_STYLE: maplibregl.StyleSpecification = {
   version: 8,
+  glyphs: GLYPHS,
   sources: {
-    sat: {
-      type: "raster",
-      tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
-      tileSize: 256,
-      attribution: "Esri World Imagery",
-    },
-    ref: {
-      type: "raster",
-      tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"],
-      tileSize: 256,
-    },
+    sat: { type: "raster", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize: 256, attribution: "Esri World Imagery" },
+    ref: { type: "raster", tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"], tileSize: 256 },
+    openmaptiles: OMT_SOURCE,
   },
   layers: [
     { id: "sat", type: "raster", source: "sat" },
     { id: "ref", type: "raster", source: "ref", paint: { "raster-opacity": 0.85 } },
   ],
 };
+
+// Karnataka bounds → the map is locked to the state (deep zoom, can't wander off).
+const KA_BOUNDS: [[number, number], [number, number]] = [[73.4, 11.2], [78.9, 18.7]];
+
+// Add the vector source (if missing) + the 3D-buildings layer, under the first label layer.
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function injectBuildings(map: maplibregl.Map) {
+  try {
+    if (!map.getSource("openmaptiles")) map.addSource("openmaptiles", OMT_SOURCE);
+    if (!map.getLayer("netra-buildings-3d")) {
+      const firstSym = map.getStyle().layers?.find((l) => l.type === "symbol")?.id;
+      map.addLayer(BUILDINGS_3D as any, firstSym);
+    }
+  } catch { /* source/style not ready yet */ }
+}
 
 // Cool → hot density ramp (reads over both dark and satellite bases).
 const HEAT: [number, number, number][] = [
@@ -69,7 +97,8 @@ const MODES: { id: Mode; label: string }[] = [
 
 // Zoom-adaptive params — the fix for "looks good at one zoom, bad at another".
 const hexRadius = (z: number) => Math.round(Math.max(300, 3400 / Math.pow(2, Math.max(0, z - 6) * 0.62)));
-const hexElev = (z: number) => 22 + Math.max(0, z - 7) * 16;
+// Capped so the "terrain" reads as gentle mounds, not towering spikes, at every zoom.
+const hexElev = (z: number) => Math.min(42, 12 + Math.max(0, z - 7) * 4);
 
 function buildLayers(mode: Mode, data: Pt[], z: number): Layer[] {
   if (mode === "hex")
@@ -80,7 +109,7 @@ function buildLayers(mode: Mode, data: Pt[], z: number): Layer[] {
         getPosition: (d) => d.position,
         radius: hexRadius(z),
         elevationScale: hexElev(z),
-        elevationRange: [0, 2400],
+        elevationRange: [0, 1100],
         extruded: true,
         coverage: 0.92,
         pickable: false,
@@ -238,14 +267,21 @@ export default function DeckMap() {
     if (!containerRef.current || mapRef.current) return;
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: DARK_STYLE,
+      style: OFM_DARK,
       center: [76.2, 14.9],
       zoom: 5.9,
+      minZoom: 5.4,
+      maxZoom: 18,
+      maxBounds: KA_BOUNDS,
       pitch: 48,
       bearing: -12,
       attributionControl: false,
       dragRotate: true,
     });
+    // 3D buildings after every style load; if OpenFreeMap is unreachable, fall back to CartoDB dark.
+    map.on("style.load", () => injectBuildings(map));
+    let fellBack = false;
+    setTimeout(() => { if (!fellBack && !map.isStyleLoaded()) { fellBack = true; map.setStyle(FALLBACK_DARK); } }, 7000);
     const overlay = new MapboxOverlay({ interleaved: false, layers: [], effects: [LIGHTING], pickingRadius: 8 });
     map.addControl(overlay as unknown as maplibregl.IControl);
     // Deterministic picking: find the incident NEAREST the click in real coords, and show it
@@ -291,6 +327,8 @@ export default function DeckMap() {
     });
     mapRef.current = map;
     overlayRef.current = overlay;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (import.meta.env.DEV) (window as any).__netraMap = map;
     return () => {
       map.remove();
       mapRef.current = null;
@@ -302,7 +340,7 @@ export default function DeckMap() {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    map.setStyle(base === "dark" ? DARK_STYLE : SAT_STYLE);
+    map.setStyle(base === "dark" ? OFM_DARK : SAT_STYLE);
   }, [base]);
 
   useEffect(() => {
