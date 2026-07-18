@@ -105,8 +105,10 @@ export default function CommandMap() {
   // across the forecast hotspots. Each card, its detail plan, its pickets, and the "Full state
   // deployment" PDF all read the SAME allocation — so the numbers can never disagree.
   const areas: Area[] = fcHotspots.map((h) => ({
-    district: h.district, lambda: h.projectedWeek || 1, crimeType: h.crimeType,
-    patrolWindow: h.patrolWindow, lat: h.lat ?? 0, lng: h.lng ?? 0,
+    // lambda = PRESSURE (predicted volume × how fast it's rising) — the SAME score that sets the
+    // risk badge, so units and risk stay consistent and surging pockets earn more patrol strength.
+    district: h.district, lambda: (h.projectedWeek || 1) * (1 + Math.max(0, h.momentumPct) / 100),
+    crimeType: h.crimeType, patrolWindow: h.patrolWindow, lat: h.lat ?? 0, lng: h.lng ?? 0,
   }));
   const opt = areas.length ? optimize(areas, DEPLOY_UNITS) : null;
   const optUnits: Record<string, number> = {};

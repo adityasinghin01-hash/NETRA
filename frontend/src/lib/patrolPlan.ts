@@ -65,7 +65,7 @@ function familyOf(crimeType: string): Family {
   const t = crimeType.toLowerCase();
   if (/burglar|house-break|housebreak|dacoit/.test(t)) return "burglary";
   if (/vehicle|motor/.test(t)) return "vehicle";
-  if (/women|dowry|molest|rape/.test(t)) return "women";
+  if (/wom[ae]n|dowry|molest|rape|modesty|girl/.test(t)) return "women"; // before violence: "assault on woman"
   if (/fraud|cheat|cyber|financial/.test(t)) return "fraud";
   if (/hurt|assault|murder|riot|affray|body|robbery|snatch/.test(t)) return "violence";
   if (/theft/.test(t)) return "theft";

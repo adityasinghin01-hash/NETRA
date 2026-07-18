@@ -154,14 +154,23 @@ def main():
         crime = name_of_sub[sub_id]
         head = head_of_sub[sub_id]
         proj = int(round(total))  # district's total predicted FIRs next week (the crime above leads it)
+        # PRESSURE = predicted volume weighted by how fast it's rising. This single score drives
+        # BOTH the risk tier (here) AND the patrol-unit allocation (the optimizer uses the same
+        # formula as its lambda), so the badge and the unit count on the card always agree — and a
+        # sharply-rising district (high momentum, lower volume) correctly reads High.
+        pressure = proj * (1 + max(0, momentum) / 100)
+        # A hotspot must be RISING to make this forecast board (momentum gate) — we forecast what's
+        # escalating, not the chronic baseline. Among rising pockets, tier by pressure so the badge
+        # matches the optimizer's unit allocation (which uses the same pressure as its lambda).
+        risk = "Watch" if momentum <= 2 else "High" if pressure >= 5.5 else "Elevated"
         hotspots.append({
             "district": districts[did]["name"], "crimeType": crime, "head": head,
-            "projectedWeek": proj, "momentumPct": momentum,
-            "riskLevel": "High" if proj >= 7 and momentum > 6 else "Elevated" if momentum > 2 else "Watch",
+            "projectedWeek": proj, "momentumPct": momentum, "pressure": round(pressure, 2),
+            "riskLevel": risk,
             "patrolWindow": SUB_WINDOW.get(crime, HEAD_PATROL.get(head, "19:00 – 23:00")),
             "lat": districts[did]["lat"], "lng": districts[did]["lng"]})
     hotspots = [h for h in hotspots if h["riskLevel"] != "Watch"]
-    hotspots.sort(key=lambda h: (-{"High": 2, "Elevated": 1}[h["riskLevel"]], -h["projectedWeek"]))
+    hotspots.sort(key=lambda h: -h["pressure"])
     hotspots = hotspots[:8]
 
     json.dump({"generatedFor": "2026-07-01", "horizonDays": 7, "model": "gradient-boosting",
