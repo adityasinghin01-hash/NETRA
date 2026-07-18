@@ -68,9 +68,14 @@ function highlight(text: string, phrases: string[]) {
   );
 }
 
-export default function CrimeDNA({ dna }: { dna: CrimeDna }) {
+// `scores` (crimeNo → cosine to the officer's pasted FIR) is passed only when this series is the
+// live match — then the member FIRs are ranked by how closely each matches the new case, with a %.
+export default function CrimeDNA({ dna, scores }: { dna: CrimeDna; scores?: Record<string, number> }) {
   const phrases = dna.signature.map((s) => s.value);
   const cadence = dna.span.cadenceDays;
+  const rankedMembers = scores
+    ? [...dna.members].sort((a, b) => (scores[b.caseNo] ?? -1) - (scores[a.caseNo] ?? -1))
+    : dna.members;
   const [showClear, setShowClear] = useState(false);
   // SINGLE SOURCE OF TRUTH: every unsolved/solved/total number below is derived from dna.members,
   // so the "one arrest → clearances" headline, the reveal button, the clearable list and the
@@ -172,7 +177,7 @@ export default function CrimeDNA({ dna }: { dna: CrimeDna }) {
       {/* Member FIRs with MO phrases highlighted */}
       <div>
         <div className="mb-1 flex items-center justify-between gap-2 text-xs uppercase tracking-wide text-[var(--color-text-mute)]">
-          <span>Member FIRs — same MO, different wording</span>
+          <span>Member FIRs{scores ? " — ranked by match to your FIR" : " — same MO, different wording"}</span>
           <span className="flex items-center gap-2 normal-case tracking-normal text-[10px]">
             <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-ok)]" /> solved</span>
             <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-warn)]" /> unsolved</span>
@@ -182,7 +187,7 @@ export default function CrimeDNA({ dna }: { dna: CrimeDna }) {
           {total} linked FIRs = <span className="text-[var(--color-ok)]">{solvedCount} solved</span> + <span className="text-[var(--color-warn)]">{unsolved.length} unsolved</span>. The {unsolved.length} unsolved are the clearable cases above.
         </div>
         <ul className="space-y-2">
-          {dna.members.map((m) => (
+          {rankedMembers.map((m) => (
             <li key={m.caseNo} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-2.5">
               <div className="mb-1 flex items-center justify-between text-[11px] text-[var(--color-text-mute)]">
                 <span className="tnum flex items-center gap-1.5">
@@ -193,6 +198,11 @@ export default function CrimeDNA({ dna }: { dna: CrimeDna }) {
                     />
                   )}
                   {m.caseNo}
+                  {scores && scores[m.caseNo] !== undefined && (
+                    <span className="rounded bg-[var(--color-accent)]/15 px-1 text-[10px] font-medium text-[var(--color-accent)]" title="Similarity of this FIR to the one you pasted">
+                      {Math.round(scores[m.caseNo] * 100)}% match
+                    </span>
+                  )}
                 </span>
                 <span>{m.district} · {m.date}{m.language === "kn" ? " · ಕನ್ನಡ" : ""}</span>
               </div>

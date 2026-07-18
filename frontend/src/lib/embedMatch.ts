@@ -81,6 +81,14 @@ export function centroid(vecs: number[][]): number[] {
   normalize(c);
   return c;
 }
+// Score each of a series' member FIRs by cosine to the pasted query → lets the UI rank the
+// linked FIRs by how closely each matches the officer's new case. Keyed by crimeNo (== caseNo).
+export function scoreByCrimeNo(qv: number[], cases: CaseVec[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const c of cases) out[c.crimeNo] = dot(qv, c.vector);
+  return out;
+}
+
 // Scan the UNSOLVED case pool for cold cases whose MO matches a signature (cosine ≥ threshold),
 // excluding the series' own members. Returns real candidate cold cases for officer review.
 export async function scanUnsolved(

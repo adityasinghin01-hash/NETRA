@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useApi, Card, PageHeader, State, Badge } from "@/components/ui";
 import { matchFir, type MatchResult } from "@/api/client";
-import { embedMatch, preloadEmbedder, embedText, seriesCases, centroid, scanUnsolved, type CaseVec } from "@/lib/embedMatch";
+import { embedMatch, preloadEmbedder, embedText, seriesCases, centroid, scanUnsolved, scoreByCrimeNo, type CaseVec } from "@/lib/embedMatch";
 import CrimeDNA, { type CrimeDna } from "@/components/CrimeDNA";
 import SpatialTriad, { type SpatialRec } from "@/components/SpatialTriad";
 
@@ -43,7 +43,7 @@ export default function Linkage() {
   const [spatialMap, setSpatialMap] = useState<Record<string, SpatialRec> | null>(null);
   // Honest flywheel state: the matched series' members (with unsolved leads), whether THIS FIR
   // has been confirmed, and any cold cases the re-scan surfaced. No fabricated confidence.
-  const [cold, setCold] = useState<{ members: CaseVec[]; unsolved: CaseVec[]; count: number; confirmed: boolean; candidates: (CaseVec & { score: number })[] } | null>(null);
+  const [cold, setCold] = useState<{ members: CaseVec[]; unsolved: CaseVec[]; count: number; confirmed: boolean; candidates: (CaseVec & { score: number })[]; scores: Record<string, number>; qvec: number[] } | null>(null);
   const [confirmedKeys, setConfirmedKeys] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState(false);
   const keyOf = (q: string) => q.trim().toLowerCase().replace(/\s+/g, " ");
@@ -58,13 +58,17 @@ export default function Linkage() {
   useEffect(() => {
     if (!result || result.method !== "semantic") { setCold(null); return; }
     let live = true;
-    seriesCases(result.best.clusterId).then((members) => {
+    (async () => {
+      const members = await seriesCases(result.best.clusterId);
+      let scores: Record<string, number> = {};
+      let qvec: number[] = [];
+      try { qvec = await embedText(query); scores = scoreByCrimeNo(qvec, members); } catch { /* model busy */ }
       if (!live) return;
       setCold({
         members, unsolved: members.filter((m) => !m.solved), count: members.length,
-        confirmed: confirmedKeys.has(keyOf(query)), candidates: [],
+        confirmed: confirmedKeys.has(keyOf(query)), candidates: [], scores, qvec,
       });
-    }).catch(() => {});
+    })();
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
@@ -76,7 +80,7 @@ export default function Linkage() {
     if (!result || result.method !== "semantic" || !cold || cold.confirmed) return;
     setConfirming(true);
     try {
-      const qv = await embedText(query);
+      const qv = cold.qvec.length ? cold.qvec : await embedText(query);
       const signature = centroid([...cold.members.map((m) => m.vector), qv]);
       const exclude = new Set(cold.members.map((m) => m.crimeNo));
       const candidates = await scanUnsolved(signature, exclude, 0.7, 8);
@@ -334,7 +338,7 @@ export default function Linkage() {
                 </div>
               )}
               {dnaMap?.[cluster.clusterId] ? (
-                <CrimeDNA dna={dnaMap[cluster.clusterId]} />
+                <CrimeDNA dna={dnaMap[cluster.clusterId]} scores={cold && result?.best.clusterId === cluster.clusterId ? cold.scores : undefined} />
               ) : (
                 <>
                   <div className="text-xs uppercase tracking-wide text-[var(--color-text-mute)]">Shared narratives (varied wording, same MO)</div>
