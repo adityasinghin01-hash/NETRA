@@ -2,6 +2,7 @@
 // same model as linkage) + sparse (BM25), fused with Reciprocal Rank Fusion. This is the
 // grounding layer — every Copilot answer is built from the cards this returns, each cited.
 import { embedText } from "@/lib/embedMatch";
+import { weightOf } from "@/lib/feedback";
 
 export interface Card {
   id: string; type: string; title: string; text: string; cite: string;
@@ -53,7 +54,9 @@ export async function retrieve(query: string, k = 8): Promise<Retrieved[]> {
   dRank.forEach((x, r) => rrf.set(x.i, (rrf.get(x.i) ?? 0) + 1 / (C + r)));
   sRank.forEach((x, r) => rrf.set(x.i, (rrf.get(x.i) ?? 0) + 1 / (C + r)));
 
+  // Apply learned feedback weights (learning-to-rank) before final ranking.
   return [...rrf.entries()]
+    .map(([i, score]) => [i, score * weightOf(idx.cards[i].id)] as [number, number])
     .sort((a, b) => b[1] - a[1])
     .slice(0, k)
     .map(([i, score]) => ({ ...idx.cards[i], score, dense: dense[i].s, sparse: sparse[i].s }));

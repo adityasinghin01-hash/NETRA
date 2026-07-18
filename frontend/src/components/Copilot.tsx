@@ -6,6 +6,9 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { askNetra, preloadCopilot, type NetraAnswer } from "@/lib/copilotEngine";
 import { getSession } from "@/lib/auth";
+import { recordFeedback, remember } from "@/lib/feedback";
+import { vlmExtract } from "@/lib/llm";
+import { speak, listen } from "@/lib/voice";
 import type { UiAction } from "@/lib/copilotTools";
 import CopilotDiagram from "@/components/CopilotDiagram";
 import CopilotDocument from "@/components/CopilotDocument";
@@ -13,12 +16,15 @@ import CopilotDocument from "@/components/CopilotDocument";
 interface Msg {
   role: "user" | "netra";
   text: string;
+  q?: string;
   cites?: string[];
+  cardIds?: string[];
   follow?: string[];
   trace?: string[];
   confidence?: number;
   actions?: UiAction[];
   grounded?: boolean;
+  fed?: "up" | "down";
 }
 
 const STARTERS = [
@@ -42,8 +48,10 @@ export default function Copilot() {
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
   const [deep, setDeep] = useState(false);
+  const [listening, setListening] = useState(false);
   const [showTrace, setShowTrace] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const nav = useNavigate();
   const scope = getSession().district;
 
@@ -63,10 +71,35 @@ export default function Copilot() {
       a = { text: "Something went wrong reading the intelligence. Please try again.", cites: [], follow: [], trace: [], actions: [], confidence: 0, grounded: false };
     }
     setThinking(false);
-    setMsgs((m) => [...m, { role: "netra", text: a.text, cites: a.cites, follow: a.follow, trace: a.trace, confidence: a.confidence, actions: a.actions, grounded: a.grounded }]);
-    // fire navigate actions immediately
-    for (const act of a.actions) if (act.kind === "navigate") { /* offered as a button below */ }
+    setMsgs((m) => [...m, { role: "netra", text: a.text, q: t, cites: a.cites, cardIds: a.cardIds, follow: a.follow, trace: a.trace, confidence: a.confidence, actions: a.actions, grounded: a.grounded }]);
   }
+
+  function feedback(i: number, up: boolean) {
+    setMsgs((m) => m.map((msg, k) => {
+      if (k !== i || msg.role !== "netra") return msg;
+      recordFeedback(msg.cardIds ?? [], up);
+      if (up && msg.q) remember(msg.q, msg.text, msg.cites ?? []);
+      return { ...msg, fed: up ? "up" : "down" };
+    }));
+  }
+
+  // Multimodal OCR: drop a scanned FIR / document → Qwen VLM extracts structured fields.
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    e.target.value = "";
+    const b64 = await new Promise<string>((res) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.readAsDataURL(f); });
+    setMsgs((m) => [...m, { role: "user", text: `📄 Uploaded ${f.name}` }]);
+    setThinking(true);
+    let out = "";
+    try {
+      out = await vlmExtract("Extract the case/FIR fields from this police document image as JSON with keys crimeNo, crimeType, district, date, complainant, accused, sections, briefFacts. Use only what is visible; omit unknown fields.", [b64]);
+    } catch { out = "I couldn't read that document."; }
+    setThinking(false);
+    setMsgs((m) => [...m, { role: "netra", text: out || "No fields extracted.", grounded: true, trace: ["🖼️ Qwen VLM — OCR + field extraction (sovereign)"] }]);
+  }
+
+  function mic() { listen((t) => { setInput(t); send(t); }, setListening, scope ? "en-IN" : "en-IN"); }
 
   return (
     <>
@@ -140,6 +173,7 @@ export default function Copilot() {
                             {showTrace === i ? "hide reasoning" : "how?"}
                           </button>
                         )}
+                        <button onClick={() => speak(m.text)} title="Read aloud" className="text-[10px] text-[var(--color-text-mute)] hover:text-[var(--color-accent)]">🔊</button>
                       </div>
                       {showTrace === i && m.trace && (
                         <ul className="mt-1.5 space-y-0.5 border-t border-[var(--color-border)] pt-1.5 text-[9px] text-[var(--color-text-mute)]">
@@ -149,6 +183,16 @@ export default function Copilot() {
                       {m.cites && m.cites.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1">
                           {m.cites.map((c) => <span key={c} className="rounded bg-[var(--color-surface-2)] px-1.5 py-0.5 text-[9px] text-[var(--color-text-mute)]">📎 {c}</span>)}
+                        </div>
+                      )}
+                      {/* feedback — the honest learning loop */}
+                      {m.fed ? (
+                        <div className="mt-1.5 text-[9px] text-[var(--color-ok)]">✓ {m.fed === "up" ? "NETRA learned from this — ranking reinforced & remembered" : "Noted — NETRA will down-rank this next time"}</div>
+                      ) : (
+                        <div className="mt-1.5 flex items-center gap-2 text-[10px] text-[var(--color-text-mute)]">
+                          Helpful?
+                          <button onClick={() => feedback(i, true)} className="hover:text-[var(--color-ok)]">👍</button>
+                          <button onClick={() => feedback(i, false)} className="hover:text-[var(--color-danger)]">👎</button>
                         </div>
                       )}
                     </div>
@@ -186,14 +230,17 @@ export default function Copilot() {
           </div>
 
           {/* Input */}
-          <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="flex items-center gap-2 border-t border-[var(--color-border)] p-3">
+          <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="flex items-center gap-1.5 border-t border-[var(--color-border)] p-3">
+            <input ref={fileRef} type="file" accept="image/*" onChange={onFile} className="hidden" />
+            <button type="button" onClick={() => fileRef.current?.click()} title="Upload a document to read (OCR)" className="shrink-0 rounded-lg border border-[var(--color-border)] px-2 py-2 text-xs text-[var(--color-text-mute)] hover:text-[var(--color-accent)]">📎</button>
+            <button type="button" onClick={mic} title="Speak your question" className={`shrink-0 rounded-lg border px-2 py-2 text-xs ${listening ? "border-[var(--color-danger)] text-[var(--color-danger)]" : "border-[var(--color-border)] text-[var(--color-text-mute)] hover:text-[var(--color-accent)]"}`}>{listening ? "●" : "🎤"}</button>
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask NETRA anything…"
-              className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs outline-none focus:border-[var(--color-accent)]"
+              className="min-w-0 flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-xs outline-none focus:border-[var(--color-accent)]"
             />
-            <button type="submit" disabled={thinking || !input.trim()} className="rounded-lg bg-[var(--color-accent)] px-3 py-2 text-xs font-medium text-[var(--color-bg)] disabled:opacity-40">Ask</button>
+            <button type="submit" disabled={thinking || !input.trim()} className="shrink-0 rounded-lg bg-[var(--color-accent)] px-3 py-2 text-xs font-medium text-[var(--color-bg)] disabled:opacity-40">Ask</button>
           </form>
         </div>
       )}

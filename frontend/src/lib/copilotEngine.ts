@@ -7,10 +7,12 @@ import { graphContext, preloadGraph } from "@/lib/graph";
 import { glmChat, type ToolDef, type ToolCall } from "@/lib/llm";
 import { TOOLS, runTool, type UiAction } from "@/lib/copilotTools";
 import { preloadEmbedder } from "@/lib/embedMatch";
+import { recallMemory } from "@/lib/feedback";
 
 export interface NetraAnswer {
   text: string;
   cites: string[];
+  cardIds: string[];     // retrieved card ids → feedback learning-to-rank
   confidence: number;
   follow: string[];
   trace: string[];       // reasoning / tool-call trace shown in the UI
@@ -96,8 +98,11 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
     trace.push(`Low confidence (${confidence.toFixed(2)}) → flagged for human review`);
   }
 
+  const prior = recallMemory(query);
+  if (prior) trace.push("🧠 Recognised from a prior confirmed answer (memory) — ranking reinforced");
+
   const cites = [...new Set(hits.slice(0, 5).map((h) => h.cite))];
-  return { text, cites, confidence, follow: suggestFollow(hits), trace, actions, grounded };
+  return { text, cites, cardIds: hits.map((h) => h.id), confidence, follow: suggestFollow(hits), trace, actions, grounded };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
