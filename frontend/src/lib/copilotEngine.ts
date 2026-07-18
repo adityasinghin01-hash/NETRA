@@ -35,7 +35,7 @@ function buildContext(hits: Retrieved[], facts: string[] | null): string {
 }
 
 // Sovereign fallback: compose a readable, cited answer straight from the top cards.
-function sovereignAnswer(query: string, hits: Retrieved[], facts: string[] | null): string {
+function sovereignAnswer(hits: Retrieved[], facts: string[] | null): string {
   if (!hits.length) return "I don't hold anything on that in the records. Try asking about hotspots, a serial series, a district, crime rings, or cases at risk of going cold.";
   const lead = hits[0];
   let out = `${lead.text} [${lead.cite}]`;
@@ -57,8 +57,9 @@ function suggestFollow(hits: Retrieved[]): string[] {
 }
 
 export async function askNetra(query: string, scope: string | null, opts: { thinking?: boolean } = {}): Promise<NetraAnswer> {
-  const q = scope && !query.toLowerCase().includes(scope.toLowerCase()) ? query : query;
-  const [hits, graph] = await Promise.all([retrieve(q, 8), graphContext(q)]);
+  // Scope-aware retrieval: fold the user's district into the query when unstated.
+  const rq = scope && !query.toLowerCase().includes(scope.toLowerCase()) ? `${query} ${scope}` : query;
+  const [hits, graph] = await Promise.all([retrieve(rq, 8), graphContext(rq)]);
   const confidence = confidenceFrom(hits);
   const trace: string[] = [`Retrieved ${hits.length} grounded cards (hybrid dense+BM25)`];
   if (graph) trace.push(`Traversed knowledge graph: ${graph.entities.length} entities, ${graph.facts.length} relations`);
@@ -85,7 +86,7 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
     if (!text.trim()) throw new Error("empty");
   } catch {
     grounded = false;
-    text = sovereignAnswer(query, hits, graph?.facts ?? null);
+    text = sovereignAnswer(hits, graph?.facts ?? null);
     trace.push("⚠️ sovereign fallback (LLM unavailable) — answered from cards directly");
   }
 

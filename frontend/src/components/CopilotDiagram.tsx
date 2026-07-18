@@ -131,7 +131,7 @@ export default function CopilotDiagram({ action }: { action: Extract<UiAction, {
     body = (
       <svg viewBox={`0 0 ${W} 150`} width="100%">
         {defs}
-        {cases.map((m, i) => {
+        {cases.map((_c, i) => {
           const x = 30 + i * ((W - 60) / Math.max(1, cases.length - 1)); const y = 90;
           return <line key={i} x1={cx} y1={cy + 12} x2={x} y2={y} stroke={LINE} strokeWidth={1} />;
         })}
