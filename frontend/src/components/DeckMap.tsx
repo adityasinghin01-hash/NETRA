@@ -250,6 +250,13 @@ export default function DeckMap({ districts }: { districts?: DistrictGeo[] }) {
   const [curT, setCurT] = useState(0);
 
   const maxT = useMemo(() => (pts && pts.length ? Math.max(...pts.map((p) => p.t)) : 0), [pts]);
+  // Incidents per month → the timeline strip's bar chart.
+  const monthCounts = useMemo(() => {
+    const c = new Array(maxT + 1).fill(0);
+    if (pts) for (const p of pts) if (p.t >= 0 && p.t <= maxT) c[p.t]++;
+    return c;
+  }, [pts, maxT]);
+  const maxMonthCount = useMemo(() => Math.max(1, ...monthCounts), [monthCounts]);
   // Points visible at the current time-lapse frame (trailing window). Off → everything.
   const visible = useMemo(() => {
     if (!pts) return [];
@@ -464,7 +471,7 @@ export default function DeckMap({ districts }: { districts?: DistrictGeo[] }) {
       `}</style>
 
       {/* Legend */}
-      <div className="pointer-events-none absolute bottom-3 left-3 z-[1000] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]/90 p-2 text-[10px] text-[var(--color-text-dim)] backdrop-blur">
+      <div className="pointer-events-none absolute bottom-[4.75rem] left-3 z-[1000] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]/90 p-2 text-[10px] text-[var(--color-text-dim)] backdrop-blur">
         <div className="mb-1 font-medium text-[var(--color-text)]">
           {mode === "points" ? "Incident type · click a dot" : "Crime density"}
         </div>
@@ -489,7 +496,7 @@ export default function DeckMap({ districts }: { districts?: DistrictGeo[] }) {
       </div>
 
       {/* Map-control cluster: joystick (pan) + buttons (zoom / rotate / tilt / home / time-lapse) */}
-      <div className="absolute bottom-3 right-3 z-[1000] flex items-end gap-2">
+      <div className="absolute bottom-[4.75rem] right-3 z-[1000] flex items-end gap-2">
         <div className="flex flex-col gap-1">
           <div className="flex gap-1">
             <CtrlBtn onClick={() => zoomBy(1)} label="+" title="Zoom in" />
@@ -501,29 +508,50 @@ export default function DeckMap({ districts }: { districts?: DistrictGeo[] }) {
             <CtrlBtn onClick={() => rotate(-20)} label="⟲" title="Rotate left" />
             <CtrlBtn onClick={() => rotate(20)} label="⟳" title="Rotate right" />
             <CtrlBtn onClick={home} label="⌂" title="Reset view" />
-            <CtrlBtn onClick={() => (timelapse ? exitTimelapse() : enterTimelapse())} label="⏱" title="Time-lapse" active={timelapse} />
           </div>
         </div>
         <Joystick onTick={panTick} />
       </div>
 
-      {/* Time-lapse scrubber (top-center, clear of the control cluster) */}
-      {timelapse && (
-        <div className="absolute top-3 left-1/2 z-[1000] flex -translate-x-1/2 items-center gap-3 rounded-lg border border-[var(--color-accent-dim)] bg-[var(--color-surface)]/95 px-3 py-2 backdrop-blur">
+      {/* Month timeline strip — incidents-per-month bar chart that doubles as the scrubber.
+          Click a month to jump; ▶ animates; "All" shows every month. */}
+      {maxT > 0 && (
+        <div className="absolute bottom-2 left-2 right-2 z-[1000] flex items-end gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]/95 px-3 py-2 backdrop-blur">
           <button
-            onClick={() => setPlaying((p) => !p)}
-            className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--color-accent)] text-sm text-[var(--color-bg)]"
-            title={playing ? "Pause" : "Play"}
+            onClick={() => { if (!timelapse) enterTimelapse(); else setPlaying((p) => !p); }}
+            className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[var(--color-accent)] text-sm text-[var(--color-bg)]"
+            title={timelapse && playing ? "Pause" : "Play time-lapse"}
           >
-            {playing ? "⏸" : "▶"}
+            {timelapse && playing ? "⏸" : "▶"}
           </button>
-          <input
-            type="range" min={0} max={maxT || 1} value={curT}
-            onChange={(e) => { setPlaying(false); setCurT(Number(e.target.value)); }}
-            className="w-56 accent-[var(--color-accent)]"
-          />
-          <span className="tnum w-20 text-center text-xs text-[var(--color-text)]">{tLabel(curT)}</span>
-          <button onClick={exitTimelapse} className="text-[var(--color-text-mute)] hover:text-[var(--color-text)]" title="Exit time-lapse">✕</button>
+          <div className="min-w-0 flex-1">
+            <div className="mb-1 flex items-center justify-between text-[9px] text-[var(--color-text-mute)]">
+              <span>{tLabel(0)}</span>
+              <span className="font-medium text-[var(--color-text)]">{timelapse ? tLabel(curT) : "All months"}</span>
+              <span>{tLabel(maxT)}</span>
+            </div>
+            <div className="flex h-8 items-end gap-px">
+              {monthCounts.map((c, t) => {
+                const inWindow = timelapse && t <= curT && t > curT - TL_WINDOW;
+                const isCur = timelapse && t === curT;
+                return (
+                  <button
+                    key={t}
+                    onClick={() => { setPlaying(false); setTimelapse(true); setCurT(t); }}
+                    title={`${tLabel(t)} · ${c} incidents`}
+                    className="min-w-0 flex-1 rounded-t-sm transition-colors"
+                    style={{
+                      height: `${Math.max(6, (c / maxMonthCount) * 100)}%`,
+                      background: isCur ? "var(--color-accent)" : inWindow ? "var(--color-accent-dim)" : "var(--color-border-strong)",
+                    }}
+                  />
+                );
+              })}
+            </div>
+          </div>
+          {timelapse && (
+            <button onClick={exitTimelapse} className="mb-0.5 shrink-0 rounded-md border border-[var(--color-border)] px-2 py-1 text-[10px] text-[var(--color-text-mute)] hover:text-[var(--color-text)]" title="Show all months">All</button>
+          )}
         </div>
       )}
     </div>

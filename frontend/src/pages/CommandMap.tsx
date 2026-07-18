@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useApi, StatTile, Card, PageHeader, State, Badge } from "@/components/ui";
 import DeckMap from "@/components/DeckMap";
+import LiveAlerts from "@/components/LiveAlerts";
 import { getSession } from "@/lib/auth";
 import { optimize, type Area } from "@/lib/optimizer";
 import { openReport } from "@/lib/pdf";
@@ -138,20 +139,16 @@ export default function CommandMap() {
         <div className="flex h-[420px] flex-col gap-4">
           <Card className="shrink-0 p-4">
             <div className="mb-2 flex items-center justify-between">
-              <div className="text-sm font-medium text-[var(--color-text)]">Active alerts</div>
+              <div className="flex items-center gap-2 text-sm font-medium text-[var(--color-text)]">
+                Active alerts
+                <span className="flex items-center gap-1 rounded bg-[var(--color-ok)]/10 px-1.5 py-0.5 text-[9px] font-normal text-[var(--color-ok)]">
+                  <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-ok)]" /> AUTO-UPDATING
+                </span>
+              </div>
               <span className="text-xs text-[var(--color-text-mute)]">anomaly detection</span>
             </div>
-            <State loading={a.loading} error={a.error} empty={alerts.length === 0}>
-              <ul className="space-y-2">
-                {alerts.map((al) => (
-                  <li key={al.alertId} className="flex gap-2 text-xs">
-                    <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${al.severity === "high" ? "bg-[var(--color-danger)]" : "bg-[var(--color-warn)]"}`} />
-                    <div className="min-w-0">
-                      <div className="text-[var(--color-text-dim)]">{al.message}</div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+            <State loading={a.loading} error={a.error} empty={false}>
+              <LiveAlerts alerts={alerts} />
             </State>
           </Card>
           <Card className="min-h-0 flex-1 overflow-y-auto p-4">
