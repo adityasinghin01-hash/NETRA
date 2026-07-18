@@ -51,7 +51,7 @@ interface Forecast {
 const RISK_TONE: Record<string, "danger" | "warn" | "mute"> = {
   High: "danger", Elevated: "warn", Watch: "mute",
 };
-const DEPLOY_UNITS = 10; // nightly patrol strength the state deployment optimises over
+const DEPLOY_UNITS = 20; // nightly patrol strength the optimiser spreads across the hotspots
 
 export default function CommandMap() {
   const s = useApi<Summary>("/stats/summary");
@@ -101,22 +101,26 @@ export default function CommandMap() {
         }
       : s.data;
 
-  // Plain-language patrol plans, one per forecast pocket. Each plan's pickets are placed on the
-  // REAL FIR pockets in that district (matched to the crime head), so they differ district to
-  // district; falls back to a ring only where a district has too few incidents to cluster.
-  const plans: PatrolPlan[] = fcHotspots.map((h) => {
-    let local = inc.filter((p) => p.district === h.district && (h.head == null || p.head === h.head));
-    if (local.length < 6) local = inc.filter((p) => p.district === h.district); // any crime in-district
-    return buildPlan(h, local);
-  });
-  const sel = selected !== null ? plans[selected] ?? null : null;
-
-  // Full-state patrol optimizer over the forecast hotspots (fixed nightly strength).
+  // Single source of truth for units: the patrol optimizer allocates the night's fixed strength
+  // across the forecast hotspots. Each card, its detail plan, its pickets, and the "Full state
+  // deployment" PDF all read the SAME allocation — so the numbers can never disagree.
   const areas: Area[] = fcHotspots.map((h) => ({
     district: h.district, lambda: h.projectedWeek || 1, crimeType: h.crimeType,
     patrolWindow: h.patrolWindow, lat: h.lat ?? 0, lng: h.lng ?? 0,
   }));
   const opt = areas.length ? optimize(areas, DEPLOY_UNITS) : null;
+  const optUnits: Record<string, number> = {};
+  opt?.alloc.forEach((a) => { optUnits[a.district] = a.units; });
+
+  // Plain-language patrol plans, one per forecast pocket. Units come from the optimizer above;
+  // pickets are placed on the REAL FIR pockets in that district (matched to the crime head), so
+  // they differ district to district; a ring is the fallback where FIRs are too few to cluster.
+  const plans: PatrolPlan[] = fcHotspots.map((h) => {
+    let local = inc.filter((p) => p.district === h.district && (h.head == null || p.head === h.head));
+    if (local.length < 6) local = inc.filter((p) => p.district === h.district); // any crime in-district
+    return buildPlan(h, local, optUnits[h.district]);
+  });
+  const sel = selected !== null ? plans[selected] ?? null : null;
   function viewOnMap(p: PatrolPlan) {
     setFocus(p);
     mapCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });

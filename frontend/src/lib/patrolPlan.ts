@@ -189,13 +189,17 @@ function stepsFor(family: Family, district: string, window: string, kinds: Picke
 }
 
 // `incidents` should already be filtered to this district (+ crime head) by the caller.
-export function buildPlan(h: Hotspot, incidents: Incident[] = []): PatrolPlan {
+// `unitsOverride` (from the patrol optimizer) is the single source of truth for how many units
+// this pocket gets — so the card, the plan, the pickets and the deployment PDF all agree.
+export function buildPlan(h: Hotspot, incidents: Incident[] = [], unitsOverride?: number): PatrolPlan {
   const cLat = h.lat ?? 0;
   const cLng = h.lng ?? 0;
   const window = plainWindow(h.patrolWindow);
-  const units = unitsFor(h.riskLevel, h.projectedWeek);
+  const units = Math.max(1, unitsOverride ?? unitsFor(h.riskLevel, h.projectedWeek));
   const family = familyOf(h.crimeType);
-  const kinds = FAMILY_KINDS[family].slice(0, Math.max(2, units));
+  // Exactly one picket per unit: the family's tactic profile, padded with roving mobile beats.
+  const profile = FAMILY_KINDS[family];
+  const kinds: PicketKind[] = Array.from({ length: units }, (_, i) => profile[i] ?? "mobile");
 
   // Real incident pockets → pickets sit where crime actually concentrates.
   const cells = microHotspots(incidents, kinds.length);
