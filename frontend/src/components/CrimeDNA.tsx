@@ -154,30 +154,7 @@ export default function CrimeDNA({ dna, scores, translations }: { dna: CrimeDna;
         </div>
       </div>
 
-      {/* Forensic markers — the physical-evidence signature recurring across the series */}
-      {forensics.length > 0 && (
-        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-          <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text)]">
-            🔬 Forensic markers across the series
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {[
-              ["Recurring tool", topTool || "—"],
-              ["Evidence types", `${evidenceKinds.size} kinds`],
-              ["Fingerprints lifted", `${printLifts} of ${total} FIRs`],
-              ["FSL / DNA reports", fslCount ? `${fslCount}` : "—"],
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-md bg-[var(--color-surface-2)] px-2.5 py-1.5">
-                <div className="text-[10px] uppercase tracking-wide text-[var(--color-text-mute)]">{label}</div>
-                <div className="truncate text-xs text-[var(--color-text)]" title={value}>{value}</div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-1.5 text-[10px] leading-relaxed text-[var(--color-text-mute)]">
-            The same physical evidence recurs across the linked FIRs — this corroborates the MO link beyond the narrative, and populates the evidence report.
-          </div>
-        </div>
-      )}
+
 
       {/* Why one series */}
       <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-sm leading-relaxed text-[var(--color-text-dim)]">
