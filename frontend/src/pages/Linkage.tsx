@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useApi, Card, PageHeader, State, Badge } from "@/components/ui";
 import { matchFir, type MatchResult } from "@/api/client";
 import { embedMatch, preloadEmbedder, embedText, seriesCases, centroid, scanUnsolved, scoreByCrimeNo, hybridCases, type CaseVec, type HybridCase } from "@/lib/embedMatch";
@@ -45,6 +46,7 @@ function saveConfirmed(m: ConfirmLedger) {
 }
 
 export default function Linkage() {
+  const nav = useNavigate();
   const { data, loading, error } = useApi<Cluster[]>("/linkage/clusters");
   const [selected, setSelected] = useState<Cluster | null>(null);
   const [query, setQuery] = useState("");
@@ -58,6 +60,7 @@ export default function Linkage() {
   const [cold, setCold] = useState<{ members: CaseVec[]; unsolved: CaseVec[]; count: number; confirmed: boolean; confirmedAt: string | null; candidates: (CaseVec & { score: number })[]; scores: Record<string, number>; qvec: number[]; hybrid: HybridCase[] } | null>(null);
   const [ledger, setLedger] = useState<ConfirmLedger>(() => loadConfirmed());
   const [confirming, setConfirming] = useState(false);
+  const [selFir, setSelFir] = useState<HybridCase | null>(null);
   const keyOf = (q: string) => q.trim().toLowerCase().replace(/\s+/g, " ");
   const isConfirmed = (k: string) => k in ledger;
   // A semantic match below this cosine % is NOT a real link — a genuine in-series FIR scores
@@ -137,8 +140,10 @@ export default function Linkage() {
 
   // After a credible match, the sidebar becomes the ranked list of matching FIRs (hybrid search).
   const showCases = matched && (cold?.hybrid.length ?? 0) > 0;
-  function openSeries(clusterId: string) {
-    const c = data?.find((x) => x.clusterId === clusterId);
+  // Clicking a sidebar FIR shows THAT FIR's full record on the right + opens its series below.
+  function openCase(h: HybridCase) {
+    setSelFir(h);
+    const c = data?.find((x) => x.clusterId === h.clusterId);
     if (c) setSelected(c);
   }
   const METHOD_CHIP: Record<HybridCase["method"], { label: string; cls: string }> = {
@@ -154,6 +159,7 @@ export default function Linkage() {
 
   async function analyze() {
     setMatching(true);
+    setSelFir(null);
     try {
       let r: MatchResult;
       try {
@@ -376,15 +382,15 @@ export default function Linkage() {
           {showCases ? (
             <>
               <div className="px-1 text-[11px] leading-relaxed text-[var(--color-text-mute)]">
-                <span className="font-medium text-[var(--color-text-dim)]">Matching FIRs ({cold!.hybrid.length})</span> — hybrid search fuses semantic meaning with exact keywords, so it also finds cases pure meaning-search misses. Tap one to open its series. % = semantic similarity to your FIR.
+                <span className="font-medium text-[var(--color-text-dim)]">Matching FIRs ({cold!.hybrid.length})</span> — hybrid search fuses semantic meaning with exact keywords, so it also finds cases pure meaning-search misses. Tap one to read its full record on the right. % = semantic similarity to your FIR.
               </div>
               {cold!.hybrid.map((h) => (
                 <button
                   key={h.crimeNo}
-                  onClick={() => openSeries(h.clusterId)}
+                  onClick={() => openCase(h)}
                   className={`w-full rounded-xl border p-3 text-left transition-colors ${
-                    cluster?.clusterId === h.clusterId
-                      ? "border-[var(--color-accent-dim)] bg-[var(--color-surface-2)]"
+                    selFir?.crimeNo === h.crimeNo
+                      ? "border-[var(--color-accent)] bg-[var(--color-surface-2)]"
                       : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-border-strong)]"
                   }`}
                 >
@@ -419,7 +425,7 @@ export default function Linkage() {
               return (
               <button
                 key={c.clusterId}
-                onClick={() => setSelected(c)}
+                onClick={() => { setSelFir(null); setSelected(c); }}
                 className={`w-full rounded-xl border p-3 text-left transition-colors ${
                   cluster?.clusterId === c.clusterId
                     ? "border-[var(--color-accent-dim)] bg-[var(--color-surface-2)]"
@@ -451,7 +457,41 @@ export default function Linkage() {
         </div>
 
         {/* Detail */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 space-y-4">
+          {/* Clicked-FIR record — full data of the FIR selected in the sidebar. */}
+          {selFir && (
+            <Card className="p-4">
+              <div className="mb-2 flex items-start justify-between gap-2">
+                <div>
+                  <div className="tnum text-sm font-semibold text-[var(--color-text)]">{selFir.crimeNo}</div>
+                  <div className="mt-0.5 text-xs text-[var(--color-text-dim)]">{selFir.crimeSubHead} · in series “{selFir.clusterLabel}”</div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Badge tone="accent">{Math.round(selFir.cos * 100)}% match</Badge>
+                  <button onClick={() => setSelFir(null)} className="rounded-md border border-[var(--color-border)] px-1.5 py-0.5 text-[11px] text-[var(--color-text-mute)] hover:text-[var(--color-text)]" title="Close">✕</button>
+                </div>
+              </div>
+              <div className="mb-2 flex flex-wrap items-center gap-2 text-[11px]">
+                <span className="flex items-center gap-1 text-[var(--color-text-dim)]">
+                  <span className={`inline-block h-1.5 w-1.5 rounded-full ${selFir.solved ? "bg-[var(--color-ok)]" : "bg-[var(--color-warn)]"}`} />
+                  {selFir.solved ? "Solved" : "Unsolved"}
+                </span>
+                <span className="text-[var(--color-text-mute)]">· {selFir.district} · {selFir.date}{selFir.language === "kn" ? " · ಕನ್ನಡ" : ""}</span>
+                <span className={`rounded px-1 py-0.5 text-[9px] font-medium ${METHOD_CHIP[selFir.method].cls}`}>matched via {METHOD_CHIP[selFir.method].label}</span>
+              </div>
+              <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-2.5 text-xs leading-relaxed text-[var(--color-text-dim)]">
+                {tx?.[selFir.crimeNo]?.en && selFir.language === "kn" ? (
+                  <>{selFir.facts}<div className="mt-1.5 border-t border-[var(--color-border)] pt-1.5 text-[var(--color-text-mute)]">EN: {tx[selFir.crimeNo].en}</div></>
+                ) : selFir.facts}
+              </div>
+              <button
+                onClick={() => nav(`/cases?q=${selFir.crimeNo}`)}
+                className="mt-2 text-[11px] text-[var(--color-accent)] hover:underline"
+              >
+                Open full case file in Case Search →
+              </button>
+            </Card>
+          )}
           {cluster && (
             <Card className="p-4">
               <div className="mb-3 flex items-center justify-between">
