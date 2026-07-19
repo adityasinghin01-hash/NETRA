@@ -31,6 +31,7 @@ function getClusters() {
 export function preloadEmbedder() {
   getExtractor();
   getClusters();
+  getCases();
 }
 
 function dot(a: number[], b: number[]) {
@@ -134,10 +135,14 @@ export async function hybridCases(query: string, qv: number[], topK = 12): Promi
   const sRank = rankOf(bm);
   const K = 60;
   const fused = cases.map((_, i) => 1 / (K + dRank[i]) + (bm[i] > 0 ? 1 / (K + sRank[i]) : 0));
+  // Select the top-K by fused relevance (so keyword-only matches still surface), but DISPLAY them
+  // ordered by semantic cosine — so the shown % decreases down the list and the top row equals the
+  // headline best-match %. No FIR ever appears above the headline.
   return cases
     .map((_, i) => i)
     .sort((a, b) => fused[b] - fused[a])
     .slice(0, topK)
+    .sort((a, b) => cos[b] - cos[a])
     .map((i) => {
       const hasD = dRank[i] < 15;
       const hasS = bm[i] > 0 && sRank[i] < 15;
@@ -162,13 +167,22 @@ export async function scanUnsolved(
 }
 
 export async function embedMatch(text: string): Promise<MatchResult> {
-  const [extractor, data] = await Promise.all([getExtractor(), getClusters()]);
+  const [extractor, cl, cs] = await Promise.all([getExtractor(), getClusters(), getCases()]);
   const out = await extractor(text, { pooling: "mean", normalize: true });
   const q = Array.from(out.data) as number[];
-  const ranked = data.clusters
+  // A cluster's match % = its BEST-matching member FIR's cosine (not the aggregate signature).
+  // This keeps the headline cluster % equal to that FIR's % in the sidebar, and guarantees NO
+  // sidebar FIR can ever score above the best-match cluster — for any query, permanently.
+  const bestPerCluster = new Map<string, number>();
+  for (const c of cs.cases) {
+    const s = dot(q, c.vector);
+    if (s > (bestPerCluster.get(c.clusterId) ?? -Infinity)) bestPerCluster.set(c.clusterId, s);
+  }
+  const ranked = cl.clusters
     .map((c) => {
       const { vector, ...meta } = c;
-      return { ...meta, score: Math.max(0, Math.round(dot(q, vector) * 100)) } as ClusterMatch;
+      const s = bestPerCluster.has(c.clusterId) ? (bestPerCluster.get(c.clusterId) as number) : dot(q, vector);
+      return { ...meta, score: Math.max(0, Math.round(s * 100)) } as ClusterMatch;
     })
     .sort((a, b) => b.score - a.score);
   // Return ALL clusters ranked (the live-match panel slices the top few; the cluster list uses
