@@ -42,7 +42,7 @@ const distM = (aLat: number, aLng: number, bLat: number, bLng: number) => {
   return Math.hypot(dLat, dLng);
 };
 
-export default function SpatialTriad({ spatial }: { spatial: SpatialRec }) {
+export default function SpatialTriad({ spatial, focusCaseNo }: { spatial: SpatialRec; focusCaseNo?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const overlayRef = useRef<MapboxOverlay | null>(null);
@@ -211,17 +211,64 @@ export default function SpatialTriad({ spatial }: { spatial: SpatialRec }) {
         getAlignmentBaseline: (d) => d.baseline,
       }),
     ];
+
+    // If a specific FIR is selected in the sidebar, mark ITS exact spot on the route (bright ring
+    // + label) so the map answers "where did THIS FIR happen" within the offender's pattern.
+    const focusPt = focusCaseNo ? route.find((p) => p.caseNo === focusCaseNo) : null;
+    if (focusPt) {
+      layers.push(
+        new ScatterplotLayer<{ lat: number; lng: number }>({
+          id: "focus-glow",
+          data: [focusPt],
+          getPosition: (d) => [d.lng, d.lat],
+          getFillColor: [56, 235, 220, 70],
+          getRadius: 20,
+          radiusUnits: "pixels",
+        }),
+        new ScatterplotLayer<{ lat: number; lng: number }>({
+          id: "focus-ring",
+          data: [focusPt],
+          getPosition: (d) => [d.lng, d.lat],
+          getFillColor: [0, 0, 0, 0],
+          stroked: true,
+          getLineColor: [125, 255, 245, 255],
+          lineWidthMinPixels: 3,
+          getRadius: 13,
+          radiusUnits: "pixels",
+        }),
+        new TextLayer<{ position: [number, number]; text: string }>({
+          id: "focus-label",
+          data: [{ position: [focusPt.lng, focusPt.lat], text: "SELECTED FIR" }],
+          getPosition: (d) => d.position,
+          getText: (d) => d.text,
+          getColor: [125, 255, 245],
+          getSize: 12,
+          fontWeight: 700,
+          getPixelOffset: [0, 22],
+          background: true,
+          getBackgroundColor: [8, 12, 24, 225],
+          backgroundPadding: [5, 3],
+          getTextAnchor: "middle",
+          getAlignmentBaseline: "top",
+        }),
+      );
+    }
     overlay.setProps({ layers });
 
-    // Fit to everything.
-    const pts = [...path, [a.lng, a.lat] as [number, number], [ns.lng, ns.lat] as [number, number]];
-    const lngs = pts.map((p) => p[0]);
-    const lats = pts.map((p) => p[1]);
-    map.fitBounds(
-      [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
-      { padding: 56, duration: 500, maxZoom: 10 }
-    );
-  }, [spatial, baseRadiusM]);
+    if (focusPt) {
+      // Centre on the selected FIR's location so the map is about THAT case.
+      map.easeTo({ center: [focusPt.lng, focusPt.lat], zoom: 9, duration: 700 });
+    } else {
+      // Fit to the whole pattern.
+      const pts = [...path, [a.lng, a.lat] as [number, number], [ns.lng, ns.lat] as [number, number]];
+      const lngs = pts.map((p) => p[0]);
+      const lats = pts.map((p) => p[1]);
+      map.fitBounds(
+        [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]],
+        { padding: 56, duration: 500, maxZoom: 10 }
+      );
+    }
+  }, [spatial, baseRadiusM, focusCaseNo]);
 
   const ns = spatial.nextStrike;
   return (

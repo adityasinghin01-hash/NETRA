@@ -506,7 +506,7 @@ export default function Linkage() {
                   <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-[var(--color-text-mute)]">
                     <span>🗺️</span> Spatial Intelligence — route · predicted base · next strike
                   </div>
-                  <SpatialTriad spatial={spatialMap[cluster.clusterId]} />
+                  <SpatialTriad spatial={spatialMap[cluster.clusterId]} focusCaseNo={selFir && selFir.clusterId === cluster.clusterId ? selFir.crimeNo : undefined} />
                 </div>
               )}
               {dnaMap?.[cluster.clusterId] ? (
