@@ -125,7 +125,10 @@ export default function Linkage() {
   const matchedCluster = matched && result?.best
     ? data?.find((c) => c.clusterId === result.best.clusterId)
     : null;
-  const cluster = matchedCluster ?? selected ?? data?.[0] ?? null;
+  // A clicked sidebar FIR wins: the detail panel (Crime DNA + Spatial map) follows whichever FIR
+  // you click, even one from a different series than the top match.
+  const firCluster = selFir ? data?.find((c) => c.clusterId === selFir.clusterId) : null;
+  const cluster = firCluster ?? matchedCluster ?? selected ?? data?.[0] ?? null;
   const bestDna = result && dnaMap ? dnaMap[result.best.clusterId] : null;
 
   // After a credible Analyse, re-rank the whole series list by each series' MATCH % to the pasted
