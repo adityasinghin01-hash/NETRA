@@ -482,6 +482,25 @@ export default function Linkage() {
                 <span className="text-[var(--color-text-mute)]">· {selFir.district} · {selFir.date}{selFir.language === "kn" ? " · ಕನ್ನಡ" : ""}</span>
                 <span className={`rounded px-1 py-0.5 text-[9px] font-medium ${METHOD_CHIP[selFir.method].cls}`}>matched via {METHOD_CHIP[selFir.method].label}</span>
               </div>
+              {(() => {
+                const forensic = dnaMap?.[selFir.clusterId]?.members.find((m) => m.caseNo === selFir.crimeNo)?.forensic;
+                if (!forensic) return null;
+                return (
+                  <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {[
+                      ["Weapon / Tool", forensic.weapon || (forensic.tools?.join(", ") || "—")],
+                      ["Evidence", forensic.evidenceRecovered?.join(", ") || "—"],
+                      ["Fingerprint", forensic.fingerprint || "—"],
+                      ["FSL / Memo", forensic.seizure?.memoNo ? `Memo ${forensic.seizure.memoNo}` : (forensic.fsl?.ref || "—")],
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5">
+                        <div className="text-[9px] uppercase tracking-wide text-[var(--color-text-mute)]">{label}</div>
+                        <div className="truncate text-[11px] text-[var(--color-text)]" title={value}>{value}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
               <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-2.5 text-xs leading-relaxed text-[var(--color-text-dim)]">
                 {tx?.[selFir.crimeNo]?.en && selFir.language === "kn" ? (
                   <>{selFir.facts}<div className="mt-1.5 border-t border-[var(--color-border)] pt-1.5 text-[var(--color-text-mute)]">EN: {tx[selFir.crimeNo].en}</div></>
