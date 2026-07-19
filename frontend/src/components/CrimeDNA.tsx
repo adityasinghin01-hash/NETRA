@@ -78,7 +78,10 @@ function mode(arr: string[]): string {
   return best;
 }
 
-export default function CrimeDNA({ dna, scores }: { dna: CrimeDna; scores?: Record<string, number> }) {
+export default function CrimeDNA({ dna, scores, translations }: { dna: CrimeDna; scores?: Record<string, number>; translations?: Record<string, { en: string; kn: string }> }) {
+  const [lang, setLang] = useState<"en" | "kn">("en");
+  const hasTx = !!translations && dna.members.some((m) => translations[m.caseNo]);
+  const factsOf = (m: DnaMember) => translations?.[m.caseNo]?.[lang] ?? m.facts;
   const phrases = dna.signature.map((s) => s.value);
   const cadence = dna.span.cadenceDays;
   // Forensic markers recurring across the series — corroborate the MO link beyond the narrative.
@@ -218,9 +221,22 @@ export default function CrimeDNA({ dna, scores }: { dna: CrimeDna; scores?: Reco
 
       {/* Member FIRs with MO phrases highlighted */}
       <div>
-        <div className="mb-1 flex items-center justify-between gap-2 text-xs uppercase tracking-wide text-[var(--color-text-mute)]">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-2 text-xs uppercase tracking-wide text-[var(--color-text-mute)]">
           <span>Member FIRs{scores ? " — ranked by match to your FIR" : " — same MO, different wording"}</span>
           <span className="flex items-center gap-2 normal-case tracking-normal text-[10px]">
+            {hasTx && (
+              <span className="flex overflow-hidden rounded-md border border-[var(--color-border)]" title="Read every FIR in English or Kannada">
+                {(["en", "kn"] as const).map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => setLang(l)}
+                    className={`px-1.5 py-0.5 text-[10px] ${lang === l ? "bg-[var(--color-accent)] text-[var(--color-bg)]" : "text-[var(--color-text-dim)] hover:text-[var(--color-text)]"}`}
+                  >
+                    {l === "en" ? "EN" : "ಕನ್ನಡ"}
+                  </button>
+                ))}
+              </span>
+            )}
             <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-ok)]" /> solved</span>
             <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-warn)]" /> unsolved</span>
           </span>
@@ -248,7 +264,9 @@ export default function CrimeDNA({ dna, scores }: { dna: CrimeDna; scores?: Reco
                 </span>
                 <span>{m.district} · {m.date}{m.language === "kn" ? " · ಕನ್ನಡ" : ""}</span>
               </div>
-              <p className="text-xs leading-relaxed text-[var(--color-text-dim)]">{highlight(m.facts, phrases)}</p>
+              <p className="text-xs leading-relaxed text-[var(--color-text-dim)]">
+                {lang === "en" ? highlight(factsOf(m), phrases) : factsOf(m)}
+              </p>
             </li>
           ))}
         </ul>

@@ -65,9 +65,11 @@ export default function Linkage() {
   const MATCH_MIN = 55;
   const matched = !!result && (result.method === "keyword" || result.best.score >= MATCH_MIN);
 
+  const [tx, setTx] = useState<Record<string, { en: string; kn: string }> | null>(null);
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}crime-dna.json`).then((r) => r.json()).then(setDnaMap).catch(() => {});
     fetch(`${import.meta.env.BASE_URL}spatial.json`).then((r) => r.json()).then(setSpatialMap).catch(() => {});
+    fetch(`${import.meta.env.BASE_URL}case-translations.json`).then((r) => r.json()).then(setTx).catch(() => {});
   }, []);
 
   // On a semantic match, load the series' member FIRs → surface how many are still UNSOLVED
@@ -465,7 +467,7 @@ export default function Linkage() {
                 </div>
               )}
               {dnaMap?.[cluster.clusterId] ? (
-                <CrimeDNA dna={dnaMap[cluster.clusterId]} scores={cold && result?.best.clusterId === cluster.clusterId ? cold.scores : undefined} />
+                <CrimeDNA dna={dnaMap[cluster.clusterId]} scores={cold && result?.best.clusterId === cluster.clusterId ? cold.scores : undefined} translations={tx ?? undefined} />
               ) : (
                 <>
                   <div className="text-xs uppercase tracking-wide text-[var(--color-text-mute)]">Shared narratives (varied wording, same MO)</div>
