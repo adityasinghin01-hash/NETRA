@@ -153,8 +153,20 @@ export default function CrimeDNA({ dna, scores, translations }: { dna: CrimeDna;
           <div className="tnum text-lg font-semibold text-[var(--color-text)]">{cadence ? `~${cadence}d` : "—"}</div>
         </div>
       </div>
-
-
+      {/* Series-wide forensic summary */}
+      {forensics.length > 0 && (
+        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
+          <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text)]">
+            🔬 Recurring physical evidence across this series
+          </div>
+          <div className="text-[11px] leading-relaxed text-[var(--color-text-dim)]">
+            Corroborates the MO link beyond the narrative.{" "}
+            {topTool ? <><span className="font-medium text-[var(--color-text)]">Recurring tool:</span> {topTool}. </> : ""}
+            {evidenceKinds.size > 0 ? <><span className="font-medium text-[var(--color-text)]">Evidence types:</span> {evidenceKinds.size}. </> : ""}
+            {printLifts > 0 ? <><span className="font-medium text-[var(--color-text)]">Fingerprints lifted:</span> in {printLifts} of {total} FIRs. </> : ""}
+          </div>
+        </div>
+      )}
 
       {/* Why one series */}
       <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-sm leading-relaxed text-[var(--color-text-dim)]">

@@ -483,15 +483,21 @@ export default function Linkage() {
                 <span className={`rounded px-1 py-0.5 text-[9px] font-medium ${METHOD_CHIP[selFir.method].cls}`}>matched via {METHOD_CHIP[selFir.method].label}</span>
               </div>
               {(() => {
-                const forensic = dnaMap?.[selFir.clusterId]?.members.find((m) => m.caseNo === selFir.crimeNo)?.forensic;
-                if (!forensic) return null;
+                const selForensic = dnaMap?.[selFir.clusterId]?.members.find((m) => m.caseNo === selFir.crimeNo)?.forensic ?? null;
+                if (!selForensic) {
+                  return (
+                    <div className="mb-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-2.5 text-center text-[11px] text-[var(--color-text-mute)]">
+                      No forensic exhibits recorded for this FIR
+                    </div>
+                  );
+                }
                 return (
                   <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {[
-                      ["Weapon / Tool", forensic.weapon || (forensic.tools?.join(", ") || "—")],
-                      ["Evidence", forensic.evidenceRecovered?.join(", ") || "—"],
-                      ["Fingerprint", forensic.fingerprint || "—"],
-                      ["FSL / Memo", forensic.seizure?.memoNo ? `Memo ${forensic.seizure.memoNo}` : (forensic.fsl?.ref || "—")],
+                      ["Weapon / Tool", selForensic.weapon || (selForensic.tools?.join(", ") || "—")],
+                      ["Evidence", selForensic.evidenceRecovered?.join(", ") || "—"],
+                      ["Fingerprint", selForensic.fingerprint || "—"],
+                      ["FSL / Memo", selForensic.seizure?.memoNo ? `Memo ${selForensic.seizure.memoNo}` : (selForensic.fsl?.ref || "—")],
                     ].map(([label, value]) => (
                       <div key={label} className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2 py-1.5">
                         <div className="text-[9px] uppercase tracking-wide text-[var(--color-text-mute)]">{label}</div>
