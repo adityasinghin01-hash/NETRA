@@ -9,7 +9,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { MapboxOverlay } from "@deck.gl/mapbox";
-import { HeatmapLayer } from "@deck.gl/aggregation-layers";
 import { ScatterplotLayer, PathLayer, TextLayer } from "@deck.gl/layers";
 import type { Layer } from "@deck.gl/core";
 
@@ -27,10 +26,6 @@ const SAT_STYLE: maplibregl.StyleSpecification = {
   ],
 };
 const DARK_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
-// Red probability ramp for the base zone (transparent → deep red) — reads as "somewhere in here".
-const BASE_RAMP: [number, number, number][] = [
-  [30, 12, 20], [90, 20, 40], [150, 30, 50], [200, 45, 55], [235, 70, 70], [248, 113, 113],
-];
 
 interface RoutePt { order: number; caseNo: string; date: string; district: string; lat: number; lng: number }
 export interface SpatialRec {
@@ -67,6 +62,8 @@ export default function SpatialTriad({ spatial }: { spatial: SpatialRec }) {
       style: SAT_STYLE,
       center: [spatial.route[0].lng, spatial.route[0].lat],
       zoom: 7,
+      minZoom: 6,
+      maxZoom: 11,               // this is an inter-district OVERVIEW — deeper zoom = empty ground
       attributionControl: false,
       dragRotate: true,
       fadeDuration: 0,            // tiles pop in instantly
@@ -102,17 +99,26 @@ export default function SpatialTriad({ spatial }: { spatial: SpatialRec }) {
     const ns = spatial.nextStrike;
 
     const layers: Layer[] = [
-      // 🟥 Likely base area — Rossmo probability surface, tuned to a defined red zone.
-      new HeatmapLayer<{ lat: number; lng: number; w: number }>({
+      // 🟥 Likely base area — a smooth METRES-radius zone (+ a hotter core). Meters-based so it
+      // scales cleanly at every zoom, unlike a heatmap which breaks into separate dots on zoom-in.
+      new ScatterplotLayer<{ lat: number; lng: number }>({
         id: "base-zone",
-        data: spatial.rossmo.surface,
+        data: [a],
         getPosition: (d) => [d.lng, d.lat],
-        getWeight: (d) => d.w,
-        radiusPixels: 42,
-        intensity: 1,
-        threshold: 0.05,
-        colorRange: BASE_RAMP,
-        opacity: 0.6,
+        getRadius: baseRadiusM,
+        radiusUnits: "meters",
+        getFillColor: [244, 63, 94, 38],
+        stroked: true,
+        getLineColor: [248, 113, 113, 210],
+        lineWidthMinPixels: 1.5,
+      }),
+      new ScatterplotLayer<{ lat: number; lng: number }>({
+        id: "base-core",
+        data: [a],
+        getPosition: (d) => [d.lng, d.lat],
+        getRadius: baseRadiusM * 0.48,
+        radiusUnits: "meters",
+        getFillColor: [244, 63, 94, 52],
       }),
       // 🔵 Next target area — a translucent zone (prediction is an AREA, not a point).
       new ScatterplotLayer<{ lat: number; lng: number }>({
