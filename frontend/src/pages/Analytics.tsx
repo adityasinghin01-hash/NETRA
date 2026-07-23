@@ -315,7 +315,7 @@ function OutcomesTab({ scope, da, risk }: { scope: string | null; da: DA | null;
               <th className="pb-2 font-normal">District</th>
               <th className="pb-2 font-normal">Outcome mix</th>
               <th className="pb-2 text-right font-normal">Undetected %</th>
-              <th className="pb-2 text-right font-normal">Risk</th>
+              <th className="pb-2 text-right font-normal">Risk*</th>
             </tr>
           </thead>
           <tbody>
@@ -334,6 +334,9 @@ function OutcomesTab({ scope, da, risk }: { scope: string | null; da: DA | null;
             })}
           </tbody>
         </table>
+        <div className="mt-2 text-[10px] leading-relaxed text-[var(--color-text-mute)]">
+          * Risk = relative detection-risk index (0 = lowest, 100 = highest across Karnataka) — a ranking, not a probability.
+        </div>
       </Card>
     </State>
   );
@@ -349,6 +352,10 @@ function NetworkTab() {
   const [net, setNet] = useState<{ nodes: NetNode[]; links: NetEdge[] } | null>(null);
   const [rings, setRings] = useState<Ring[]>([]);
   const [preds, setPreds] = useState<Pred[]>([]);
+  const [query, setQuery] = useState("");
+  // FIR → offender/ring map: nodes carry no FIR list, so we join through the Crime-DNA member roster
+  // (caseNo → cluster → offender), letting an officer type a raw FIR number and land on its ring.
+  const [dna, setDna] = useState<Record<string, { offender: string; label: string; members: { caseNo: string }[] }> | null>(null);
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}network-graph.json`).then((r) => r.json())
       .then((d) => {
@@ -358,6 +365,7 @@ function NetworkTab() {
         setPreds(d.predictedLinks ?? []);
       })
       .catch(() => setNet(null));
+    fetch(`${import.meta.env.BASE_URL}crime-dna.json`).then((r) => r.json()).then(setDna).catch(() => {});
   }, []);
   useEffect(() => {
     if (!ref.current) return;
@@ -372,29 +380,96 @@ function NetworkTab() {
   }, [rings]);
   const kingpinIds = useMemo(() => new Set(rings.map((r) => r.kingpinId)), [rings]);
 
+  // FIR/keyword linkage search: resolve a raw FIR number (via Crime-DNA) or a keyword (offender /
+  // crime-type / ring name) to the matching offender node(s), and spell out the case→offender→ring
+  // chain so the graph becomes something you can interrogate, not just look at.
+  const firIndex = useMemo(() => {
+    const m = new Map<string, { offender: string; label: string }>();
+    if (dna) for (const c of Object.values(dna)) for (const mem of c.members ?? []) m.set(mem.caseNo, { offender: c.offender, label: c.label });
+    return m;
+  }, [dna]);
+  const search = useMemo(() => {
+    const raw = query.trim();
+    if (!raw || !net) return { ids: new Set<number>(), msg: "", tone: "dim" as "dim" | "warn" };
+    const q = raw.toLowerCase();
+    const ids = new Set<number>();
+    if (/^\d{6,}$/.test(raw)) {
+      const hit = firIndex.get(raw);
+      if (!hit) return { ids, msg: `FIR ${raw} isn’t in a mapped serial ring — only the ${firIndex.size} serial-cluster FIRs are networked here.`, tone: "warn" as const };
+      const matched = net.nodes.filter((n) => n.name === hit.offender || (n.cluster && n.cluster === hit.label));
+      matched.forEach((n) => ids.add(n.id));
+      const comm = matched[0]?.community;
+      const co = net.nodes.filter((n) => n.community === comm && !ids.has(n.id)).map((n) => n.name);
+      return { ids, msg: `FIR ${raw} → ${hit.offender} · ring “${hit.label}”${co.length ? ` · co-offenders: ${co.slice(0, 4).join(", ")}${co.length > 4 ? "…" : ""}` : ""}`, tone: "dim" as const };
+    }
+    net.nodes.forEach((n) => { if (n.name.toLowerCase().includes(q) || (n.cluster ?? "").toLowerCase().includes(q)) ids.add(n.id); });
+    rings.forEach((r) => { if (r.label.toLowerCase().includes(q)) net.nodes.forEach((n) => { if (n.community === r.id) ids.add(n.id); }); });
+    return { ids, msg: ids.size ? `${ids.size} offender${ids.size === 1 ? "" : "s"} matched “${raw}” — highlighted; the rest is dimmed.` : `No offender or ring matches “${raw}”.`, tone: ids.size ? "dim" as const : "warn" as const };
+  }, [query, net, firIndex, rings]);
+  const matchIds = search.ids;
+
+  // Frame the matched nodes WITH their ring for context (fitting a lone node zooms in absurdly far),
+  // then cap the zoom so a single match doesn't fill the whole canvas.
+  useEffect(() => {
+    if (!fg.current || !net) return;
+    const t = setTimeout(() => {
+      if (matchIds.size) {
+        const comms = new Set(net.nodes.filter((n) => matchIds.has(n.id)).map((n) => n.community));
+        fg.current.zoomToFit(600, 90, (n: NetNode) => matchIds.has(n.id) || comms.has(n.community));
+        setTimeout(() => { if (fg.current && fg.current.zoom() > 5) fg.current.zoom(5, 400); }, 650);
+      } else {
+        fg.current.zoomToFit(400, 40);
+      }
+    }, 80);
+    return () => clearTimeout(t);
+  }, [matchIds, net]);
+
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <Card className="p-4 lg:col-span-2">
         <div className="mb-1 text-sm font-medium">Organized-crime network</div>
-        <div className="mb-3 text-xs text-[var(--color-text-dim)]">
+        <div className="mb-2 text-xs text-[var(--color-text-dim)]">
           Colour = detected ring · size = influence (centrality) · ◎ ringed = kingpin · solid = co-offending · <span className="text-[var(--color-warn)]">dashed amber = predicted (emerging) tie</span>
+        </div>
+        <div className="mb-3">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Find in network — FIR number, offender, crime type or ring…"
+            className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-1.5 text-xs text-[var(--color-text)] placeholder:text-[var(--color-text-mute)] focus:border-[var(--color-accent)] focus:outline-none"
+          />
+          {search.msg && (
+            <div className={`mt-1.5 flex items-start gap-1.5 text-[11px] leading-relaxed ${search.tone === "warn" ? "text-[var(--color-warn)]" : "text-[var(--color-text-dim)]"}`}>
+              <span>🔗</span><span>{search.msg}</span>
+            </div>
+          )}
         </div>
         <div ref={ref} className="overflow-hidden rounded-lg bg-[var(--color-bg)]" style={{ height: 380 }}>
           {net && (
             <ForceGraph2D
               ref={fg} graphData={net} width={w} height={380} backgroundColor="#0b1220" nodeRelSize={4}
               nodeVal={(n) => { const x = n as NetNode; return Math.max(1.2, (x.centrality ?? 0) * 14 + (x.kingpin ? 6 : 1.2)); }}
-              nodeColor={(n) => colorOf.get((n as NetNode).community ?? -1) ?? "#475569"}
+              nodeColor={(n) => { const x = n as NetNode; if (matchIds.size && !matchIds.has(x.id)) return "rgba(71,85,105,0.28)"; return colorOf.get(x.community ?? -1) ?? "#475569"; }}
               nodeLabel={(n) => { const x = n as NetNode; return `${x.name} — ${x.cases} cases${x.kingpin ? " · KINGPIN" : ""}${x.cluster ? " · " + x.cluster : ""}`; }}
               nodeCanvasObjectMode={() => "after"}
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               nodeCanvasObject={(node: any, ctx, scale) => {
+                const isMatch = matchIds.has(node.id);
+                if (isMatch) {
+                  ctx.beginPath(); ctx.arc(node.x, node.y, 10, 0, 2 * Math.PI);
+                  ctx.strokeStyle = "#22d3ee"; ctx.lineWidth = 2.2 / scale; ctx.stroke();
+                  const label = String(node.name).split(" ")[0]; const fs = 11 / scale;
+                  ctx.font = `700 ${fs}px Inter, sans-serif`; ctx.fillStyle = "#a5f3fc"; ctx.textAlign = "center";
+                  ctx.fillText(label, node.x, node.y - 13 / scale);
+                }
                 if (!kingpinIds.has(node.id)) return;
                 ctx.beginPath(); ctx.arc(node.x, node.y, 8, 0, 2 * Math.PI);
                 ctx.strokeStyle = "#fde68a"; ctx.lineWidth = 1.6 / scale; ctx.stroke();
-                const label = String(node.name).split(" ")[0]; const fs = 11 / scale;
-                ctx.font = `700 ${fs}px Inter, sans-serif`; ctx.fillStyle = "#fde68a"; ctx.textAlign = "center";
-                ctx.fillText(label, node.x, node.y - 11 / scale);
+                if (!isMatch) {
+                  const label = String(node.name).split(" ")[0]; const fs = 11 / scale;
+                  ctx.font = `700 ${fs}px Inter, sans-serif`; ctx.fillStyle = "#fde68a"; ctx.textAlign = "center";
+                  ctx.fillText(label, node.x, node.y - 11 / scale);
+                }
               }}
               linkColor={(l) => ((l as NetEdge).predicted ? "rgba(245,158,11,0.75)" : (l as NetEdge).weight > 3 ? "rgba(34,211,238,0.5)" : "rgba(148,163,184,0.25)")}
               linkWidth={(l) => ((l as NetEdge).predicted ? 1.4 : Math.max(1, Math.min(5, (l as NetEdge).weight / 1.5)))}
@@ -435,7 +510,7 @@ function NetworkTab() {
                   <div className="text-xs text-[var(--color-text)]">
                     {p.sourceName} <span className="text-[var(--color-warn)]">⇢</span> {p.targetName}
                   </div>
-                  <div className="mt-0.5 text-[10px] text-[var(--color-text-mute)]">via {p.via.join(", ")} · same ring · score {p.score}</div>
+                  <div className="mt-0.5 text-[10px] text-[var(--color-text-mute)]">via {p.via.join(", ")} · same ring · no direct co-offending on record yet</div>
                 </li>
               ))}
             </ul>
