@@ -95,7 +95,8 @@ function TrendsTab({ scope, da }: { scope: string | null; da: DA | null }) {
     let rows: Record<string, any>[] = [];
     if (scope && da?.districts[scope]) {
       const s = da.districts[scope];
-      rows = da.months.map((m, i) => ({ month: m, [scope]: s.counts[i] ?? 0 }));
+      // Include a 12-month-lagged "last year" ghost series for the year-on-year comparison.
+      rows = da.months.map((m, i) => ({ month: m, [scope]: s.counts[i] ?? 0, [`${scope}__yoy`]: i >= 12 ? (s.counts[i - 12] ?? null) : null }));
     } else {
       const series = state.data ?? [];
       if (series.length)
@@ -131,11 +132,64 @@ function TrendsTab({ scope, da }: { scope: string | null; da: DA | null }) {
     return { chartData: rows, firstFcMonth: futMonths[0] };
   }, [scope, da, state.data, fc, seriesNames]);
 
+  // Auto-written "what changed this month" line — the crime-review-meeting summary. Computed from
+  // the same monthly counts the chart draws: month-over-month, year-on-year, leading type, detection.
+  const changeSummary = useMemo(() => {
+    if (!da) return null;
+    const names = Object.keys(da.districts);
+    const n = da.months.length;
+    if (n < 2 || !names.length) return null;
+    const series = scope && da.districts[scope]
+      ? da.districts[scope].counts
+      : da.months.map((_, i) => names.reduce((sum, nm) => sum + (da.districts[nm].counts[i] ?? 0), 0));
+    const last = series[n - 1], prev = series[n - 2] || 0;
+    const yoy = n >= 13 ? series[n - 13] : null;
+    const momPct = prev ? Math.round(((last - prev) / prev) * 100) : 0;
+    const yoyPct = yoy ? Math.round(((last - yoy) / yoy) * 100) : null;
+    let lead: { type: string; pct: number } | null = null;
+    if (scope && da.districts[scope]) lead = da.districts[scope].topCrimes[0] ?? null;
+    else {
+      const agg = new Map<string, number>();
+      for (const nm of names) for (const tc of da.districts[nm].topCrimes) agg.set(tc.type, (agg.get(tc.type) ?? 0) + tc.count);
+      const total = [...agg.values()].reduce((s, v) => s + v, 0);
+      const top = [...agg.entries()].sort((a, b) => b[1] - a[1])[0];
+      if (top && total) lead = { type: top[0], pct: Math.round((top[1] / total) * 1000) / 10 };
+    }
+    let det: number | null = null;
+    if (scope && da.districts[scope]) det = da.districts[scope].outcome.detectionPct;
+    else {
+      let cs = 0, t = 0;
+      for (const nm of names) { const o = da.districts[nm].outcome; cs += o.chargesheeted; t += o.chargesheeted + o.false + o.undetected; }
+      det = t ? Math.round((cs / t) * 100) : null;
+    }
+    return { label: scope ?? "Karnataka (state-wide)", monthLbl: da.months[n - 1], last, momPct, yoyPct, lead, det };
+  }, [da, scope]);
+
   const loading = scope ? !da : state.loading;
 
   return (
     <State loading={loading} error={state.error} empty={!chartData.length}>
       <div className="space-y-4">
+      {changeSummary && (
+        <Card className="border-l-2 border-[var(--color-accent)] p-4">
+          <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--color-accent)]">
+            ▸ What changed — {changeSummary.monthLbl}
+          </div>
+          <p className="text-sm leading-relaxed text-[var(--color-text-dim)]">
+            <span className="text-[var(--color-text)]">{changeSummary.label}</span> logged{" "}
+            <span className="tnum text-[var(--color-text)]">{changeSummary.last}</span> FIRs this month —{" "}
+            <span className={changeSummary.momPct > 0 ? "text-[var(--color-danger)]" : "text-[var(--color-ok)]"}>
+              {changeSummary.momPct > 0 ? "up" : "down"} {Math.abs(changeSummary.momPct)}%
+            </span> vs the prior month
+            {changeSummary.yoyPct != null && <>, and{" "}
+              <span className={changeSummary.yoyPct > 0 ? "text-[var(--color-danger)]" : "text-[var(--color-ok)]"}>
+                {changeSummary.yoyPct > 0 ? "up" : "down"} {Math.abs(changeSummary.yoyPct)}%
+              </span> year-on-year</>}.
+            {changeSummary.lead && <> <span className="text-[var(--color-text)]">{changeSummary.lead.type}</span> leads at {changeSummary.lead.pct}% of cases.</>}
+            {changeSummary.det != null && <> Detection stands at {changeSummary.det}%.</>}
+          </p>
+        </Card>
+      )}
       <Card className="p-4">
         <div className="mb-1 flex items-center justify-between">
           <div className="text-sm font-medium">Monthly FIRs — {scope ?? "top districts"}</div>
@@ -160,6 +214,10 @@ function TrendsTab({ scope, da }: { scope: string | null; da: DA | null }) {
               {scope && (
                 <Area type="monotone" dataKey={`${scope}__band`} legendType="none" isAnimationActive={false}
                   stroke="none" fill={LINE_COLORS[0]} fillOpacity={0.12} connectNulls activeDot={false} />
+              )}
+              {scope && (
+                <Line type="monotone" dataKey={`${scope}__yoy`} name="last year" isAnimationActive={false}
+                  stroke="#64748b" strokeWidth={1.25} strokeDasharray="2 3" dot={false} connectNulls activeDot={false} />
               )}
               {seriesNames.map((name, i) => (
                 <Line key={name} type="monotone" dataKey={name}
