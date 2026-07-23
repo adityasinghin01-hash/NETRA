@@ -293,13 +293,14 @@ export default function SpatialTriad({ spatial, focusCaseNo }: { spatial: Spatia
         <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-[#3b82f6]" /> Next target area</span>
       </div>
       <div className="rounded-lg border border-[var(--color-warn)]/40 bg-[var(--color-warn)]/5 p-2.5 text-xs">
-        <span className="font-semibold text-[var(--color-warn)]">⚠ Next-strike forecast: </span>
+        <span className="font-semibold text-[var(--color-warn)]">⚠ Projected next strike: </span>
         <span className="text-[var(--color-text-dim)]">
           {ns.district} · {ns.window} · {ns.timeWindow} · <span className="tnum">{Math.round(ns.confidence * 100)}%</span> confidence
+          <span className="text-[var(--color-text-mute)]"> — projected ~{ns.cadenceDays} days on from the series&rsquo; last recorded FIR</span>
         </span>
       </div>
       <div className="text-[10px] leading-relaxed text-[var(--color-text-mute)]">
-        Reconstructed from crime locations alone: past route (⚪), the offender&rsquo;s likely base <em>zone</em> (🟥 Rossmo geographic profile — a place, not a person), and the next likely target <em>zone</em> (🔵). Decision support, human-in-the-loop · synthetic data.
+        Reconstructed from crime locations alone: past route (⚪), the offender&rsquo;s likely base <em>zone</em> (🟥 Rossmo geographic profile — a place, not a person), and the next likely target <em>zone</em> (🔵). The strike window is projected forward on the series&rsquo; own cadence from its last recorded FIR — on live data it points ahead; on this synthetic 2021–26 archive it lands within the dataset. Decision support, human-in-the-loop.
       </div>
     </div>
   );

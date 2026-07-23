@@ -252,16 +252,26 @@ export default function Linkage() {
               </div>
             </div>
             <div className="mt-3 space-y-1">
-              {result.matches.slice(0, 4).map((m) => (
-                <div key={m.clusterId} className="flex items-center gap-2 text-xs">
-                  <span className="w-40 shrink-0 text-[var(--color-text-dim)]">{m.label}</span>
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--color-bg)]">
-                    <div className="h-full bg-[var(--color-accent)] transition-all duration-500" style={{ width: `${m.score}%` }} />
+              {result.matches.slice(0, 4).map((m) => {
+                // Only series at/above the 55% bar are treated as links. Below-bar series are shown
+                // greyed for contrast (so the model's clean separation is visible), never as a match.
+                const linked = m.score >= MATCH_MIN;
+                return (
+                  <div key={m.clusterId} className="flex items-center gap-2 text-xs">
+                    <span className={`w-40 shrink-0 ${linked ? "text-[var(--color-text-dim)]" : "text-[var(--color-text-mute)]"}`}>{m.label}</span>
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--color-bg)]">
+                      <div className={`h-full transition-all duration-500 ${linked ? "bg-[var(--color-accent)]" : "bg-[var(--color-border-strong)]"}`} style={{ width: `${m.score}%` }} />
+                    </div>
+                    <span className={`tnum w-8 text-right ${linked ? "text-[var(--color-text-mute)]" : "text-[var(--color-text-mute)]/60"}`}>{m.score}%</span>
                   </div>
-                  <span className="tnum w-8 text-right text-[var(--color-text-mute)]">{m.score}%</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
+            {result.matches.slice(0, 4).some((m) => m.score < MATCH_MIN) && (
+              <div className="mt-1.5 px-1 text-[10px] leading-relaxed text-[var(--color-text-mute)]">
+                Greyed series fall below the {MATCH_MIN}% link bar — shown for contrast, not treated as a link.
+              </div>
+            )}
 
             {/* Why this match — turn the single cosine into an explainable MO-dimension breakdown.
                 Narrative similarity = the real semantic score; each dimension bar = how much of
