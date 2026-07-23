@@ -130,6 +130,12 @@ export default function Linkage() {
   const firCluster = selFir ? data?.find((c) => c.clusterId === selFir.clusterId) : null;
   const cluster = firCluster ?? matchedCluster ?? selected ?? data?.[0] ?? null;
   const bestDna = result && dnaMap ? dnaMap[result.best.clusterId] : null;
+  // The tapped FIR's OWN forensic exhibits — selFir (a HybridCase) carries no forensic field, so we
+  // read this specific case's evidence from the series' DNA member roster. Per-FIR, NOT the series
+  // aggregate: click FIR A vs FIR B and see each one's real exhibits (fixes the always-on aggregate).
+  const selForensic = selFir && dnaMap
+    ? dnaMap[selFir.clusterId]?.members.find((m) => m.caseNo === selFir.crimeNo)?.forensic ?? null
+    : null;
 
   // After a credible Analyse, re-rank the whole series list by each series' MATCH % to the pasted
   // FIR (not its static cohesion), strongest first — so the linked series rise to the top.
@@ -486,6 +492,36 @@ export default function Linkage() {
                 {tx?.[selFir.crimeNo]?.en && selFir.language === "kn" ? (
                   <>{selFir.facts}<div className="mt-1.5 border-t border-[var(--color-border)] pt-1.5 text-[var(--color-text-mute)]">EN: {tx[selFir.crimeNo].en}</div></>
                 ) : selFir.facts}
+              </div>
+              {/* This FIR's OWN forensic exhibits (per-case, not the series aggregate). */}
+              <div className="mt-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-2.5">
+                <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-[var(--color-text)]">
+                  🔬 Forensic exhibits — this FIR
+                </div>
+                {selForensic ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {[
+                        ["Weapon / tools", [selForensic.weapon, ...(selForensic.tools ?? [])].filter(Boolean).join(", ") || "—"],
+                        ["Evidence recovered", (selForensic.evidenceRecovered ?? []).join(", ") || "—"],
+                        ["Fingerprint", selForensic.fingerprint || "—"],
+                        ["FSL / DNA", selForensic.fsl ? `${selForensic.fsl.ref} · ${selForensic.fsl.status}` : "—"],
+                      ].map(([label, value]) => (
+                        <div key={label} className="rounded-md bg-[var(--color-surface-2)] px-2 py-1">
+                          <div className="text-[9px] uppercase tracking-wide text-[var(--color-text-mute)]">{label}</div>
+                          <div className="truncate text-[11px] text-[var(--color-text)]" title={value}>{value}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {selForensic.seizure && (
+                      <div className="mt-1.5 text-[10px] leading-relaxed text-[var(--color-text-mute)]">
+                        Seizure memo {selForensic.seizure.memoNo} · malkhana {selForensic.seizure.malkhana} · custody: {selForensic.seizure.custody}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-[11px] text-[var(--color-text-mute)]">No forensic exhibits recorded for this FIR.</div>
+                )}
               </div>
               <button
                 onClick={() => nav(`/cases?q=${selFir.crimeNo}`)}
