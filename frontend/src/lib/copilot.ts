@@ -107,7 +107,7 @@ export async function askCopilot(qRaw: string, scope: string | null): Promise<Co
       const sig = (c.signature ?? []).slice(0, 3).map((s: any) => s.value).join(" · ");
       let t = `**${c.label}** — ${c.memberCount} FIRs across ${c.districts.length} districts (${c.districts.join(", ")}) sharing one MO: ${sig}.`;
       if (c.offender && c.unsolvedCount) t += ` ⚖️ Arresting **${c.offender}** could clear **${c.unsolvedCount} unsolved cases** in this series.`;
-      if (ns) t += ` ⚠ Predicted next strike: **${ns.district}** · ${ns.window} · ${ns.timeWindow} (${Math.round(ns.confidence * 100)}%).`;
+      if (ns) t += ` ⚠ Projected next strike: **${ns.district}** · ${ns.window} · ${ns.timeWindow} (${Math.round(ns.confidence * 100)}%)${ns.cadenceDays ? `, projected ~${ns.cadenceDays}d on from the series' last recorded FIR` : ""}.`;
       return { text: t, cites: [cite(`Linkage · ${c.clusterId}`), cite("Crime-DNA + Rossmo")], follow: ["Show the offender's route", "Who are the crime kingpins?"] };
     }
     // generic: list clusters

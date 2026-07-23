@@ -181,7 +181,7 @@ export default function Cases() {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<CaseRow | null>(null);
   const [dnaMap, setDnaMap] = useState<Record<string, CrimeDna> | null>(null);
-  const [spatialMap, setSpatialMap] = useState<Record<string, { nextStrike: { district: string; window: string; timeWindow: string } }> | null>(null);
+  const [spatialMap, setSpatialMap] = useState<Record<string, { nextStrike: { district: string; window: string; timeWindow: string; cadenceDays?: number } }> | null>(null);
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}crime-dna.json`).then((r) => r.json()).then(setDnaMap).catch(() => {});
     fetch(`${import.meta.env.BASE_URL}spatial.json`).then((r) => r.json()).then(setSpatialMap).catch(() => {});
@@ -424,7 +424,7 @@ export default function Cases() {
                     )}
                     {ns && (
                       <p className="mt-1 text-xs text-[var(--color-warn)]">
-                        ⚠ Predicted next strike: {ns.district} · {ns.window} · {ns.timeWindow}.
+                        ⚠ Projected next strike: {ns.district} · {ns.window} · {ns.timeWindow}{ns.cadenceDays ? ` — projected ~${ns.cadenceDays}d on from the series’ last recorded FIR` : ""}.
                       </p>
                     )}
                     <p className="mt-1 text-[10px] text-[var(--color-text-mute)]">
