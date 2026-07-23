@@ -127,7 +127,10 @@ function rankOf(scores: number[]): number[] {
   order.forEach((i, r) => { rank[i] = r; });
   return rank;
 }
-export async function hybridCases(query: string, qv: number[], topK = 12): Promise<HybridCase[]> {
+// minCos = the same 55% credibility bar NETRA uses everywhere to call a link real. Sidebar FIRs
+// below it are noise from unrelated series (e.g. an ATM or OTP-fraud case riding under a genuine
+// shutter-burglary match) — we DROP them rather than pad the list to topK.
+export async function hybridCases(query: string, qv: number[], topK = 12, minCos = 0.55): Promise<HybridCase[]> {
   const { cases } = await getCases();
   const cos = cases.map((c) => dot(qv, c.vector));
   const bm = bm25(query, cases.map((c) => tokenize(c.facts)));
@@ -135,11 +138,13 @@ export async function hybridCases(query: string, qv: number[], topK = 12): Promi
   const sRank = rankOf(bm);
   const K = 60;
   const fused = cases.map((_, i) => 1 / (K + dRank[i]) + (bm[i] > 0 ? 1 / (K + sRank[i]) : 0));
-  // Select the top-K by fused relevance (so keyword-only matches still surface), but DISPLAY them
-  // ordered by semantic cosine — so the shown % decreases down the list and the top row equals the
-  // headline best-match %. No FIR ever appears above the headline.
+  // Apply the relevance floor FIRST (only genuinely-matched FIRs survive — the shown % is that FIR's
+  // cosine, so nothing below the 55% bar can appear), THEN rank the survivors by fused relevance for
+  // selection, and DISPLAY ordered by cosine so the % decreases down the list and the top row equals
+  // the headline best-match %. Shows FEWER than topK (even zero) when the query has few real matches.
   return cases
     .map((_, i) => i)
+    .filter((i) => cos[i] >= minCos)
     .sort((a, b) => fused[b] - fused[a])
     .slice(0, topK)
     .sort((a, b) => cos[b] - cos[a])

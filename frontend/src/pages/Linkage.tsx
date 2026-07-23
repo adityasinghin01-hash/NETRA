@@ -391,7 +391,7 @@ export default function Linkage() {
           {showCases ? (
             <>
               <div className="px-1 text-[11px] leading-relaxed text-[var(--color-text-mute)]">
-                <span className="font-medium text-[var(--color-text-dim)]">Matching FIRs ({cold!.hybrid.length})</span> — hybrid search fuses semantic meaning with exact keywords, so it also finds cases pure meaning-search misses. Tap one to read its full record on the right. % = semantic similarity to your FIR.
+                <span className="font-medium text-[var(--color-text-dim)]">Matching FIRs ({cold!.hybrid.length})</span> — hybrid search fuses semantic meaning with exact keywords, so it also finds cases pure meaning-search misses. Tap one to read its full record on the right. % = semantic similarity to your FIR; only FIRs at or above the {MATCH_MIN}% link bar are shown.
               </div>
               {cold!.hybrid.map((h) => (
                 <button
