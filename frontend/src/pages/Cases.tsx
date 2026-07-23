@@ -5,6 +5,7 @@ import { searchCases, type CaseRow, type Forensic } from "@/api/client";
 import { getSession } from "@/lib/auth";
 import { type CrimeDna, type DnaMember } from "@/components/CrimeDNA";
 import { embedText, preloadEmbedder } from "@/lib/embedMatch";
+import { glmChat } from "@/lib/llm";
 
 interface CaseVec { crimeNo: string; district: string; date: string; crimeSubHead: string; clusterLabel: string; solved: boolean; facts: string; language: string; vector: number[] }
 function cosine(a: number[], b: number[]) { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; }
@@ -165,6 +166,149 @@ function Select({ value, onChange, options, placeholder }: {
   );
 }
 
+function ReportSec({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-accent)]">{title}</div>
+      <div className="space-y-1">{children}</div>
+    </div>
+  );
+}
+
+// The in-app "full report" — a consolidated, report-formatted view of everything on the case.
+function FullReport({ c, cluster, ns, factsText }: {
+  c: CaseRow; cluster: CrimeDna | undefined;
+  ns: { district: string; window: string; timeWindow: string; cadenceDays?: number } | undefined;
+  factsText: string;
+}) {
+  return (
+    <div className="mt-3 space-y-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
+      <div className="flex items-center justify-between border-b border-[var(--color-border)] pb-2">
+        <span className="text-xs font-semibold tracking-wide text-[var(--color-text)]">📄 NETRA — Full Case Report</span>
+        <span className="rounded border border-[var(--color-warn)]/40 px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-[var(--color-warn)]">Decision support</span>
+      </div>
+      <ReportSec title="A · Case reference">
+        <Field label="FIR / Crime no">{c.crimeNo}</Field>
+        <Field label="Crime type">{c.crimeSubHead}</Field>
+        <Field label="District">{c.districtName}</Field>
+        <Field label="Registered">{c.registeredDate}</Field>
+        <Field label="Status">{c.status}</Field>
+        <Field label="Gravity">{c.gravity}</Field>
+      </ReportSec>
+      <ReportSec title="B · Brief facts">
+        <p className="text-xs leading-relaxed text-[var(--color-text-dim)]">{factsText}</p>
+      </ReportSec>
+      <Dossier c={c} />
+      {cluster && (
+        <ReportSec title="E · Serial linkage (NETRA AI)">
+          <p className="text-xs leading-relaxed text-[var(--color-text-dim)]">
+            Part of serial cluster <span className="font-medium text-[var(--color-text)]">“{cluster.label}”</span> — {cluster.memberCount} FIRs across {cluster.districts.length} districts sharing one MO.
+          </p>
+          {(cluster.unsolvedCount ?? 0) > 0 && cluster.offender && (
+            <p className="text-xs text-[var(--color-ok)]">⚖️ Arresting {cluster.offender} could clear {cluster.unsolvedCount} unsolved cases in this series.</p>
+          )}
+          {ns && (
+            <p className="text-xs text-[var(--color-warn)]">⚠ Projected next strike: {ns.district} · {ns.window} · {ns.timeWindow}{ns.cadenceDays ? ` — projected ~${ns.cadenceDays}d on from the series’ last recorded FIR` : ""}.</p>
+          )}
+        </ReportSec>
+      )}
+      <div className="border-t border-[var(--color-border)] pt-2 text-[10px] leading-relaxed text-[var(--color-text-mute)]">
+        F · Decision support — NETRA assists, it does not decide. Verify against ground reports; forensic conclusions belong to FSL; no caste/religion enters any model. Prototype: synthetic data.
+      </div>
+    </div>
+  );
+}
+
+// The case detail panel: brief-facts EN⇄ಕನ್ನಡ toggle (precomputed, else live sovereign-GLM
+// translation), the dossier, Investigator Copilot, and an in-app "full report" expansion.
+function CaseDetail({ c, cluster, ns, caseTx }: {
+  c: CaseRow; cluster: CrimeDna | undefined;
+  ns: { district: string; window: string; timeWindow: string; cadenceDays?: number } | undefined;
+  caseTx: Record<string, { en?: string; kn?: string }>;
+}) {
+  const orig: "en" | "kn" = c.language === "kn" ? "kn" : "en";
+  const [lang, setLang] = useState<"en" | "kn">("en");
+  const [facts, setFacts] = useState<{ en?: string; kn?: string }>(() => {
+    const b: { en?: string; kn?: string } = {}; b[orig] = c.briefFacts;
+    const t = caseTx[c.crimeNo]; if (t?.en) b.en = t.en; if (t?.kn) b.kn = t.kn;
+    return b;
+  });
+  const [translating, setTranslating] = useState(false);
+  const [showReport, setShowReport] = useState(false);
+
+  async function pick(l: "en" | "kn") {
+    setLang(l);
+    if (facts[l] !== undefined) return;
+    setTranslating(true);
+    try {
+      const target = l === "kn" ? "Kannada (in ಕನ್ನಡ script)" : "English";
+      const src = facts[orig] ?? c.briefFacts;
+      const r = await glmChat([{ role: "user", content: `Translate this police FIR brief-facts text into ${target}. Reply with ONLY the translation — no notes, no preamble.\n\n${src}` }], { max_tokens: 320, temperature: 0.2 });
+      setFacts((f) => ({ ...f, [l]: (r.text || "").trim() || "(translation unavailable)" }));
+    } catch {
+      setFacts((f) => ({ ...f, [l]: "(translation unavailable — sovereign model offline)" }));
+    } finally { setTranslating(false); }
+  }
+  const factsText = translating && facts[lang] === undefined ? null : (facts[lang] ?? c.briefFacts);
+  const isLiveTx = lang !== orig && facts[lang] !== undefined && !caseTx[c.crimeNo]?.[lang];
+
+  return (
+    <Card className="p-4">
+      <div className="flex items-center justify-between">
+        <span className="tnum text-xs text-[var(--color-text-dim)]">{c.crimeNo}</span>
+        <Badge tone={c.gravity === "Heinous" ? "danger" : "mute"}>{c.gravity}</Badge>
+      </div>
+      <div className="mt-2 text-sm font-semibold">{c.crimeSubHead}</div>
+      <div className="mt-1 text-xs text-[var(--color-text-dim)]">
+        {c.districtName} · registered {c.registeredDate} · {c.status}{c.language === "kn" && " · ಕನ್ನಡ (original)"}
+      </div>
+      <div className="mt-3 text-xs uppercase tracking-wide text-[var(--color-text-mute)]">Case progression</div>
+      <CaseTimeline status={c.status} />
+
+      <div className="mt-3 flex items-center justify-between">
+        <span className="text-xs uppercase tracking-wide text-[var(--color-text-mute)]">Brief facts</span>
+        <div className="flex overflow-hidden rounded-md border border-[var(--color-border)]">
+          {(["en", "kn"] as const).map((l) => (
+            <button key={l} onClick={() => pick(l)}
+              className={`px-2 py-0.5 text-[11px] ${lang === l ? "bg-[var(--color-accent)] text-[var(--color-bg)]" : "text-[var(--color-text-dim)] hover:text-[var(--color-text)]"}`}>
+              {l === "en" ? "EN" : "ಕನ್ನಡ"}
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="mt-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-sm leading-relaxed text-[var(--color-text-dim)]">
+        {factsText === null ? <span className="text-[var(--color-text-mute)]">Translating via sovereign GLM…</span> : factsText}
+        {isLiveTx && <span className="mt-1.5 block text-[10px] text-[var(--color-text-mute)]">Translated on-device by NETRA’s sovereign model — verify against the original.</span>}
+      </p>
+
+      {!showReport && <Dossier c={c} />}
+      {!showReport && cluster && (
+        <div className="mt-3 rounded-lg border border-[var(--color-accent-dim)] bg-[var(--color-surface-2)] p-3">
+          <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-[var(--color-accent)]">🔍 Investigator Copilot</div>
+          <p className="text-xs leading-relaxed text-[var(--color-text-dim)]">
+            This FIR is part of serial cluster <span className="font-medium text-[var(--color-text)]">“{cluster.label}”</span> —{" "}
+            {cluster.memberCount} linked cases across {cluster.districts.length} districts sharing one MO:{" "}
+            {cluster.signature.slice(0, 3).map((s) => s.value).join(" · ")}.
+          </p>
+          {(cluster.unsolvedCount ?? 0) > 0 && cluster.offender && (
+            <p className="mt-1 text-xs text-[var(--color-ok)]">⚖️ Arresting {cluster.offender} could clear {cluster.unsolvedCount} unsolved cases in this series.</p>
+          )}
+          {ns && (
+            <p className="mt-1 text-xs text-[var(--color-warn)]">⚠ Projected next strike: {ns.district} · {ns.window} · {ns.timeWindow}{ns.cadenceDays ? ` — projected ~${ns.cadenceDays}d on from the series’ last recorded FIR` : ""}.</p>
+          )}
+          <p className="mt-1 text-[10px] text-[var(--color-text-mute)]">Open Linkage for the full series, route &amp; predicted base.</p>
+        </div>
+      )}
+
+      <button onClick={() => setShowReport((s) => !s)}
+        className="mt-3 w-full rounded-lg border border-[var(--color-border-strong)] py-1.5 text-xs text-[var(--color-text-dim)] hover:text-[var(--color-accent)]">
+        {showReport ? "▴ Collapse report" : "📄 View full report"}
+      </button>
+      {showReport && <FullReport c={c} cluster={cluster} ns={ns} factsText={factsText ?? c.briefFacts} />}
+    </Card>
+  );
+}
+
 export default function Cases() {
   const scope = getSession().district; // district/station users locked to their district
   const districts = useApi<{ name: string }[]>("/geo/districts");
@@ -183,9 +327,11 @@ export default function Cases() {
   const [selected, setSelected] = useState<CaseRow | null>(null);
   const [dnaMap, setDnaMap] = useState<Record<string, CrimeDna> | null>(null);
   const [spatialMap, setSpatialMap] = useState<Record<string, { nextStrike: { district: string; window: string; timeWindow: string; cadenceDays?: number } }> | null>(null);
+  const [caseTx, setCaseTx] = useState<Record<string, { en?: string; kn?: string }>>({});
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}crime-dna.json`).then((r) => r.json()).then(setDnaMap).catch(() => {});
     fetch(`${import.meta.env.BASE_URL}spatial.json`).then((r) => r.json()).then(setSpatialMap).catch(() => {});
+    fetch(`${import.meta.env.BASE_URL}case-translations.json`).then((r) => r.json()).then(setCaseTx).catch(() => {});
   }, []);
   // crimeNo → serial cluster (Investigator Copilot: surface linked intelligence on any FIR)
   const clusterByCase = useMemo(() => {
@@ -393,55 +539,18 @@ export default function Cases() {
         </div>
 
         <div className="lg:col-span-2">
-          {selected ? (
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <span className="tnum text-xs text-[var(--color-text-dim)]">{selected.crimeNo}</span>
-                <Badge tone={selected.gravity === "Heinous" ? "danger" : "mute"}>{selected.gravity}</Badge>
-              </div>
-              <div className="mt-2 text-sm font-semibold">{selected.crimeSubHead}</div>
-              <div className="mt-1 text-xs text-[var(--color-text-dim)]">
-                {selected.districtName} · registered {selected.registeredDate} · {selected.status}
-                {selected.language === "kn" && " · ಕನ್ನಡ"}
-              </div>
-              <div className="mt-3 text-xs uppercase tracking-wide text-[var(--color-text-mute)]">Case progression</div>
-              <CaseTimeline status={selected.status} />
-              <div className="mt-3 text-xs uppercase tracking-wide text-[var(--color-text-mute)]">Brief facts</div>
-              <p className="mt-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-sm leading-relaxed text-[var(--color-text-dim)]">
-                {selected.briefFacts}
-              </p>
-              <Dossier c={selected} />
-              {clusterByCase[selected.crimeNo] && (() => {
-                const c = clusterByCase[selected.crimeNo];
-                const ns = spatialMap?.[c.clusterId]?.nextStrike;
-                return (
-                  <div className="mt-3 rounded-lg border border-[var(--color-accent-dim)] bg-[var(--color-surface-2)] p-3">
-                    <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-[var(--color-accent)]">
-                      🔍 Investigator Copilot
-                    </div>
-                    <p className="text-xs leading-relaxed text-[var(--color-text-dim)]">
-                      This FIR is part of serial cluster <span className="font-medium text-[var(--color-text)]">“{c.label}”</span> —{" "}
-                      {c.memberCount} linked cases across {c.districts.length} districts sharing one MO:{" "}
-                      {c.signature.slice(0, 3).map((s) => s.value).join(" · ")}.
-                    </p>
-                    {(c.unsolvedCount ?? 0) > 0 && c.offender && (
-                      <p className="mt-1 text-xs text-[var(--color-ok)]">
-                        ⚖️ Arresting {c.offender} could clear {c.unsolvedCount} unsolved cases in this series.
-                      </p>
-                    )}
-                    {ns && (
-                      <p className="mt-1 text-xs text-[var(--color-warn)]">
-                        ⚠ Projected next strike: {ns.district} · {ns.window} · {ns.timeWindow}{ns.cadenceDays ? ` — projected ~${ns.cadenceDays}d on from the series’ last recorded FIR` : ""}.
-                      </p>
-                    )}
-                    <p className="mt-1 text-[10px] text-[var(--color-text-mute)]">
-                      Open Linkage for the full series, route & predicted base.
-                    </p>
-                  </div>
-                );
-              })()}
-            </Card>
-          ) : (
+          {selected ? (() => {
+            // Enrich a cluster-member FIR with its forensic/accused (the backend /cases row carries
+            // neither) so a deep-linked or list-clicked serial FIR shows the full dossier + report.
+            let c = selected;
+            if (!selected.forensic && !(selected.accused && selected.accused.length)) {
+              const hit = memberByCase[selected.crimeNo];
+              if (hit) c = { ...selected, accused: rowFromMember(hit.mem, hit.crimeType).accused, forensic: hit.mem.forensic ?? null };
+            }
+            const cluster = clusterByCase[selected.crimeNo];
+            const ns = cluster ? spatialMap?.[cluster.clusterId]?.nextStrike : undefined;
+            return <CaseDetail key={selected.crimeNo} c={c} cluster={cluster} ns={ns} caseTx={caseTx} />;
+          })() : (
             <Card className="flex h-40 items-center justify-center p-4 text-sm text-[var(--color-text-mute)]">
               Select a case to view its details
             </Card>
