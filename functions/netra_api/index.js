@@ -153,7 +153,7 @@ app.get(/\/cases$/, async (req, res) => {
   const gravity = clean(req.query.gravity);
   const type = clean(req.query.type);
   const status = clean(req.query.status);
-  const q = clean(req.query.q); // FIR number lookup (LIKE works on VarChar, not Text)
+  const q = clean(req.query.q); // FIR number lookup
   const page = Math.max(0, parseInt(req.query.page, 10) || 0);
   const size = 20;
   const where = [];
@@ -161,7 +161,9 @@ app.get(/\/cases$/, async (req, res) => {
   if (gravity) where.push(`Cases.gravity = '${gravity}'`);
   if (type) where.push(`Cases.crimeSubHead = '${type}'`);
   if (status) where.push(`Cases.status = '${status}'`);
-  if (q) where.push(`Cases.crimeNo like '%${q}%'`);
+  // crimeNo is a numeric (bigint) column, so ZCQL LIKE never matches it — a full FIR number must be
+  // matched by equality. (This is why deep-links from the map/linkage returned nothing before.)
+  if (q && /^\d{6,}$/.test(q)) where.push(`Cases.crimeNo = ${q}`);
   const clause = where.length ? "WHERE " + where.join(" AND ") : "";
   try {
     const app_ = catalyst.initialize(req);

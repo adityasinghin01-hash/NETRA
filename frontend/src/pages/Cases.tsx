@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useApi, Card, PageHeader, State, Badge } from "@/components/ui";
 import { searchCases, type CaseRow, type Forensic } from "@/api/client";
@@ -170,6 +170,7 @@ export default function Cases() {
   const districts = useApi<{ name: string }[]>("/geo/districts");
   const [params] = useSearchParams();
   const [q, setQ] = useState(params.get("q") ?? ""); // deep-link from a map dot → search that FIR
+  const deepLink = useRef(!!params.get("q")); // arrived via ?q=<crimeNo> → auto-open that case file
   const [district, setDistrict] = useState(scope ?? "");
   const [type, setType] = useState("");
   const [gravity, setGravity] = useState("");
@@ -234,7 +235,13 @@ export default function Cases() {
     setLoading(true);
     setError(null);
     searchCases({ q, district: scope ?? district, type, gravity, status, page: String(page) })
-      .then((r) => { if (alive) { setRows(r.items); setHasMore(r.hasMore); } })
+      .then((r) => {
+        if (!alive) return;
+        setRows(r.items); setHasMore(r.hasMore);
+        // A ?q=<full crimeNo> deep-link resolves to exactly one FIR — open its dossier immediately
+        // so "Open full case file" from the map/linkage lands on the case, not a one-row list.
+        if (deepLink.current && r.items.length === 1) { setSelected(r.items[0]); deepLink.current = false; }
+      })
       .catch((e) => alive && setError(String(e)))
       .finally(() => alive && setLoading(false));
     return () => { alive = false; };
