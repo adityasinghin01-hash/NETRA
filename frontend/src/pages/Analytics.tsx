@@ -466,6 +466,35 @@ function NetworkTab() {
   }, [query, net, firIndex, rings]);
   const matchIds = search.ids;
 
+  // Click a node → offender profile: cases, ring, centrality rank, crime type/districts (via
+  // Crime-DNA), and real co-offenders (from the co-offending edges). Makes the graph interrogatable.
+  const [selNode, setSelNode] = useState<NetNode | null>(null);
+  const centralityRank = useMemo(() => {
+    const m = new Map<number, number>();
+    if (net) [...net.nodes].sort((a, b) => (b.centrality ?? 0) - (a.centrality ?? 0)).forEach((n, i) => m.set(n.id, i + 1));
+    return m;
+  }, [net]);
+  const dnaByLabel = useMemo(() => {
+    const m = new Map<string, { crimeType: string; districts: string[] }>();
+    if (dna) for (const c of Object.values(dna) as { label: string; crimeType?: string; districts?: string[] }[]) m.set(c.label, { crimeType: c.crimeType ?? "", districts: c.districts ?? [] });
+    return m;
+  }, [dna]);
+  const profile = useMemo(() => {
+    if (!selNode || !net) return null;
+    const sid = selNode.id;
+    const coIds = new Set<number>();
+    for (const l of net.links) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const s = l.source as any, t = l.target as any;
+      const a = typeof s === "object" ? s.id : s, b = typeof t === "object" ? t.id : t;
+      if (a === sid) coIds.add(b); else if (b === sid) coIds.add(a);
+    }
+    const coNames = net.nodes.filter((n) => coIds.has(n.id)).map((n) => n.name);
+    const ring = rings.find((r) => r.id === selNode.community);
+    const info = selNode.cluster ? dnaByLabel.get(selNode.cluster) : undefined;
+    return { ring, info, coNames, rank: centralityRank.get(selNode.id) ?? null, total: net.nodes.length };
+  }, [selNode, net, rings, dnaByLabel, centralityRank]);
+
   // Frame the matched nodes WITH their ring for context (fitting a lone node zooms in absurdly far),
   // then cap the zoom so a single match doesn't fill the whole canvas.
   useEffect(() => {
@@ -532,11 +561,46 @@ function NetworkTab() {
               linkColor={(l) => ((l as NetEdge).predicted ? "rgba(245,158,11,0.75)" : (l as NetEdge).weight > 3 ? "rgba(34,211,238,0.5)" : "rgba(148,163,184,0.25)")}
               linkWidth={(l) => ((l as NetEdge).predicted ? 1.4 : Math.max(1, Math.min(5, (l as NetEdge).weight / 1.5)))}
               linkLineDash={(l) => ((l as NetEdge).predicted ? [4, 3] : null)}
+              onNodeClick={(n) => setSelNode(n as NetNode)}
+              onBackgroundClick={() => setSelNode(null)}
               cooldownTicks={100} onEngineStop={() => fg.current?.zoomToFit(400, 40)}
             />
           )}
         </div>
+        <div className="mt-1.5 text-[10px] text-[var(--color-text-mute)]">Tap any node for the offender&rsquo;s profile · search or tap the background to reset.</div>
       </Card>
+      <div className="space-y-4">
+      {selNode && profile && (
+        <Card className="border border-[var(--color-accent)]/40 p-4">
+          <div className="mb-2 flex items-start justify-between gap-2">
+            <div>
+              <div className="flex items-center gap-1.5 text-sm font-semibold text-[var(--color-text)]">
+                {selNode.kingpin && <span title="Kingpin">👑</span>}{selNode.name}
+              </div>
+              {profile.ring && <div className="mt-0.5 text-xs text-[var(--color-text-dim)]">{selNode.kingpin ? "Kingpin of" : "Member of"} “{profile.ring.label}”</div>}
+            </div>
+            <button onClick={() => setSelNode(null)} className="rounded-md border border-[var(--color-border)] px-1.5 py-0.5 text-[11px] text-[var(--color-text-mute)] hover:text-[var(--color-text)]" title="Close">✕</button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              ["Cases", String(selNode.cases)],
+              ["Influence rank", profile.rank ? `#${profile.rank} of ${profile.total}` : "—"],
+              ["Crime type", profile.info?.crimeType || selNode.cluster || "—"],
+              ["Active in", profile.info?.districts?.length ? `${profile.info.districts.length} district${profile.info.districts.length === 1 ? "" : "s"}` : "—"],
+            ].map(([k, v]) => (
+              <div key={k} className="rounded-md bg-[var(--color-bg)] px-2.5 py-1.5">
+                <div className="text-[10px] uppercase tracking-wide text-[var(--color-text-mute)]">{k}</div>
+                <div className="truncate text-xs text-[var(--color-text)]" title={v}>{v}</div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 rounded-md bg-[var(--color-bg)] px-2.5 py-1.5">
+            <div className="text-[10px] uppercase tracking-wide text-[var(--color-text-mute)]">Co-offenders ({profile.coNames.length})</div>
+            <div className="mt-0.5 text-xs text-[var(--color-text-dim)]">{profile.coNames.length ? profile.coNames.join(", ") : "No recorded co-offending links."}</div>
+          </div>
+          {profile.info?.districts?.length ? <div className="mt-1.5 text-[10px] text-[var(--color-text-mute)]">Districts: {profile.info.districts.join(", ")}</div> : null}
+        </Card>
+      )}
       <Card className="p-4">
         <div className="text-sm font-medium">Detected rings</div>
         <div className="mb-3 text-xs text-[var(--color-text-dim)]">{rings.length} organized rings · Louvain communities + centrality</div>
@@ -575,6 +639,7 @@ function NetworkTab() {
           </div>
         )}
       </Card>
+      </div>
     </div>
   );
 }
