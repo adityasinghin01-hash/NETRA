@@ -95,8 +95,17 @@ function TrendsTab({ scope, da }: { scope: string | null; da: DA | null }) {
     let rows: Record<string, any>[] = [];
     if (scope && da?.districts[scope]) {
       const s = da.districts[scope];
-      // Include a 12-month-lagged "last year" ghost series for the year-on-year comparison.
-      rows = da.months.map((m, i) => ({ month: m, [scope]: s.counts[i] ?? 0, [`${scope}__yoy`]: i >= 12 ? (s.counts[i - 12] ?? null) : null }));
+      // 12-month-lagged "last year" ghost series (YoY) + statistical anomaly flags: a month counts
+      // as an anomaly when it sits >2σ above this district's own long-run average (a real z-score spike).
+      const cnts = s.counts;
+      const mean = cnts.reduce((a, b) => a + b, 0) / (cnts.length || 1);
+      const sd = Math.sqrt(cnts.reduce((a, b) => a + (b - mean) ** 2, 0) / (cnts.length || 1)) || 1;
+      const thr = mean + 2 * sd;
+      rows = da.months.map((m, i) => ({
+        month: m, [scope]: cnts[i] ?? 0,
+        [`${scope}__yoy`]: i >= 12 ? (cnts[i - 12] ?? null) : null,
+        [`${scope}__anom`]: (cnts[i] ?? 0) > thr ? cnts[i] : null,
+      }));
     } else {
       const series = state.data ?? [];
       if (series.length)
@@ -228,12 +237,16 @@ function TrendsTab({ scope, da }: { scope: string | null; da: DA | null }) {
                   stroke={LINE_COLORS[i % LINE_COLORS.length]} strokeWidth={2} strokeDasharray="5 4"
                   dot={false} connectNulls activeDot={{ r: 3 }} />
               ))}
+              {scope && (
+                <Line type="monotone" dataKey={`${scope}__anom`} name="anomaly (>2σ)" isAnimationActive={false}
+                  stroke="none" legendType="circle" dot={{ r: 4, fill: "#f43f5e", stroke: "#fff", strokeWidth: 1 }} activeDot={false} />
+              )}
             </ComposedChart>
           </ResponsiveContainer>
         </div>
         {firstFcMonth && (
           <div className="mt-2 text-[11px] text-[var(--color-text-mute)]">
-            Dashed = projected next {fc?.horizon} months (linear trend + monthly seasonal index); shaded band = ~80% interval. Predictive, not just retrospective.
+            Dashed = projected next {fc?.horizon} months (linear trend + monthly seasonal index); shaded band = ~80% interval. Predictive, not just retrospective.{scope ? " 🔴 markers = months >2σ above this district’s own average (statistical spikes)." : ""}
           </div>
         )}
       </Card>
@@ -301,7 +314,74 @@ function ColdCaseWorklist({ rows }: { rows: ColdCase[] }) {
   );
 }
 
+interface StationRow { stationId: number; station: string; district: string; total: number; detectionPct: number; undetectedPct: number; topType: string }
+interface ClearanceRow { type: string; total: number; clearancePct: number }
+
+// Station accountability scorecard — worst detection first, so the crime-review meeting sees who
+// needs help. Scoped to one district when a District/Station officer is signed in.
+function StationLeague({ data, scope }: { data: { stations: StationRow[]; minCases: number } | null; scope: string | null }) {
+  if (!data) return null;
+  const rows = (scope ? data.stations.filter((s) => s.district === scope) : data.stations).slice(0, scope ? 20 : 10);
+  if (!rows.length) return null;
+  return (
+    <Card className="p-4">
+      <div className="mb-1 text-sm font-medium">⚖️ Station league table {scope ? `— ${scope}` : "— lowest detection first (state-wide)"}</div>
+      <div className="mb-3 text-xs text-[var(--color-text-dim)]">Accountability scorecard for the crime-review meeting. Underperformers lead; the leading crime type is the where-to-look.</div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-xs uppercase tracking-wide text-[var(--color-text-mute)]">
+            <th className="pb-2 font-normal">Station</th>
+            {!scope && <th className="pb-2 font-normal">District</th>}
+            <th className="pb-2 text-right font-normal">Detection</th>
+            <th className="pb-2 text-right font-normal">Undetected</th>
+            <th className="pb-2 text-right font-normal">Cases</th>
+            <th className="pb-2 pl-5 font-normal">Leading crime</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((s) => (
+            <tr key={s.stationId} className="border-t border-[var(--color-border)]">
+              <td className="py-2 pr-3 text-[var(--color-text-dim)]">{s.station}</td>
+              {!scope && <td className="py-2 pr-3 text-[var(--color-text-mute)]">{s.district}</td>}
+              <td className="tnum py-2 text-right"><span className={s.detectionPct < 68 ? "text-[var(--color-danger)]" : s.detectionPct < 78 ? "text-[var(--color-warn)]" : "text-[var(--color-ok)]"}>{s.detectionPct}%</span></td>
+              <td className="tnum py-2 text-right text-[var(--color-text-mute)]">{s.undetectedPct}%</td>
+              <td className="tnum py-2 text-right text-[var(--color-text-mute)]">{s.total}</td>
+              <td className="py-2 pl-5 text-[var(--color-text-mute)]">{s.topType}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="mt-2 text-[10px] text-[var(--color-text-mute)]">Stations with ≥{data.minCases} FIRs · detection = chargesheeted ÷ concluded.</div>
+    </Card>
+  );
+}
+
+// Which crime types get solved vs stay open — lowest clearance first (where detection effort should go).
+function ClearanceByType({ rows }: { rows: ClearanceRow[] | undefined }) {
+  if (!rows?.length) return null;
+  const sorted = [...rows].sort((a, b) => a.clearancePct - b.clearancePct);
+  return (
+    <Card className="p-4">
+      <div className="mb-1 text-sm font-medium">Clearance rate by crime type</div>
+      <div className="mb-3 text-xs text-[var(--color-text-dim)]">Share of concluded cases that end in a charge-sheet. Lowest first — the crime types that resist detection.</div>
+      <div className="space-y-2">
+        {sorted.map((c) => (
+          <div key={c.type} className="flex items-center gap-2 text-xs">
+            <span className="w-44 shrink-0 truncate text-[var(--color-text-dim)]" title={c.type}>{c.type}</span>
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--color-bg)]">
+              <div className="h-full" style={{ width: `${c.clearancePct}%`, background: c.clearancePct < 68 ? "var(--color-danger)" : c.clearancePct < 78 ? "var(--color-warn)" : "var(--color-ok)" }} />
+            </div>
+            <span className="tnum w-10 text-right text-[var(--color-text-mute)]">{c.clearancePct}%</span>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function OutcomesTab({ scope, da, risk }: { scope: string | null; da: DA | null; risk: RiskData | null }) {
+  const [stationData, setStationData] = useState<{ stations: StationRow[]; clearanceByType: ClearanceRow[]; minCases: number } | null>(null);
+  useEffect(() => { fetch(`${import.meta.env.BASE_URL}station-outcomes.json`).then((r) => r.json()).then(setStationData).catch(() => {}); }, []);
   const state = useApi<Outcome[]>(scope ? null : "/stats/outcomes");
   const rows = (state.data ?? []).slice().sort((a, b) => b.undetectedPct - a.undetectedPct);
   const riskByName = useMemo(() => new Map((risk?.districts ?? []).map((d) => [d.district, d.riskScore])), [risk]);
@@ -354,6 +434,8 @@ function OutcomesTab({ scope, da, risk }: { scope: string | null; da: DA | null;
                 </div>
               </Card>
             </div>
+            <StationLeague data={stationData} scope={scope} />
+            <ClearanceByType rows={stationData?.clearanceByType} />
           </>
         )}
       </State>
@@ -396,6 +478,8 @@ function OutcomesTab({ scope, da, risk }: { scope: string | null; da: DA | null;
           * Risk = relative detection-risk index (0 = lowest, 100 = highest across Karnataka) — a ranking, not a probability.
         </div>
       </Card>
+      <StationLeague data={stationData} scope={scope} />
+      <ClearanceByType rows={stationData?.clearanceByType} />
     </State>
   );
 }
