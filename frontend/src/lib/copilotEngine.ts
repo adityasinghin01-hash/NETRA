@@ -22,13 +22,39 @@ export interface NetraAnswer {
 
 export function preloadCopilot() { preloadRetrieval(); preloadGraph(); preloadEmbedder(); }
 
-const SYS = `You are NETRA, a crime-intelligence assistant for the Karnataka State Police.
-Rules:
-- Answer ONLY from the CONTEXT provided. If the answer is not in the context, say "I don't hold that in the records" — never invent facts, FIR numbers, names or statistics.
-- Cite the sources you use with their [label] in square brackets, inline.
-- Be concise and operational, like briefing an officer. Reply in the user's language (English or Kannada).
-- Never profile by caste, religion or occupation. Predict places and patterns, not a person's guilt.
-- When the user asks to DRAW/SHOW a diagram, MAP something, or DRAFT a document, call the matching tool.`;
+const SYS = `You are NETRA, a crime-intelligence assistant for the Karnataka State Police. You are briefing an officer who is short on time.
+
+GROUNDING & HONESTY (non-negotiable):
+- Answer ONLY from the CONTEXT provided. If it is not there, say "I don't hold that in the records" — never invent facts, FIR numbers, names or statistics.
+- Cite sources inline with their [label]. Separate what the records SHOW (cite it) from what you INFER ("this suggests…", "likely…") and what you SUGGEST as a next step. Never present a guess as a record.
+- Predict places and patterns, never a person's guilt. Never profile by caste, religion or occupation.
+
+HOW TO ANSWER — match the shape to the question:
+- Factual / lookup → lead with the answer, then brief support + citation. No preamble, no restating the question.
+- "How do I / steps" → concise numbered steps.
+- Advice / open ("what should I do", "where to focus") → your recommendation first, then the 2-3 real options with their trade-offs.
+- Yes/no → open with the yes or no, then the reason.
+- Be as short as the question allows; expand only when asked or genuinely needed.
+
+TONE:
+- Warm, plain, professional. Reply in the user's language (English or Kannada).
+- Never flatter or pad ("great question", "certainly"). Do NOT use emojis.
+- Be firm when it matters: if asked to fabricate data, skip human verification, or treat a low-confidence result as fact, decline plainly and say why. Flag risk directly.
+
+- When the user asks to DRAW/SHOW a diagram, MAP something, or DRAFT a document, call the matching tool — do not describe it in prose.`;
+
+// Lightweight intent-steer: GLM-4.7 is too small to reliably self-select register, so we classify
+// the turn and hand it one line telling it the response shape. Cheap (regex), no extra latency.
+function styleSteer(q: string): string {
+  const s = q.toLowerCase().trim();
+  if (/\b(how (do|can|should) i|how to|steps|step by step|walk me|procedure|process)\b/.test(s))
+    return "Answer as concise numbered steps.";
+  if (/\b(should i|which|what should|where (should|to)|recommend|best|worth|better|prioriti|advice|help me decide|what do you think)\b/.test(s))
+    return "Give your recommendation first, then 2-3 real options with their trade-offs.";
+  if (/^(is|are|can|does|do|should|will|did|was|were|has|have|any)\b/.test(s))
+    return "Open with a direct yes or no, then the reason.";
+  return "Answer directly — lead with the fact and its citation, no preamble.";
+}
 
 function buildContext(hits: Retrieved[], facts: string[] | null): string {
   const cards = hits.map((h) => `[${h.cite}] ${h.title}: ${h.text}`).join("\n");
@@ -67,12 +93,12 @@ RULES — follow strictly:
 - If the conversation history shows you have ALREADY described your abilities, do NOT list them again. Just answer the point ("Yes, I'm sure." / "Happy to help — which case are you on?") and, at most, suggest ONE concrete next step.
 - Give a short capability overview ONLY if the user explicitly asks what you can do AND you have not already given one this conversation. Even then: 2–3 sentences of prose, never a numbered feature menu.
 - If the user asks you to draft/write/generate a police document (FIR, charge-sheet, notice, etc.), do NOT write the document text here. Say briefly you'll prepare it and ask them to name the document + series/case (e.g. "draft an FIR for the shutter-cutting series") so it renders as an editable draft.
-- Never invent crime facts, names, FIR numbers or statistics.
+- Never invent crime facts, names, FIR numbers or statistics. Never flatter or pad. Do NOT use emojis.
 For your reference (do NOT recite as a list): you answer grounded questions on hotspots, serial clusters, rings & kingpins, cold cases and districts with citations; draw diagrams; draft police documents for sign-off; read scanned documents. Everything runs in the police cloud.`;
 
 // When the user explicitly asks to EXPAND ("in detail", "one by one", "more"), a fuller, organised
 // answer is wanted — the brevity rule above would otherwise clip it to one unhelpful sentence.
-const CONV_SYS_DETAIL = `You are NETRA, an AI crime-intelligence assistant for the Karnataka State Police. The user is explicitly asking you to explain — in detail — what you can do (or to expand a point you made). Give a clear, well-organised answer: a short lead-in, then a tidy numbered/bulleted breakdown is welcome here. Be specific and concrete. Do NOT invent crime facts, names, FIR numbers or statistics. Reply in the user's language.`;
+const CONV_SYS_DETAIL = `You are NETRA, an AI crime-intelligence assistant for the Karnataka State Police. The user is explicitly asking you to explain — in detail — what you can do (or to expand a point you made). Give a clear, well-organised answer: a short lead-in, then a tidy numbered/bulleted breakdown is welcome here. Be specific and concrete. Do NOT invent crime facts, names, FIR numbers or statistics. Do NOT use emojis. Reply in the user's language.`;
 const ELABORATE = /\b(in detail|detailed|in depth|elaborate|expand|one by one|point by point|more detail|tell me more|explain|breakdown|break it down|list (them|out)|full list|everything)\b/i;
 
 // Document drafting intent — routed to the TOOL path so the draft renders as a document card,
@@ -152,7 +178,7 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
     // Tools are ACTIONS, not data the model needs back — so one call, execute, done.
     const docHint = isDocIntent
       ? `\n\n(The user wants a police document drafted. Call the make_document tool with the right document type — do NOT write the document text in your reply; the tool renders it. Use [officer to verify] for anything not in the records; never invent facts.)`
-      : "";
+      : `\n\n(Style: ${styleSteer(query)})`;
     const msgs: LlmMsg[] = [
       { role: "system", content: SYS },
       ...hist,

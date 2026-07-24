@@ -31,7 +31,7 @@ const FORMAT: Record<string, string> = {
 const SYS = `You are a Karnataka Police documentation assistant. Draft the requested document using ONLY the given facts, in the correct Indian police format for that document. Rules:
 - Use CAPS section headers and aligned "FIELD : value" lines so the text is cleanly formatted.
 - Where a required detail is not in the facts, write [officer to verify] — never invent names, numbers, dates or sections.
-- Keep it a clean, professional DRAFT for human sign-off.`;
+- Keep it a clean, professional DRAFT for human sign-off. Do NOT use emojis.`;
 
 function clusterFacts(dna: any, clusterId?: string): { title: string; facts: string } {
   const c = clusterId ? dna?.[clusterId] : Object.values(dna ?? {})[0];
@@ -134,7 +134,7 @@ export default function CopilotDocument({ action }: { action: Extract<UiAction, 
   return (
     <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-2.5">
       <div className="mb-1.5 flex items-center justify-between">
-        <span className="text-[10px] font-medium text-[var(--color-text)]">📄 {label} <span className="text-[var(--color-warn)]">· DRAFT</span></span>
+        <span className="text-[10px] font-medium text-[var(--color-text)]">{label} <span className="text-[var(--color-warn)]">· DRAFT</span></span>
         {!busy && <button onClick={exportPdf} className="rounded border border-[var(--color-accent-dim)] px-2 py-0.5 text-[9px] text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10">Export PDF</button>}
       </div>
       <textarea

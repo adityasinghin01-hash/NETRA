@@ -42,6 +42,11 @@ function bold(t: string) {
   );
 }
 
+// Pure info: strip any emoji/pictographs from model output so answers read clean (defence in depth
+// alongside the "no emojis" system-prompt rule). Kannada and normal punctuation are untouched.
+const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}]/gu;
+const stripEmoji = (t: string) => t.replace(EMOJI, "").replace(/[ \t]{2,}/g, " ").replace(/^[ \t]+/gm, "").trim();
+
 export default function Copilot() {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -93,14 +98,14 @@ export default function Copilot() {
     if (!f) return;
     e.target.value = "";
     const b64 = await new Promise<string>((res) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.readAsDataURL(f); });
-    setMsgs((m) => [...m, { role: "user", text: `📄 Uploaded ${f.name}` }]);
+    setMsgs((m) => [...m, { role: "user", text: `Uploaded ${f.name}` }]);
     setThinking(true);
     let out = "";
     try {
       out = await vlmExtract("Extract the case/FIR fields from this police document image as JSON with keys crimeNo, crimeType, district, date, complainant, accused, sections, briefFacts. Use only what is visible; omit unknown fields.", [b64]);
     } catch { out = "I couldn't read that document."; }
     setThinking(false);
-    setMsgs((m) => [...m, { role: "netra", text: out || "No fields extracted.", grounded: true, trace: ["🖼️ Qwen VLM — OCR + field extraction (sovereign)"] }]);
+    setMsgs((m) => [...m, { role: "netra", text: out || "No fields extracted.", grounded: true, trace: ["Qwen VLM — OCR + field extraction (sovereign)"] }]);
   }
 
   function mic() { listen((t) => { setInput(t); send(t, true); }, setListening, "en-IN"); }
@@ -122,7 +127,7 @@ export default function Copilot() {
           {/* Header */}
           <div className="flex items-center justify-between border-b border-[var(--color-border)] px-4 py-3">
             <div className="flex items-center gap-2">
-              <span className={`text-lg ${thinking ? "netra-eye-scan" : ""}`}>👁️</span>
+              <span className={`inline-block h-2 w-2 rounded-full bg-[var(--color-accent)] ${thinking ? "animate-pulse" : ""}`} />
               <div>
                 <div className="text-sm font-semibold text-[var(--color-text)]">NETRA Copilot</div>
                 <div className="text-[10px] text-[var(--color-text-mute)]">grounded · cited · sovereign{scope ? ` · ${scope}` : ""}</div>
@@ -133,7 +138,7 @@ export default function Copilot() {
                 onClick={() => setDeep((d) => !d)}
                 title="Deep-analysis mode (slower, step-by-step reasoning)"
                 className={`rounded-md border px-2 py-1 text-[10px] transition-colors ${deep ? "border-[var(--color-accent)] bg-[var(--color-accent)]/15 text-[var(--color-accent)]" : "border-[var(--color-border)] text-[var(--color-text-mute)]"}`}
-              >🧠 Deep</button>
+              >Deep</button>
               <button onClick={() => setOpen(false)} className="text-[var(--color-text-mute)] hover:text-[var(--color-text)]">✕</button>
             </div>
           </div>
@@ -160,7 +165,7 @@ export default function Copilot() {
                 ) : (
                   <div className="max-w-[95%] space-y-2">
                     <div className="rounded-2xl rounded-bl-sm bg-[var(--color-bg)] px-3 py-2.5 text-xs leading-relaxed text-[var(--color-text-dim)]">
-                      <div className="whitespace-pre-wrap">{bold(m.text)}</div>
+                      <div className="whitespace-pre-wrap">{bold(stripEmoji(m.text))}</div>
                       {/* confidence + source badge */}
                       <div className="mt-2 flex items-center gap-2">
                         {typeof m.confidence === "number" && (
@@ -171,13 +176,13 @@ export default function Copilot() {
                             confidence
                           </span>
                         )}
-                        <span className="text-[9px] text-[var(--color-text-mute)]">{m.grounded ? "🟢 GLM-4.7 grounded" : "⚪ sovereign engine"}</span>
+                        <span className="flex items-center gap-1 text-[9px] text-[var(--color-text-mute)]"><span className={`inline-block h-1.5 w-1.5 rounded-full ${m.grounded ? "bg-[var(--color-ok)]" : "bg-[var(--color-text-mute)]"}`} />{m.grounded ? "GLM-4.7 grounded" : "sovereign engine"}</span>
                         {m.trace && m.trace.length > 0 && (
                           <button onClick={() => setShowTrace(showTrace === i ? null : i)} className="text-[9px] text-[var(--color-accent)]/80 hover:text-[var(--color-accent)]">
                             {showTrace === i ? "hide reasoning" : "how?"}
                           </button>
                         )}
-                        <button onClick={() => speak(m.text)} title="Read aloud" className="text-[10px] text-[var(--color-text-mute)] hover:text-[var(--color-accent)]">🔊</button>
+                        <button onClick={() => speak(stripEmoji(m.text))} title="Read aloud" className="text-[9px] text-[var(--color-text-mute)] hover:text-[var(--color-accent)]">Read aloud</button>
                       </div>
                       {showTrace === i && m.trace && (
                         <ul className="mt-1.5 space-y-0.5 border-t border-[var(--color-border)] pt-1.5 text-[9px] text-[var(--color-text-mute)]">
@@ -186,17 +191,17 @@ export default function Copilot() {
                       )}
                       {m.cites && m.cites.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1">
-                          {m.cites.map((c) => <span key={c} className="rounded bg-[var(--color-surface-2)] px-1.5 py-0.5 text-[9px] text-[var(--color-text-mute)]">📎 {c}</span>)}
+                          {m.cites.map((c) => <span key={c} className="rounded bg-[var(--color-surface-2)] px-1.5 py-0.5 text-[9px] text-[var(--color-text-mute)]">{c}</span>)}
                         </div>
                       )}
                       {/* feedback — the honest learning loop */}
                       {m.fed ? (
-                        <div className="mt-1.5 text-[9px] text-[var(--color-ok)]">✓ {m.fed === "up" ? "NETRA learned from this — ranking reinforced & remembered" : "Noted — NETRA will down-rank this next time"}</div>
+                        <div className="mt-1.5 text-[9px] text-[var(--color-ok)]">{m.fed === "up" ? "Learned from this — ranking reinforced & remembered" : "Noted — NETRA will down-rank this next time"}</div>
                       ) : (
                         <div className="mt-1.5 flex items-center gap-2 text-[10px] text-[var(--color-text-mute)]">
                           Helpful?
-                          <button onClick={() => feedback(i, true)} className="hover:text-[var(--color-ok)]">👍</button>
-                          <button onClick={() => feedback(i, false)} className="hover:text-[var(--color-danger)]">👎</button>
+                          <button onClick={() => feedback(i, true)} className="rounded border border-[var(--color-border)] px-1.5 py-0.5 hover:border-[var(--color-ok)] hover:text-[var(--color-ok)]">Yes</button>
+                          <button onClick={() => feedback(i, false)} className="rounded border border-[var(--color-border)] px-1.5 py-0.5 hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]">No</button>
                         </div>
                       )}
                     </div>
@@ -209,7 +214,7 @@ export default function Copilot() {
                         <button key={k} onClick={() => { nav(act.to); setOpen(false); }} className="rounded-lg border border-[var(--color-accent-dim)] px-2.5 py-1.5 text-[11px] text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10">→ {act.label}</button>
                       );
                       if (act.kind === "map") return (
-                        <button key={k} onClick={() => { nav("/map"); setOpen(false); }} className="rounded-lg border border-[var(--color-accent-dim)] px-2.5 py-1.5 text-[11px] text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10">🗺️ Show on the Command Map</button>
+                        <button key={k} onClick={() => { nav("/map"); setOpen(false); }} className="rounded-lg border border-[var(--color-accent-dim)] px-2.5 py-1.5 text-[11px] text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10">Show on the Command Map</button>
                       );
                       return null;
                     })}
@@ -228,7 +233,7 @@ export default function Copilot() {
 
             {thinking && (
               <div className="flex items-center gap-2 text-xs text-[var(--color-text-mute)]">
-                <span className="netra-eye-scan text-base">👁️</span> {deep ? "Reasoning deeply…" : "Scanning the records…"}
+                <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[var(--color-accent)]" /> {deep ? "Reasoning deeply…" : "Scanning the records…"}
               </div>
             )}
           </div>
@@ -236,8 +241,8 @@ export default function Copilot() {
           {/* Input */}
           <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="flex items-center gap-1.5 border-t border-[var(--color-border)] p-3">
             <input ref={fileRef} type="file" accept="image/*" onChange={onFile} className="hidden" />
-            <button type="button" onClick={() => fileRef.current?.click()} title="Upload a document to read (OCR)" className="shrink-0 rounded-lg border border-[var(--color-border)] px-2 py-2 text-xs text-[var(--color-text-mute)] hover:text-[var(--color-accent)]">📎</button>
-            <button type="button" onClick={mic} title="Speak your question" className={`shrink-0 rounded-lg border px-2 py-2 text-xs ${listening ? "border-[var(--color-danger)] text-[var(--color-danger)]" : "border-[var(--color-border)] text-[var(--color-text-mute)] hover:text-[var(--color-accent)]"}`}>{listening ? "●" : "🎤"}</button>
+            <button type="button" onClick={() => fileRef.current?.click()} title="Upload a document to read (OCR)" className="shrink-0 rounded-lg border border-[var(--color-border)] px-2 py-2 text-[10px] text-[var(--color-text-mute)] hover:text-[var(--color-accent)]">Attach</button>
+            <button type="button" onClick={mic} title="Speak your question" className={`shrink-0 rounded-lg border px-2 py-2 text-[10px] ${listening ? "border-[var(--color-danger)] text-[var(--color-danger)]" : "border-[var(--color-border)] text-[var(--color-text-mute)] hover:text-[var(--color-accent)]"}`}>{listening ? "Stop" : "Speak"}</button>
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
