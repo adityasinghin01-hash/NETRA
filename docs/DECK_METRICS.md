@@ -12,6 +12,21 @@ are what separate NETRA from teams that just *claim* their AI works.
 > Slide line: *"Blind test — NETRA recovered 5 of 5 serial-crime patterns it was never
 > shown, at 96% precision, among 1,500 FIRs."*
 
+**Method (why this number is trustworthy).** A self-run test where the model's author also
+writes the test cases proves nothing, so we separated the roles:
+
+1. A teammate who did not write any of the matching code authored **5 serial-crime patterns**
+   in plain prose — each a crime type, a repeated modus operandi (entry method, tools, target,
+   time of night), 4–8 incidents across 2–3 Karnataka districts, with rough dates. Difficulty
+   was mixed deliberately: 2 easy, 2 medium, 1 hard (one partly in Kannada).
+2. Those incidents were injected into the corpus among **1,500 distractor FIRs**.
+3. The **answer key was withheld** from the person who built the linkage model until after the
+   run, so no threshold or parameter could be tuned toward the expected answer.
+4. Only then were the recovered clusters scored against the key.
+
+Reproducible via `pipeline/blindtest.py`; the pattern definitions live in
+`pipeline/blindtest/patterns.txt`.
+
 ## Hotspot Forecasting — validated on REAL data (Slide 5)
 - On **503,468 real City-of-Chicago crimes** (2022–2023, 77 areas):
   - **hit-rate@top-10 hotspot areas = 0.86** (flags 86% of next week's worst areas)

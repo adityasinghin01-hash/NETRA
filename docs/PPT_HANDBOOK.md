@@ -1,9 +1,27 @@
-# NETRA — Slide-by-Slide Deck Blueprint
+# NETRA — Presentation & Submission Handbook
 
-**For: the presentation teammate.** This is the only deck file you need. Build one slide
-at a time, top to bottom. Each slide below gives you: the heading, the sub-headings, the
-exact words, the numbers, which screenshot to place, and — where a chart or diagram is
-needed — a ready-to-paste prompt to generate it.
+**For: the presentation teammate. This is your only file.** It replaces the older
+`TEAMMATE_PPT_GUIDE` and `PPT_FINAL_DAY_BRIEF` — everything from both is folded in here.
+
+You own what the judges **read and watch**: the deck, the demo video, and the submission.
+Judging happens from your materials (no live demo on Jul 26), so this is roughly **half of
+what wins this**.
+
+**Contents**
+- **Part 1 — The deck**, slide by slide (S1–S12) ← start here
+- **Part 2 — The prototype brief** (≤1024 characters, ready to paste)
+- **Part 3 — The demo video** (~3 min beat sheet)
+- **Part 4 — What you still need from Aditya**
+- **Part 5 — Do NOT show these**
+- **Part 6 — Submission-day checklist**
+
+---
+
+# PART 1 — THE DECK
+
+Build one slide at a time, top to bottom. Each slide gives you: the heading, the
+sub-headings, the exact words, the numbers, which screenshot to place, and — where a chart
+or diagram is needed — a ready-to-paste prompt to generate it.
 
 **Before slide 1:** download the **official Hack2Skill submission template** from the
 portal (Submission → "download template") and build inside it. Using another format can
@@ -270,7 +288,50 @@ flowchart TB
 
 ---
 
-# What you need from Aditya (chase these today)
+# PART 2 — THE PROTOTYPE BRIEF (≤ 1024 characters)
+
+Type this into the submission form. **Count the characters before submitting** — the form
+truncates silently. Draft below is ~980 chars; tweak freely but re-count after editing.
+
+> NETRA (Networked Evidence, Tracking & Risk Analytics) addresses Challenge 2:
+> turning fragmented FIR records into actionable intelligence for Karnataka State
+> Police. Built field-for-field on the official SCRB FIR schema, NETRA delivers:
+> (1) AI case linkage that reads FIR narratives (English & Kannada) and connects
+> serial crimes across district borders, validated by blind testing; (2) 7-day hotspot
+> forecasting with patrol recommendations, benchmarked on real open crime data;
+> (3) an interactive Karnataka map with drilldowns, hotspots and anomaly alerts;
+> (4) offender-network and repeat-offender analysis; (5) case-outcome analytics
+> (chargesheet/false/undetected); (6) AI daily briefings in English and Kannada.
+> Role-based access mirrors the police hierarchy (HQ/District/Station). Stack: React,
+> Node/Express and Python ML, deployed fully on Zoho Catalyst. Ethics by design:
+> no demographic features, explainable outputs, human-in-the-loop.
+
+---
+
+# PART 3 — THE DEMO VIDEO (~3 minutes)
+
+Aditya records the raw screen capture + voiceover; **you edit, add titles, and pace it.**
+
+| Time | Beat |
+|---|---|
+| 0:00–0:20 | **The problem** — siloed FIRs, invisible serial crime. Title cards, no UI yet. |
+| 0:20–0:40 | Log in → the **Command Map** appears. This is the "wow" opening shot. |
+| 0:40–1:40 | ⭐ **Linkage** — open a serial cluster spanning districts → paste a NEW narrative → watch it match. **Slow down here. This is the money moment.** |
+| 1:40–2:10 | **Forecast + patrol window**; flash the "validated on 503k real Chicago crimes" number. |
+| 2:10–2:35 | Quick montage: alerts → offender network → case outcomes → Kannada briefing PDF. |
+| 2:35–3:00 | Ethics card → Catalyst architecture card → end on the logo + one impact line. |
+
+**Rules**
+- **Captions on every feature** — judges may watch muted.
+- 1080p minimum. Unlisted YouTube link is the most reliable delivery; **test it in an incognito window**.
+- When demonstrating the Copilot, **name the series explicitly** (see Part 5).
+- Record a **backup take early**. A Wi-Fi failure on the 26th must not be able to sink us.
+
+**Tools:** CapCut (free, easy) for editing; tinypng.com to compress deck images.
+
+---
+
+# PART 4 — What you still need from Aditya (chase these today)
 
 | Item | For | Status |
 |---|---|---|
@@ -286,7 +347,7 @@ validation number above, the architecture diagram source (S9), the prototype bri
 
 ---
 
-# Do NOT show these in the deck or video
+# PART 5 — Do NOT show these in the deck or video
 
 Known rough edges. Not dishonest to omit — but do not walk a judge into them:
 - The Copilot loses series context on follow-ups. **In the video, always name the series explicitly** ("draw the link chart for the shutter-cutting burglar"), never "…for this series".
@@ -295,11 +356,27 @@ Known rough edges. Not dishonest to omit — but do not walk a judge into them:
 
 ---
 
-# Submission-day checklist (morning of Jul 26 — not 11 PM)
+# PART 6 — Submission-day checklist (morning of Jul 26 — not 11 PM)
+
+Every item is required. A missing or broken link can disqualify us.
 
 - [ ] Deck: official template · PDF · **< 5 MB** · opens cleanly on another machine
-- [ ] Prototype brief: **≤ 1024 characters**, pasted, not truncated (draft in `TEAMMATE_PPT_GUIDE.md §3b`)
+- [ ] Prototype brief: **≤ 1024 characters**, pasted, not truncated (Part 2)
 - [ ] GitHub repo **public** + opens in incognito
 - [ ] Demo video: plays in incognito, audio synced, **captions on** (judges may watch muted)
 - [ ] Catalyst link opens in incognito; all 3 logins work
 - [ ] **Submit by 6 PM IST.** Deadline is 11:59 PM — that buffer is for disasters, not for us.
+
+---
+
+# Why this matters
+
+Presentation is **20–30% of most hackathon scores**. A clear deck and a crisp video
+genuinely move us up the table; treating them as an afterthought is how good builds lose.
+
+Three habits that decide it:
+- **Tell a story, don't list features.** The winning frame is *"An SP opens NETRA on Monday
+  morning and instantly sees what changed in her district."* Use it everywhere.
+- **Numbers beat adjectives.** "Recovered 5 of 5 hidden patterns" beats "very accurate".
+- **Always disclose the synthetic data.** Honesty scores with government judges — and being
+  caught hiding it loses everything.

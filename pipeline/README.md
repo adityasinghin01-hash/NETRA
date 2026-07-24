@@ -36,8 +36,8 @@ external dependencies.
 | `courts.json` / `offenders.json` | 31 / 700 | Court / Offenders |
 | `planted_patterns.json` | — | ground truth for the known serial clusters & bursts |
 
-Total ~330,000 rows across the schema. (One "FIR" expands to several rows — this
-is why import into Catalyst is tiered; see `docs/BUILD_PLAN.md`.)
+Total ~330,000 rows across the schema. (One "FIR" expands to several rows, which is
+why import into Catalyst is tiered against the Data Store's free-tier insertion quota.)
 
 `pipeline/sample/` holds small committed samples for quick inspection without
 regenerating. `pipeline/mock-seed.json` (committed, ~50 KB) holds mock API
@@ -72,9 +72,9 @@ and **4 concentrated bursts** (for anomaly/hotspot detection). Ground truth is
 written to `data/planted_patterns.json`.
 
 > These are the **known** patterns, used to build and tune the linkage engine.
-> They are **separate** from the secret blind-test patterns a teammate injects in
-> Phase 2 (the blind test must be authored by someone other than the AI's builder —
-> see `docs/TEAMMATE_PPT_GUIDE.md`). Do not confuse the two.
+> They are **separate** from the blind-test patterns, which are authored by someone
+> other than the person who built the matching model and scored only after the run —
+> see the method note in `docs/DECK_METRICS.md`. Do not confuse the two.
 
 ## Ethics by design
 
