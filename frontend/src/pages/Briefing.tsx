@@ -200,9 +200,25 @@ export default function Briefing() {
                 </div>
                 <button
                   onClick={speak}
-                  className="rounded-lg border border-[var(--color-border-strong)] px-3 py-1 text-xs text-[var(--color-text-dim)] hover:text-[var(--color-accent)]"
+                  className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border-strong)] px-3 py-1 text-xs text-[var(--color-text-dim)] hover:text-cyan-400 transition-colors"
                 >
-                  {speaking ? "⏹ Stop" : "🔊 Listen"}
+                  {speaking ? (
+                    <>
+                      <svg className="w-3.5 h-3.5 text-cyan-400" viewBox="0 0 24 24" fill="currentColor">
+                        <rect x="6" y="6" width="12" height="12" rx="1" />
+                      </svg>
+                      <span>Stop</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-3.5 h-3.5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                      </svg>
+                      <span>Listen</span>
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={downloadPdf}
@@ -233,7 +249,12 @@ export default function Briefing() {
             {/* Command sheet — the digest pulls today's operational items from across NETRA */}
             <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-                <div className="mb-1.5 text-xs font-semibold text-[var(--color-text)]">🚓 Today's patrol focus</div>
+                <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text)]">
+                  <svg className="w-4 h-4 text-cyan-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  </svg>
+                  <span>Today's patrol focus</span>
+                </div>
                 {patrol ? (
                   <div className="text-xs text-[var(--color-text-dim)]">{patrol.crimeType} · {patrol.riskLevel} risk · patrol window {patrol.patrolWindow}</div>
                 ) : (
@@ -241,7 +262,13 @@ export default function Briefing() {
                 )}
               </div>
               <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-                <div className="mb-1.5 text-xs font-semibold text-[var(--color-text)]">⏳ Cases needing attention</div>
+                <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text)]">
+                  <svg className="w-4 h-4 text-cyan-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                  <span>Cases needing attention</span>
+                </div>
                 {coldRows.length ? (
                   <ul className="space-y-0.5 text-[11px] text-[var(--color-text-dim)]">
                     {coldRows.slice(0, 3).map((c) => (

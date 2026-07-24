@@ -279,8 +279,15 @@ export default function Linkage() {
                 })()}
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2 text-xs">
-                    <span className="flex w-40 shrink-0 items-center gap-1 text-[var(--color-text-dim)]">
-                      <span>🧠</span> Narrative similarity
+                    <span className="flex w-40 shrink-0 items-center gap-1.5 text-[var(--color-text-dim)]">
+                      <svg className="w-3.5 h-3.5 text-[var(--color-accent)] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="3"/>
+                        <line x1="3" y1="9" x2="9" y2="11"/>
+                        <line x1="15" y1="11" x2="21" y2="9"/>
+                        <line x1="6" y1="19" x2="10" y2="14"/>
+                        <line x1="14" y1="14" x2="18" y2="19"/>
+                      </svg>
+                      <span>Narrative similarity</span>
                     </span>
                     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--color-surface-2)]">
                       <div className="h-full bg-[var(--color-accent)]" style={{ width: `${result.best.score}%` }} />
@@ -528,8 +535,13 @@ export default function Linkage() {
               </div>
               {spatialMap?.[cluster.clusterId] && (
                 <div className="mb-5 border-b border-[var(--color-border)] pb-5">
-                  <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-[var(--color-text-mute)]">
-                    <span>🗺️</span> Spatial Intelligence — route · predicted base · next strike
+                  <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-mute)]">
+                    <svg className="w-3.5 h-3.5 text-[var(--color-accent)] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+                      <line x1="9" x2="9" y1="3" y2="18" />
+                      <line x1="15" x2="15" y1="6" y2="21" />
+                    </svg>
+                    <span>Spatial Intelligence — route · predicted base · next strike</span>
                   </div>
                   <SpatialTriad spatial={spatialMap[cluster.clusterId]} focusCaseNo={selFir && selFir.clusterId === cluster.clusterId ? selFir.crimeNo : undefined} />
                 </div>

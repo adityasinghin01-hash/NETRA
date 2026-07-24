@@ -2,7 +2,7 @@
 // engine, one letterhead). Flagship: the Serial-Crime Linkage & Evidence Report, built to
 // read court-familiar to KSP.
 import { useEffect, useState } from "react";
-import { Card, PageHeader } from "@/components/ui";
+import { PageHeader, SpecularCard } from "@/components/ui";
 import { openReport } from "@/lib/pdf";
 import { DISTRICTS, getSession } from "@/lib/auth";
 import { type CrimeDna } from "@/components/CrimeDNA";
@@ -122,8 +122,28 @@ export default function DocumentCenter() {
       <PageHeader title="Document Center" desc="Generate any NETRA report — one letterhead, decision-support classification. Files open ready to print/save as PDF." />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {DOCS.map((doc) => (
-          <Card key={doc.title} className="flex flex-col p-4">
-            <div className="text-sm font-semibold text-[var(--color-text)]">📄 {doc.title}</div>
+          <SpecularCard
+            key={doc.title}
+            radius={12}
+            lineColor="#38bdf8"
+            baseColor="#0f172a"
+            intensity={1.3}
+            shineSize={15}
+            shineFade={35}
+            thickness={1.5}
+            proximity={280}
+            className="card-hover flex flex-col p-4 border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg"
+          >
+            <div className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text)]">
+              <svg className="w-4 h-4 text-[var(--color-accent)] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>
+                <path d="M14 2v4a2 2 0 0 0 2 2h4"/>
+                <path d="M10 9H8"/>
+                <path d="M16 13H8"/>
+                <path d="M16 17H8"/>
+              </svg>
+              <span>{doc.title}</span>
+            </div>
             <p className="mt-1 flex-1 text-xs leading-relaxed text-[var(--color-text-dim)]">{doc.desc}</p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {doc.picker && <div className="min-w-0 flex-1">{doc.picker}</div>}
@@ -131,7 +151,7 @@ export default function DocumentCenter() {
                 Generate
               </button>
             </div>
-          </Card>
+          </SpecularCard>
         ))}
       </div>
       <div className="mt-4 text-[10px] text-[var(--color-text-mute)]">

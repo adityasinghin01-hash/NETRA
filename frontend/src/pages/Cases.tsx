@@ -100,7 +100,15 @@ function Dossier({ c }: { c: CaseRow }) {
     <div className="mt-3 space-y-3">
       {hasParties && (
         <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-          <div className="mb-2 text-xs font-semibold text-[var(--color-text)]">👥 Parties</div>
+          <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text)]">
+            <svg className="w-4 h-4 text-cyan-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            <span>Parties</span>
+          </div>
           {c.complainant && (
             <Field label="Complainant">
               {c.complainant.name}{c.complainant.age ? ` · ${c.complainant.age}y` : ""}{c.complainant.gender ? ` · ${c.complainant.gender}` : ""}
@@ -128,7 +136,13 @@ function Dossier({ c }: { c: CaseRow }) {
       )}
       {f && (
         <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-          <div className="mb-2 text-xs font-semibold text-[var(--color-text)]">🔬 Forensic &amp; physical evidence</div>
+          <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text)]">
+            <svg className="w-4 h-4 text-cyan-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <span>Forensic &amp; physical evidence</span>
+          </div>
           <div className="space-y-1.5">
             <Field label="Weapon / tools">{f.weapon}{f.tools.length ? ` · ${f.tools.join(", ")}` : ""}</Field>
             <Field label="Evidence">
@@ -279,8 +293,13 @@ export default function Cases() {
       </Card>
 
       <Card className="mb-4 p-3">
-        <div className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-[var(--color-text)]">
-          🧠 Smart MO search <span className="text-xs font-normal text-[var(--color-text-mute)]">— describe the crime in plain words (English or ಕನ್ನಡ)</span>
+        <div className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-[var(--color-text)]">
+          <svg className="w-4 h-4 text-cyan-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"/>
+            <path d="M12 8v4l3 3"/>
+          </svg>
+          <span>Smart MO search</span>
+          <span className="text-xs font-normal text-[var(--color-text-mute)]">— describe the crime in plain words (English or ಕನ್ನಡ)</span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <input
@@ -317,7 +336,13 @@ export default function Cases() {
 
       {dnaMap && (
         <div className="mb-4 flex flex-wrap items-center gap-1.5 text-xs">
-          <span className="text-[var(--color-text-mute)]">🔍 Serial cases with linked intelligence:</span>
+          <span className="flex items-center gap-1 text-[var(--color-text-mute)] font-medium">
+            <svg className="w-3.5 h-3.5 text-cyan-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <span>Serial cases with linked intelligence:</span>
+          </span>
           {Object.values(dnaMap).slice(0, 5).map((c) => {
             const m = c.members.find((x) => x.solved === false) ?? c.members[0];
             const row = {
@@ -409,8 +434,12 @@ export default function Cases() {
                 const ns = spatialMap?.[c.clusterId]?.nextStrike;
                 return (
                   <div className="mt-3 rounded-lg border border-[var(--color-accent-dim)] bg-[var(--color-surface-2)] p-3">
-                    <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-[var(--color-accent)]">
-                      🔍 Investigator Copilot
+                    <div className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--color-accent)]">
+                      <svg className="w-3.5 h-3.5 text-cyan-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                      </svg>
+                      <span>Investigator Copilot</span>
                     </div>
                     <p className="text-xs leading-relaxed text-[var(--color-text-dim)]">
                       This FIR is part of serial cluster <span className="font-medium text-[var(--color-text)]">“{c.label}”</span> —{" "}
@@ -418,16 +447,24 @@ export default function Cases() {
                       {c.signature.slice(0, 3).map((s) => s.value).join(" · ")}.
                     </p>
                     {(c.unsolvedCount ?? 0) > 0 && c.offender && (
-                      <p className="mt-1 text-xs text-[var(--color-ok)]">
-                        ⚖️ Arresting {c.offender} could clear {c.unsolvedCount} unsolved cases in this series.
-                      </p>
+                      <div className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-[var(--color-ok)]">
+                        <svg className="w-3.5 h-3.5 text-[var(--color-ok)] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        <span>Arresting {c.offender} could clear {c.unsolvedCount} unsolved cases in this series.</span>
+                      </div>
                     )}
                     {ns && (
-                      <p className="mt-1 text-xs text-[var(--color-warn)]">
-                        ⚠ Predicted next strike: {ns.district} · {ns.window} · {ns.timeWindow}.
-                      </p>
+                      <div className="mt-1 flex items-center gap-1.5 text-xs font-medium text-[var(--color-warn)]">
+                        <svg className="w-3.5 h-3.5 text-[var(--color-warn)] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                          <line x1="12" y1="9" x2="12" y2="13"/>
+                          <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                        <span>Predicted next strike: {ns.district} · {ns.window} · {ns.timeWindow}.</span>
+                      </div>
                     )}
-                    <p className="mt-1 text-[10px] text-[var(--color-text-mute)]">
+                    <p className="mt-1.5 text-[10px] text-[var(--color-text-mute)]">
                       Open Linkage for the full series, route & predicted base.
                     </p>
                   </div>

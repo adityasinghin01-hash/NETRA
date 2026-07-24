@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useApi, StatTile, Card, PageHeader, State, Badge } from "@/components/ui";
+import { useApi, StatTile, Card, PageHeader, State, Badge, SpecularCard } from "@/components/ui";
 import DeckMap from "@/components/DeckMap";
 import LiveAlerts from "@/components/LiveAlerts";
 import { getSession } from "@/lib/auth";
@@ -65,10 +65,12 @@ export default function CommandMap() {
   const [focus, setFocus] = useState<PatrolPlan | null>(null);
   // Real FIR points [lat,lng,head,,district,...] → used to place pickets on actual crime pockets.
   const [inc, setInc] = useState<{ lat: number; lng: number; head: number; district: string }[]>([]);
+  const [feedAlerts, setFeedAlerts] = useState<Alert[]>([]);
   const mapCardRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}forecast.json`).then((r) => r.json()).then(setForecast).catch(() => {});
     fetch(`${import.meta.env.BASE_URL}district-analytics.json`).then((r) => r.json()).then((d) => setDa(d.districts)).catch(() => {});
+    fetch(`${import.meta.env.BASE_URL}alerts-feed.json`).then((r) => r.json()).then(setFeedAlerts).catch(() => {});
     fetch(`${import.meta.env.BASE_URL}incident-points.json`)
       .then((r) => r.json())
       .then((raw: [number, number, number, string, string][]) =>
@@ -80,7 +82,8 @@ export default function CommandMap() {
   const scope = getSession().district; // null = HQ
   const allDistricts = (d.data ?? []).slice().sort((x, y) => y.caseCount - x.caseCount);
   const top = scope ? allDistricts.filter((x) => x.name === scope) : allDistricts;
-  const alerts = scope ? (a.data ?? []).filter((al) => al.district === scope) : (a.data ?? []);
+  const rawAlerts = a.data && a.data.length > 0 ? a.data : feedAlerts;
+  const alerts = scope ? rawAlerts.filter((al) => al.district?.includes(scope)) : rawAlerts;
   const fcHotspots = scope ? (forecast?.hotspots ?? []).filter((h) => h.district === scope) : forecast?.hotspots ?? [];
 
   const scopedRow = scope ? allDistricts.find((x) => x.name === scope) : null;
@@ -162,45 +165,46 @@ export default function CommandMap() {
         )}
       </State>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div ref={mapCardRef} className="lg:col-span-2">
-          <Card className="h-[420px] overflow-hidden p-0">
-            <DeckMap districts={d.data ?? []} focus={focus} onExitFocus={() => setFocus(null)} />
-          </Card>
-        </div>
+      {/* 1. Command Map - Full Width & Broader */}
+      <div ref={mapCardRef} className="w-full">
+        <Card className="h-[520px] overflow-hidden p-0">
+          <DeckMap districts={d.data ?? []} focus={focus} onExitFocus={() => setFocus(null)} />
+        </Card>
+      </div>
 
-        <div className="flex h-[420px] flex-col gap-4">
-          <Card className="shrink-0 p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-medium text-[var(--color-text)]">
-                Active alerts
-                <span className="flex items-center gap-1 rounded bg-[var(--color-ok)]/10 px-1.5 py-0.5 text-[9px] font-normal text-[var(--color-ok)]">
-                  <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-ok)]" /> AUTO-UPDATING
-                </span>
-              </div>
-              <span className="text-xs text-[var(--color-text-mute)]">anomaly detection</span>
+      {/* 2. Active Alerts & Districts by Case Volume - Below Map */}
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card className="h-[380px] flex flex-col p-4">
+          <div className="mb-3 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2 text-sm font-medium text-[var(--color-text)]">
+              Active alerts
+              <span className="flex items-center gap-1 rounded bg-[var(--color-ok)]/10 px-1.5 py-0.5 text-[9px] font-normal text-[var(--color-ok)]">
+                <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-ok)]" /> AUTO-UPDATING
+              </span>
             </div>
-            <State loading={a.loading} error={a.error} empty={false}>
-              <LiveAlerts alerts={alerts} />
-            </State>
-          </Card>
-          <Card className="min-h-0 flex-1 overflow-y-auto p-4">
-            <div className="mb-3 text-sm font-medium text-[var(--color-text)]">{scope ? "Your jurisdiction" : "Districts by case volume"}</div>
-            <State loading={d.loading} error={d.error} empty={top.length === 0}>
-              <ul className="space-y-1">
-                {top.map((row, i) => (
-                  <li key={row.districtId} className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-[var(--color-surface-2)]">
-                    <span className="text-[var(--color-text-dim)]">
-                      <span className="tnum mr-2 text-[var(--color-text-mute)]">{i + 1}</span>
-                      {row.name}
-                    </span>
-                    <span className="tnum text-[var(--color-text)]">{row.caseCount.toLocaleString()}</span>
-                  </li>
-                ))}
-              </ul>
-            </State>
-          </Card>
-        </div>
+            <span className="text-xs text-[var(--color-text-mute)]">anomaly detection</span>
+          </div>
+          <State loading={a.loading && !feedAlerts.length} error={a.data || feedAlerts.length ? null : a.error} empty={alerts.length === 0}>
+            <LiveAlerts alerts={alerts} />
+          </State>
+        </Card>
+
+        <Card className="h-[380px] flex flex-col p-4">
+          <div className="mb-3 shrink-0 text-sm font-medium text-[var(--color-text)]">{scope ? "Your jurisdiction" : "Districts by case volume"}</div>
+          <State loading={d.loading} error={d.error} empty={top.length === 0}>
+            <ul className="flex-1 min-h-0 overflow-y-auto space-y-1 pr-1">
+              {top.map((row, i) => (
+                <li key={row.districtId} className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-[var(--color-surface-2)]">
+                  <span className="text-[var(--color-text-dim)]">
+                    <span className="tnum mr-2 text-[var(--color-text-mute)]">{i + 1}</span>
+                    {row.name}
+                  </span>
+                  <span className="tnum text-[var(--color-text)]">{row.caseCount.toLocaleString()}</span>
+                </li>
+              ))}
+            </ul>
+          </State>
+        </Card>
       </div>
 
       {forecast && plans.length > 0 && (
@@ -217,10 +221,13 @@ export default function CommandMap() {
               {opt && (
                 <button
                   onClick={dutyChart}
-                  className="rounded-lg border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/10 px-3 py-1 text-xs font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20"
+                  className="flex items-center gap-1.5 rounded-lg border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/10 px-3 py-1.5 text-xs font-medium text-[var(--color-accent)] hover:bg-[var(--color-accent)]/20 transition-colors"
                   title={`Optimally deploy ${DEPLOY_UNITS} units — covers ~${Math.round(opt.coveredPct * 100)}% of forecast crime`}
                 >
-                  🚔 Full state deployment
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  </svg>
+                  <span>Full state deployment</span>
                 </button>
               )}
             </div>
@@ -233,13 +240,21 @@ export default function CommandMap() {
             {plans.slice(0, 8).map((p, i) => {
               const on = selected === i;
               return (
-                <button
+                <SpecularCard
                   key={i}
+                  radius={12}
+                  lineColor={on ? "#38bdf8" : "#64748b"}
+                  baseColor="#1e293b"
+                  intensity={on ? 1.5 : 0.9}
+                  shineSize={14}
+                  shineFade={35}
+                  thickness={1.2}
+                  proximity={250}
                   onClick={() => setSelected(on ? null : i)}
-                  className={`rounded-lg border p-3 text-left transition-colors ${
+                  className={`card-hover cursor-pointer rounded-lg border p-3 text-left ${
                     on
                       ? "border-[var(--color-accent)] bg-[var(--color-accent)]/10"
-                      : "border-[var(--color-border)] bg-[var(--color-bg)] hover:border-[var(--color-border-strong)]"
+                      : "border-[var(--color-border)] bg-[var(--color-bg)]"
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -255,7 +270,7 @@ export default function CommandMap() {
                       <span className={p.trendPct >= 0 ? "text-[var(--color-danger)]" : "text-[var(--color-ok)]"}>{p.trendPct >= 0 ? "+" : ""}{p.trendPct}%</span>
                     </span>
                   </div>
-                </button>
+                </SpecularCard>
               );
             })}
           </div>
@@ -273,9 +288,13 @@ export default function CommandMap() {
                 </div>
                 <button
                   onClick={() => viewOnMap(sel)}
-                  className="shrink-0 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-[var(--color-bg)] hover:opacity-90"
+                  className="flex items-center gap-1.5 shrink-0 rounded-lg bg-[var(--color-accent)] px-3 py-1.5 text-xs font-semibold text-[var(--color-bg)] hover:opacity-90 transition-opacity"
                 >
-                  📍 View on map
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+                    <circle cx="12" cy="10" r="3"/>
+                  </svg>
+                  <span>View on map</span>
                 </button>
               </div>
 

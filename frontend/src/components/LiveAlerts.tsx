@@ -51,20 +51,43 @@ export default function LiveAlerts({ alerts }: { alerts: Alert[] }) {
   if (!live.length) return <div className="text-xs text-[var(--color-text-mute)]">No active alerts.</div>;
 
   return (
-    <ul className="space-y-2">
-      {live.slice(0, 4).map((a) => {
+    <ul className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
+      {live.map((a) => {
         const high = a.severity === "high";
         return (
-          <li key={a.alertId} className={`flex gap-2 rounded-md text-xs transition-colors ${a.flash ? "bg-[var(--color-danger)]/10" : ""}`}>
+          <li
+            key={a.alertId}
+            className={`flex items-start gap-2.5 rounded-lg border border-[var(--color-border)]/60 bg-[var(--color-bg)]/40 p-2.5 text-xs transition-all hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface-2)]/60 ${
+              a.flash ? "border-[var(--color-danger)]/50 bg-[var(--color-danger)]/10 ring-1 ring-[var(--color-danger)]/30" : ""
+            }`}
+          >
             <span className="relative mt-1 flex h-2 w-2 shrink-0">
-              <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-70 ${high ? "bg-[var(--color-danger)]" : "bg-[var(--color-warn)]"}`} />
+              <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${high ? "bg-[var(--color-danger)]" : "bg-[var(--color-warn)]"}`} />
               <span className={`relative inline-flex h-2 w-2 rounded-full ${high ? "bg-[var(--color-danger)]" : "bg-[var(--color-warn)]"}`} />
             </span>
             <div className="min-w-0 flex-1">
-              <div className="text-[var(--color-text-dim)]">{a.message}</div>
-              <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-[var(--color-text-mute)]">
-                <span>{ago(a.age)}</span>
-                {a.flash && <span className="rounded bg-[var(--color-danger)]/20 px-1 font-semibold text-[var(--color-danger)]">NEW</span>}
+              <div className="text-[var(--color-text-dim)] font-medium leading-tight">{a.message}</div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] text-[var(--color-text-mute)]">
+                <span className="font-mono">{ago(a.age)}</span>
+                {a.district && (
+                  <span className="inline-flex items-center gap-1 rounded bg-[var(--color-surface-2)] px-1.5 py-0.5 text-[10px] text-[var(--color-text-dim)]">
+                    <svg className="w-2.5 h-2.5 text-[var(--color-text-mute)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+                      <circle cx="12" cy="10" r="3"/>
+                    </svg>
+                    <span>{a.district}</span>
+                  </span>
+                )}
+                {a.caseCount ? (
+                  <span className="tnum font-semibold text-[var(--color-warn)]">
+                    {a.caseCount} cases
+                  </span>
+                ) : null}
+                {a.flash && (
+                  <span className="rounded bg-[var(--color-danger)]/20 px-1.5 py-0.5 font-semibold text-[var(--color-danger)] animate-pulse">
+                    NEW SPIKE
+                  </span>
+                )}
               </div>
             </div>
           </li>

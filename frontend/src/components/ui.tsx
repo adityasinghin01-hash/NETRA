@@ -1,7 +1,9 @@
-// Shared NETRA UI primitives + data hook. Small on purpose — the frontend
-// teammate can swap useApi for TanStack Query later (see FRONTEND_PATTERNS §10).
+// Shared NETRA UI primitives + data hook.
 import { useEffect, useState, type ReactNode } from "react";
 import { api } from "@/api/client";
+import SpecularButton, { SpecularCard, type SpecularProps } from "./SpecularButton";
+
+export { SpecularButton, SpecularCard };
 
 export function useApi<T>(path: string | null) {
   const [data, setData] = useState<T | null>(null);
@@ -23,22 +25,49 @@ export function useApi<T>(path: string | null) {
   return { data, loading, error };
 }
 
-export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
+export function Card({ children, className = "", specular = false }: { children: ReactNode; className?: string; specular?: boolean }) {
+  if (!specular) {
+    return (
+      <div className={`rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] ${className}`}>
+        {children}
+      </div>
+    );
+  }
   return (
-    <div className={`rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] ${className}`}>
+    <SpecularCard
+      radius={12}
+      lineColor="#38bdf8"
+      baseColor="#1e293b"
+      intensity={0.8}
+      shineSize={12}
+      shineFade={35}
+      proximity={240}
+      className={`border border-[var(--color-border)] bg-[var(--color-surface)] ${className}`}
+    >
       {children}
-    </div>
+    </SpecularCard>
   );
 }
 
-export function StatTile({ label, value, sub }: { label: string; value: ReactNode; sub?: string }) {
+export function StatTile({ label, value, sub, ...specularProps }: { label: string; value: ReactNode; sub?: string } & SpecularProps) {
   return (
-    <Card className="card-hover relative overflow-hidden p-4">
-      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--color-accent)] to-transparent opacity-40" />
+    <SpecularCard
+      radius={12}
+      lineColor="#38bdf8"
+      baseColor="#0f172a"
+      intensity={1.3}
+      shineSize={15}
+      shineFade={35}
+      thickness={1.5}
+      proximity={280}
+      autoAnimate={false}
+      {...specularProps}
+      className="card-hover relative overflow-hidden border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-lg"
+    >
       <div className="text-[11px] uppercase tracking-wider text-[var(--color-text-mute)]">{label}</div>
       <div className="tnum mt-1.5 text-[26px] font-semibold leading-none text-[var(--color-text)]">{value}</div>
       {sub && <div className="mt-1 text-xs text-[var(--color-text-dim)]">{sub}</div>}
-    </Card>
+    </SpecularCard>
   );
 }
 
