@@ -66,6 +66,3 @@ frontend/public/audio/
 # Sovereign embedding model + onnxruntime WASM (~130MB; fetched by scripts/fetch-models.sh, not committed)
 frontend/public/models/
 frontend/public/ort/
-
-# Generated draft deck — rebuild with: python3 deck-assets/build_deck.py
-deck-assets/NETRA_deck_draft.pptx
