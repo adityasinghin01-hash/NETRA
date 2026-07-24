@@ -117,6 +117,7 @@ export default function CopilotDiagram({ action }: { action: Extract<UiAction, {
   const [showSrc, setShowSrc] = useState(false);
   const [draftSrc, setDraftSrc] = useState("");
   const [tweak, setTweak] = useState("");
+  const [fs, setFs] = useState(false); // fullscreen overlay so a cramped diagram is readable
   const started = useRef(false);
 
   useEffect(() => {
@@ -185,18 +186,70 @@ export default function CopilotDiagram({ action }: { action: Extract<UiAction, {
     } catch { setBusy(false); }
   }
 
+  // Esc closes the fullscreen overlay.
+  useEffect(() => {
+    if (!fs) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setFs(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fs]);
+
   const title = action.title || action.subject || (action.diagram === "other" ? "Diagram" : `${action.diagram} diagram`);
+  const fileName = (title || "diagram").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "diagram";
+
+  // Rasterize the current SVG to a crisp 2x PNG and download it. The SVG is self-contained (no
+  // external refs), so the canvas isn't tainted and toDataURL works. We stamp explicit pixel
+  // dimensions from the viewBox and drop mermaid's max-width cap so the export is full-resolution.
+  async function downloadPng() {
+    if (!svg) return;
+    let doc: Document;
+    try { doc = new DOMParser().parseFromString(svg, "image/svg+xml"); } catch { return; }
+    const el = doc.documentElement as unknown as SVGSVGElement;
+    const vb = (el.getAttribute("viewBox") || "").trim().split(/\s+/).map(Number);
+    const w = vb.length === 4 && vb[2] ? vb[2] : (el.clientWidth || 1200);
+    const h = vb.length === 4 && vb[3] ? vb[3] : (el.clientHeight || 800);
+    el.setAttribute("width", String(w));
+    el.setAttribute("height", String(h));
+    el.style.maxWidth = "none";
+    const xml = new XMLSerializer().serializeToString(el);
+    const img = new Image();
+    try {
+      await new Promise<void>((res, rej) => {
+        img.onload = () => res(); img.onerror = () => rej(new Error("img"));
+        img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(xml);
+      });
+    } catch { return; }
+    const scale = 2;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(w * scale); canvas.height = Math.round(h * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.fillStyle = "#0b1220"; ctx.fillRect(0, 0, canvas.width, canvas.height); // match the card bg
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.drawImage(img, 0, 0, w, h);
+    const a = document.createElement("a");
+    a.download = fileName + ".png";
+    a.href = canvas.toDataURL("image/png");
+    a.click();
+  }
 
   return (
     <div className="rounded-lg border border-[var(--color-border)] p-2.5" style={{ background: "#0b1220" }}>
       <div className="mb-1 flex items-center justify-between gap-2">
         <span className="truncate text-[10px] font-medium text-[var(--color-text)]">{title}</span>
-        <button onClick={() => { setShowSrc((s) => !s); setDraftSrc(code); }}
-          className="shrink-0 text-[9px] text-[var(--color-text-mute)] hover:text-[var(--color-accent)]">{showSrc ? "Hide source" : "View source"}</button>
+        <div className="flex shrink-0 items-center gap-2">
+          {svg && <button onClick={() => void downloadPng()} title="Download as PNG" aria-label="Download PNG"
+            className="text-[11px] leading-none text-[var(--color-text-mute)] hover:text-[var(--color-accent)]">⬇</button>}
+          {svg && <button onClick={() => setFs(true)} title="Expand to fullscreen" aria-label="Expand"
+            className="text-[11px] leading-none text-[var(--color-text-mute)] hover:text-[var(--color-accent)]">⤢</button>}
+          <button onClick={() => { setShowSrc((s) => !s); setDraftSrc(code); }}
+            className="text-[9px] text-[var(--color-text-mute)] hover:text-[var(--color-accent)]">{showSrc ? "Hide source" : "View source"}</button>
+        </div>
       </div>
 
       {busy && !svg && <div className="py-6 text-center text-[11px] text-[var(--color-text-mute)]">Drawing…</div>}
-      {svg && <div className="overflow-x-auto [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full" dangerouslySetInnerHTML={{ __html: svg }} />}
+      {svg && <div onClick={() => setFs(true)} title="Click to enlarge"
+        className="cursor-zoom-in overflow-x-auto [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:max-w-full" dangerouslySetInnerHTML={{ __html: svg }} />}
       {err && <div className="py-2 text-[11px] text-[var(--color-warn)]">{err}</div>}
 
       {showSrc && (
@@ -220,6 +273,26 @@ export default function CopilotDiagram({ action }: { action: Extract<UiAction, {
       <div className="mt-1 text-[8px] text-[var(--color-text-mute)]">
         {action.diagram === "money" ? "Illustrative flow — the prototype dataset holds no transaction records." : "Generated from case data — synthetic prototype."}
       </div>
+
+      {/* Fullscreen overlay — a large, readable view for the cramped copilot panel. Click the
+          backdrop or press Esc to close; the inner panel stops propagation so clicks inside stay open. */}
+      {fs && svg && (
+        <div onClick={() => setFs(false)}
+          className="fixed inset-0 z-[3000] flex flex-col bg-black/80 p-4 backdrop-blur-sm">
+          <div className="mb-2 flex items-center justify-between gap-2 text-[var(--color-text)]">
+            <span className="truncate text-sm font-medium">{title}</span>
+            <div className="flex items-center gap-2">
+              <button onClick={(e) => { e.stopPropagation(); void downloadPng(); }}
+                className="rounded border border-[var(--color-accent-dim)] px-3 py-1 text-xs text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10">⬇ Download PNG</button>
+              <button onClick={(e) => { e.stopPropagation(); setFs(false); }} aria-label="Close"
+                className="rounded px-3 py-1 text-lg leading-none text-[var(--color-text-mute)] hover:text-[var(--color-text)]">✕</button>
+            </div>
+          </div>
+          <div onClick={(e) => e.stopPropagation()}
+            className="flex-1 overflow-auto rounded-lg bg-[#0b1220] p-4 [&_svg]:mx-auto [&_svg]:h-auto [&_svg]:w-full [&_svg]:!max-w-none"
+            dangerouslySetInnerHTML={{ __html: svg }} />
+        </div>
+      )}
     </div>
   );
 }
