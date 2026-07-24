@@ -4,9 +4,10 @@
 import type { ToolDef } from "@/lib/llm";
 import type { Retrieved } from "@/lib/retrieval";
 
+export type DiagramKind = "link" | "org" | "timeline" | "money" | "mo" | "other";
 export type UiAction =
   | { kind: "map"; district?: string; clusterId?: string }
-  | { kind: "diagram"; diagram: "link" | "org" | "timeline" | "money" | "mo"; subject?: string; clusterId?: string }
+  | { kind: "diagram"; diagram: DiagramKind; mermaid?: string; title?: string; subject?: string; clusterId?: string }
   | { kind: "document"; docType: string; clusterId?: string; crimeNo?: string }
   | { kind: "navigate"; to: string; label: string };
 
@@ -26,11 +27,13 @@ export const TOOLS: ToolDef[] = [
     type: "function",
     function: {
       name: "make_diagram",
-      description: "Draw a police diagram from case data: link-analysis chart, gang org-chart, case timeline, money-trail, or MO flow.",
+      description: "Draw a diagram and show it below. Use a core kind — link (relationship chart), org (gang org-chart), timeline (case timeline), money (money-trail), or mo (MO signature) — ONLY when the diagram is about ONE specific NETRA serial cluster or ring, and you MUST pass its clusterId; NETRA then builds it from the real case data (do not pass `mermaid` in this case). For EVERYTHING ELSE — a process/workflow flow, a concept, a comparison, or any custom diagram the user describes in their own terms (e.g. 'how an FIR moves through the courts') — set kind='other' and provide complete valid Mermaid code in `mermaid` (flowchart/sequence/timeline/mindmap/etc.), using ONLY facts present in the context (never invent FIR numbers, names or figures). When in doubt, prefer kind='other' with your own Mermaid.",
       parameters: { type: "object", properties: {
-        kind: { type: "string", enum: ["link", "org", "timeline", "money", "mo"] },
-        clusterId: { type: "string", description: "serial cluster id if about a series" },
+        kind: { type: "string", enum: ["link", "org", "timeline", "money", "mo", "other"] },
+        title: { type: "string", description: "short title for the diagram" },
+        clusterId: { type: "string", description: "serial cluster id like SC01 if about a series" },
         subject: { type: "string", description: "what the diagram is about" },
+        mermaid: { type: "string", description: "complete Mermaid code, only for kind='other' or custom requests; no backtick fences" },
       }, required: ["kind"] },
     },
   },
@@ -65,8 +68,8 @@ export function runTool(name: string, args: any, hits: Retrieved[]): { result: s
       return { result: `Highlighted ${args.district || clusterId || "the area"} on the Command Map.`,
         ui: { kind: "map", district: args.district, clusterId } };
     case "make_diagram":
-      return { result: `Generated a ${args.kind} diagram below.`,
-        ui: { kind: "diagram", diagram: args.kind, subject: args.subject, clusterId } };
+      return { result: `Rendered the diagram below.`,
+        ui: { kind: "diagram", diagram: args.kind || "other", mermaid: args.mermaid, title: args.title, subject: args.subject, clusterId } };
     case "draft_document":
       return { result: `Drafted a ${String(args.docType).replace(/_/g, " ")} below (review before use).`,
         ui: { kind: "document", docType: args.docType, clusterId, crimeNo: args.crimeNo } };
