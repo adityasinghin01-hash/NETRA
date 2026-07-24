@@ -296,7 +296,7 @@ function Joystick({ onTick }: { onTick: (nx: number, ny: number) => void }) {
     <div
       onPointerDown={down} onPointerMove={(e) => active.current && set(e)} onPointerUp={up} onPointerLeave={up}
       title="Drag to pan the map"
-      className="relative h-16 w-16 cursor-grab touch-none rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur active:cursor-grabbing"
+      className="card-hover relative h-16 w-16 cursor-grab touch-none rounded-full border border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur active:cursor-grabbing"
       style={{ boxShadow: "inset 0 0 12px rgba(0,0,0,0.4)" }}
     >
       <div
@@ -311,7 +311,7 @@ function CtrlBtn({ onClick, label, title, active }: { onClick: () => void; label
   return (
     <button
       onClick={onClick} title={title} aria-label={title}
-      className={`flex h-8 w-8 items-center justify-center rounded-md border border-[var(--color-border)] text-sm backdrop-blur transition-colors ${
+      className={`card-hover flex h-8 w-8 items-center justify-center rounded-md border border-[var(--color-border)] text-sm backdrop-blur transition-colors ${
         active ? "bg-[var(--color-accent)] text-[var(--color-bg)]" : "bg-[var(--color-surface)]/90 text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
       }`}
     >
@@ -592,7 +592,7 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
 
       {/* Controls: base + mode */}
       <div className={`absolute left-3 top-3 z-[1000] flex flex-col gap-2 ${focus ? "pointer-events-none opacity-40" : ""}`}>
-        <div className="flex overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur">
+        <div className="card-hover flex overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur">
           {MODES.map((m) => (
             <button
               key={m.id}
@@ -605,7 +605,7 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
             </button>
           ))}
         </div>
-        <div className="flex w-fit overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur">
+        <div className="card-hover flex w-fit overflow-hidden rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]/90 backdrop-blur">
           {(["dark", "satellite"] as Base[]).map((b) => (
             <button
               key={b}
@@ -631,10 +631,11 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
         .netra-pop .maplibregl-popup-tip { border-top-color: rgba(17,26,46,0.97); border-bottom-color: rgba(17,26,46,0.97); }
         .netra-pop .maplibregl-popup-close-button { color: #7c8aa0; font-size: 16px; padding: 0 7px; line-height: 1.4; }
         .netra-pop .maplibregl-popup-close-button:hover { color: #e2e8f0; background: transparent; }
+        .maplibregl-missing-css, .mapboxgl-missing-css { display: none !important; }
       `}</style>
 
       {/* Legend */}
-      <div className="pointer-events-none absolute bottom-[4.75rem] left-3 z-[1000] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]/90 p-2 text-[10px] text-[var(--color-text-dim)] backdrop-blur">
+      <div className="card-hover pointer-events-auto absolute bottom-[4.75rem] left-3 z-[1000] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]/90 p-2 text-[10px] text-[var(--color-text-dim)] backdrop-blur">
         <div className="mb-1 font-medium text-[var(--color-text)]">
           {mode === "points" ? "Incident type · click a dot" : "Crime density"}
         </div>
@@ -679,7 +680,7 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
       {/* Month timeline strip — incidents-per-month bar chart that doubles as the scrubber.
           Click a month to jump; ▶ animates; "All" shows every month. */}
       {maxT > 0 && (
-        <div className="absolute bottom-2 left-2 right-2 z-[1000] flex items-end gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]/95 px-3 py-2 backdrop-blur">
+        <div className="card-hover absolute bottom-2 left-2 right-2 z-[1000] flex items-end gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]/95 px-3 py-2 backdrop-blur">
           <button
             onClick={() => { if (!timelapse) enterTimelapse(); else setPlaying((p) => !p); }}
             className="mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[var(--color-accent)] text-sm text-[var(--color-bg)]"

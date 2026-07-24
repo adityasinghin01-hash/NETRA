@@ -151,7 +151,8 @@ export async function hybridCases(query: string, qv: number[], topK = 12, minCos
       const { vector, ...meta } = cases[i];
       void vector;
       return { ...meta, cos: cos[i], method: hasD && hasS ? "both" : hasS ? "keyword" : "semantic" } as HybridCase;
-    });
+    })
+    .filter((h) => h.method !== "keyword");
 }
 
 // Scan the UNSOLVED case pool for cold cases whose MO matches a signature (cosine ≥ threshold),

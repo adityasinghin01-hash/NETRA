@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { setSession, DISTRICTS, type Role } from "@/lib/auth";
+import logoImg from "@/assets/logo.png";
 
 const ROLE_CHIP: { role: Role; label: string }[] = [
   { role: "hq", label: "HQ" },
@@ -27,8 +28,8 @@ export default function Login() {
     <div className="flex h-screen items-center justify-center">
       <div className="w-[360px] rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-8">
         <div className="mb-6 text-center">
-          <div className="text-3xl">👁️</div>
-          <div className="mt-1 text-lg font-semibold tracking-wide">NETRA</div>
+          <img src={logoImg} alt="NETRA Logo" className="mx-auto w-14 h-14 object-contain drop-shadow-[0_0_12px_rgba(34,211,238,0.5)]" />
+          <div className="mt-2 text-lg font-semibold tracking-wide">NETRA</div>
           <div className="text-xs text-[var(--color-text-dim)]">Crime intelligence for Karnataka Police</div>
         </div>
         <form onSubmit={signIn} className="space-y-3">

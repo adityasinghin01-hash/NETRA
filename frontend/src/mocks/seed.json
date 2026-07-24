@@ -257,9 +257,176 @@
     "heinousCases": 7807,
     "detectionRatePct": 76.5,
     "activeHotspots": 12,
-    "openAlerts": 4,
+    "openAlerts": 15,
     "linkedClusters": 12
   },
+  "alerts": [
+    {
+      "id": "AL03",
+      "alertId": "AL03",
+      "type": "Volume spike",
+      "severity": "high",
+      "district": "Kalaburagi",
+      "crimeType": "House-Breaking & Burglary",
+      "message": "House-Breaking & Burglary spike detected in Kalaburagi — 70 cases in a short window.",
+      "why": "5.7σ above monthly baseline",
+      "caseCount": 70
+    },
+    {
+      "id": "AL01",
+      "alertId": "AL01",
+      "type": "Volume spike",
+      "severity": "high",
+      "district": "Bengaluru Urban",
+      "crimeType": "Motor Vehicle Theft",
+      "message": "Motor Vehicle Theft spike detected in Bengaluru Urban — 140 cases in a short window.",
+      "why": "3.8σ above monthly baseline",
+      "caseCount": 140
+    },
+    {
+      "id": "AL02",
+      "alertId": "AL02",
+      "type": "Volume spike",
+      "severity": "high",
+      "district": "Bengaluru Urban",
+      "crimeType": "Online Financial Fraud",
+      "message": "Online Financial Fraud spike detected in Bengaluru Urban — 120 cases in a short window.",
+      "why": "3.6σ above monthly baseline",
+      "caseCount": 120
+    },
+    {
+      "id": "AL04",
+      "alertId": "AL04",
+      "type": "Volume spike",
+      "severity": "high",
+      "district": "Mysuru",
+      "crimeType": "Robbery",
+      "message": "Robbery spike detected in Mysuru — 55 cases in a short window.",
+      "why": "6.2σ above monthly baseline",
+      "caseCount": 55
+    },
+    {
+      "id": "AL12",
+      "alertId": "AL12",
+      "type": "Volume spike",
+      "severity": "high",
+      "district": "Belagavi",
+      "crimeType": "Commercial Burglary",
+      "message": "Commercial & ATM Tampering spike in Belagavi — 32 incidents flagged across 4 stations.",
+      "why": "4.2σ above monthly baseline",
+      "caseCount": 32
+    },
+    {
+      "id": "AL13",
+      "alertId": "AL13",
+      "type": "Emerging serial pattern",
+      "severity": "high",
+      "district": "Hubballi-Dharwad",
+      "crimeType": "Cyber Extortion",
+      "message": "Task-based investment scam syndicate detected — 42 FIRs share beneficiary accounts.",
+      "why": "MO-fingerprint cluster across Hubballi & Belagavi",
+      "caseCount": 42
+    },
+    {
+      "id": "AL06",
+      "alertId": "AL06",
+      "type": "Emerging serial pattern",
+      "severity": "high",
+      "district": "Bengaluru Rural",
+      "crimeType": "Motor Vehicle Theft",
+      "message": "Highway two-wheeler theft ring — 9 FIRs across 3 districts share MO fingerprint.",
+      "why": "MO-fingerprint cluster matched",
+      "caseCount": 9
+    },
+    {
+      "id": "AL14",
+      "alertId": "AL14",
+      "type": "Volume spike",
+      "severity": "high",
+      "district": "Shivamogga",
+      "crimeType": "Agricultural Produce Theft",
+      "message": "Arecanut plantation produce theft surge in Shivamogga rural belt — 28 cases in 30 days.",
+      "why": "4.9σ above seasonal baseline",
+      "caseCount": 28
+    },
+    {
+      "id": "AL05",
+      "alertId": "AL05",
+      "type": "Emerging serial pattern",
+      "severity": "high",
+      "district": "Chitradurga",
+      "crimeType": "House-Breaking & Burglary",
+      "message": "Shutter-cutting shop burglar ring — 8 FIRs across 3 districts share MO fingerprint.",
+      "why": "MO-fingerprint cluster matched",
+      "caseCount": 8
+    },
+    {
+      "id": "AL15",
+      "alertId": "AL15",
+      "type": "Emerging serial pattern",
+      "severity": "high",
+      "district": "Dakshina Kannada",
+      "crimeType": "Harbour & Freight Theft",
+      "message": "Mangaluru port container siphoning ring — 11 FIRs share identical entry methods.",
+      "why": "Cross-station pattern matched",
+      "caseCount": 11
+    },
+    {
+      "id": "AL07",
+      "alertId": "AL07",
+      "type": "Emerging serial pattern",
+      "severity": "high",
+      "district": "Ramanagara",
+      "crimeType": "Robbery",
+      "message": "Motorcycle chain-snatching pair — 7 FIRs across 2 districts share MO fingerprint.",
+      "why": "MO-fingerprint cluster matched",
+      "caseCount": 7
+    },
+    {
+      "id": "AL16",
+      "alertId": "AL16",
+      "type": "Volume spike",
+      "severity": "high",
+      "district": "Tumakuru",
+      "crimeType": "Highway Cargo Theft",
+      "message": "Highway cargo & transit theft spike on NH-48 Tumakuru stretch — 19 cases in 25 days.",
+      "why": "3.9σ above highway baseline",
+      "caseCount": 19
+    },
+    {
+      "id": "AL09",
+      "alertId": "AL09",
+      "type": "Repeat offender",
+      "severity": "medium",
+      "district": "Bengaluru Urban",
+      "crimeType": "Organized Theft Ring",
+      "message": "Active ring — kingpin Basavaraj Setty coordinates 4-member theft ring (“Ring 11”).",
+      "why": "High betweenness-centrality node",
+      "caseCount": 4
+    },
+    {
+      "id": "AL10",
+      "alertId": "AL10",
+      "type": "Repeat offender",
+      "severity": "medium",
+      "district": "Chamarajanagar",
+      "crimeType": "Temple Hundi Theft",
+      "message": "Active ring — kingpin Darshan Fernandes coordinates 3-member temple hundi crew.",
+      "why": "High betweenness-centrality node",
+      "caseCount": 3
+    },
+    {
+      "id": "AL11",
+      "alertId": "AL11",
+      "type": "Repeat offender",
+      "severity": "medium",
+      "district": "Udupi",
+      "crimeType": "Burglary Ring",
+      "message": "Active ring — kingpin Umesh Devadiga coordinates 3-member burglary ring (“Ring 18”).",
+      "why": "High betweenness-centrality node",
+      "caseCount": 3
+    }
+  ],
   "stats/trends": [
     {
       "districtId": 1,

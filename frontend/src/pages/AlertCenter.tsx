@@ -4,7 +4,7 @@
 // Clicking an alert opens its triggering FIR in Case Search with the alert-context panel.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, PageHeader, Badge, State } from "@/components/ui";
+import { PageHeader, Badge, State, SpecularCard } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 
 interface Alert {
@@ -15,6 +15,11 @@ interface Alert {
 const FLOW = ["New", "Acknowledged", "Assigned", "Resolved"];
 const TYPE_TONE: Record<string, "danger" | "warn" | "accent" | "mute"> = {
   "Volume spike": "danger", "Emerging serial pattern": "accent", "Repeat offender": "warn",
+};
+const SPECULAR_LINE_COLOR: Record<string, string> = {
+  "Volume spike": "#f43f5e",
+  "Emerging serial pattern": "#38bdf8",
+  "Repeat offender": "#f59e0b",
 };
 
 // A live wall-clock that ticks every second, so the feed reads as an always-on monitor.
@@ -162,10 +167,22 @@ export default function AlertCenter() {
       </div>
 
       <State loading={!alerts} error={null} empty={!!alerts && shown.length === 0}>
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {shown.map((a, i) => (
+            // Wrapper keeps the staggered entry animation; SpecularCard supplies the shell. The
+            // just-arrived alert keeps its red ring on top of the specular border.
             <div key={a.id} className="netra-alert-in" style={{ animationDelay: `${Math.min(i, 8) * 45}ms` }}>
-            <Card className={`p-4 transition-colors hover:border-[var(--color-accent)]/50 ${a.id === justId ? "border-[var(--color-danger)]/60 ring-1 ring-[var(--color-danger)]/40" : ""}`}>
+            <SpecularCard
+              radius={12}
+              lineColor={SPECULAR_LINE_COLOR[a.type] ?? (a.severity === "high" ? "#f43f5e" : "#f59e0b")}
+              baseColor="#0f172a"
+              intensity={1.3}
+              shineSize={15}
+              shineFade={35}
+              thickness={1.5}
+              proximity={280}
+              className={`card-hover p-4 border bg-[var(--color-surface)] shadow-lg ${a.id === justId ? "border-[var(--color-danger)]/60 ring-1 ring-[var(--color-danger)]/40" : "border-[var(--color-border)]"}`}
+            >
               <div className="flex items-start gap-3">
                 <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${a.severity === "high" ? "bg-[var(--color-danger)]" : "bg-[var(--color-warn)]"} ${a.status === "New" ? "netra-live-dot" : ""}`} />
                 <button onClick={() => openCase(a)} disabled={!a.crimeNo}
@@ -178,7 +195,17 @@ export default function AlertCenter() {
                     <span className="text-xs text-[var(--color-text-mute)]">{a.district} · {a.date}</span>
                   </div>
                   <div className="text-sm text-[var(--color-text)]">{a.message}</div>
-                  <div className="mt-1 text-xs text-[var(--color-text-dim)]">🔬 Why flagged: <span className="text-[var(--color-text)]">{a.why}</span></div>
+                  {/* SVG icon replaces the 🔬 emoji; the drill-down affordance stays. */}
+                  <div className="mt-1.5 flex items-center gap-1.5 text-xs text-[var(--color-text-dim)]">
+                    <span className="flex items-center gap-1 font-semibold text-cyan-400">
+                      <svg className="w-3.5 h-3.5 text-cyan-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                      </svg>
+                      <span>Why flagged:</span>
+                    </span>
+                    <span className="text-[var(--color-text)]">{a.why}</span>
+                  </div>
                   {a.crimeNo && (
                     <div className="mt-1.5 text-[11px] text-[var(--color-accent)]">Open triggering FIR in Case Search →</div>
                   )}
@@ -192,7 +219,7 @@ export default function AlertCenter() {
                   )}
                 </div>
               </div>
-            </Card>
+            </SpecularCard>
             </div>
           ))}
         </div>

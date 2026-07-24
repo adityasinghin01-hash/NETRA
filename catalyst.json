@@ -1,7 +1,11 @@
 {
   "functions": {
-    "targets": ["netra_api"],
-    "ignore": [".output"],
+    "targets": [
+      "netra_api"
+    ],
+    "ignore": [
+      ".output"
+    ],
     "source": "functions"
   },
   "client": {

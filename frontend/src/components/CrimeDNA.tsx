@@ -107,27 +107,23 @@ export default function CrimeDNA({ dna, scores, translations }: { dna: CrimeDna;
     <div className="space-y-4">
       {/* Fingerprint header */}
       <div className="rounded-xl border border-[var(--color-accent-dim)] bg-[var(--color-surface-2)] p-4">
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-lg">🧬</span>
-            <span className="text-sm font-semibold text-[var(--color-text)]">Crime DNA</span>
-            <span className="text-xs text-[var(--color-text-mute)]">modus-operandi fingerprint</span>
+            <span className="text-xs font-bold tracking-widest text-[var(--color-text)] uppercase">Crime DNA</span>
+            <span className="text-xs text-[var(--color-text-mute)] font-mono">· modus-operandi fingerprint</span>
           </div>
           <Badge tone="accent">{Math.round(dna.confidence * 100)}% cohesion</Badge>
         </div>
 
-        {/* Signature dimensions — the shared MO */}
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {/* Signature dimensions — the shared MO (Monochromatic & Clean) */}
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           {dna.signature.map((s) => (
             <div
               key={s.dim + s.value}
-              className="flex items-start gap-2.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2"
+              className="flex flex-col justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3.5 py-2.5 transition-all"
             >
-              <span className="mt-0.5 text-base leading-none">{s.icon}</span>
-              <div className="min-w-0">
-                <div className="text-[10px] uppercase tracking-wider text-[var(--color-text-mute)]">{s.dim}</div>
-                <div className="truncate text-sm text-[var(--color-text)]" title={s.value}>{s.value}</div>
-              </div>
+              <div className="text-[10px] font-bold tracking-widest text-[var(--color-text-dim)] uppercase">{s.dim}</div>
+              <div className="truncate text-xs font-medium text-[var(--color-text)] mt-0.5" title={s.value}>{s.value}</div>
             </div>
           ))}
         </div>
@@ -140,58 +136,50 @@ export default function CrimeDNA({ dna, scores, translations }: { dna: CrimeDna;
       {/* Spread + cadence */}
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-lg bg-[var(--color-bg)] p-3">
-          <div className="text-[10px] uppercase tracking-wide text-[var(--color-text-mute)]">Linked FIRs</div>
+          <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-mute)]">Linked FIRs</div>
           <div className="tnum text-lg font-semibold text-[var(--color-text)]">{total}</div>
           <div className="text-[10px] text-[var(--color-text-mute)]">{solvedCount} solved · {unsolved.length} unsolved</div>
         </div>
         <div className="rounded-lg bg-[var(--color-bg)] p-3">
-          <div className="text-[10px] uppercase tracking-wide text-[var(--color-text-mute)]">Districts</div>
+          <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-mute)]">Districts</div>
           <div className="tnum text-lg font-semibold text-[var(--color-text)]">{dna.districts.length}</div>
         </div>
         <div className="rounded-lg bg-[var(--color-bg)] p-3">
-          <div className="text-[10px] uppercase tracking-wide text-[var(--color-text-mute)]">Strike cadence</div>
+          <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-mute)]">Strike cadence</div>
           <div className="tnum text-lg font-semibold text-[var(--color-text)]">{cadence ? `~${cadence}d` : "—"}</div>
         </div>
       </div>
 
-      {/* Forensic markers — the physical-evidence signature recurring across the series */}
+      {/* Series-wide forensic summary */}
       {forensics.length > 0 && (
         <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-          <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text)]">
-            🔬 Forensic markers across the series
+          <div className="mb-1.5 text-xs font-bold uppercase tracking-wider text-[var(--color-text)]">
+            Recurring physical evidence across this series
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {[
-              ["Recurring tool", topTool || "—"],
-              ["Evidence types", `${evidenceKinds.size} kinds`],
-              ["Fingerprints lifted", `${printLifts} of ${total} FIRs`],
-              ["FSL / DNA reports", fslCount ? `${fslCount}` : "—"],
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-md bg-[var(--color-surface-2)] px-2.5 py-1.5">
-                <div className="text-[10px] uppercase tracking-wide text-[var(--color-text-mute)]">{label}</div>
-                <div className="truncate text-xs text-[var(--color-text)]" title={value}>{value}</div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-1.5 text-[10px] leading-relaxed text-[var(--color-text-mute)]">
-            The same physical evidence recurs across the linked FIRs — this corroborates the MO link beyond the narrative, and populates the evidence report.
+          <div className="text-[11px] leading-relaxed text-[var(--color-text-dim)]">
+            Corroborates the MO link beyond the narrative.{" "}
+            {topTool ? <><span className="font-medium text-[var(--color-text)]">Recurring tool:</span> {topTool}. </> : ""}
+            {evidenceKinds.size > 0 ? <><span className="font-medium text-[var(--color-text)]">Evidence types:</span> {evidenceKinds.size}. </> : ""}
+            {printLifts > 0 ? <><span className="font-medium text-[var(--color-text)]">Fingerprints lifted:</span> in {printLifts} of {total} FIRs. </> : ""}
+            {fslCount > 0 ? <><span className="font-medium text-[var(--color-text)]">FSL / DNA reports:</span> {fslCount}. </> : ""}
           </div>
         </div>
       )}
 
       {/* Why one series */}
       <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3 text-sm leading-relaxed text-[var(--color-text-dim)]">
-        <span className="font-medium text-[var(--color-text)]">Why one series: </span>{dna.why}
+        <span className="font-semibold uppercase text-[10px] tracking-wider text-[var(--color-text-mute)] block mb-0.5">Series Justification</span>
+        <span className="text-xs text-[var(--color-text)]">{dna.why}</span>
       </div>
 
       {/* One arrest → many clearances */}
       {dna.offender && unsolved.length > 0 && (
-        <div className="rounded-xl border border-[var(--color-ok)]/40 bg-[var(--color-ok)]/[0.06] p-3">
-          <div className="flex items-center gap-2 text-sm">
-            <span>⚖️</span>
-            <span className="font-semibold text-[var(--color-text)]">One arrest → many clearances</span>
+        <div className="rounded-xl border border-[var(--color-ok)]/40 bg-[var(--color-ok)]/[0.06] p-3.5">
+          <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[var(--color-text)]">
+            <span>Series Clearance Impact Analysis</span>
+            <span className="text-[10px] font-normal text-[var(--color-ok)] bg-[var(--color-ok)]/15 px-2 py-0.5 rounded-full lowercase">high impact</span>
           </div>
-          <p className="mt-1.5 text-xs leading-relaxed text-[var(--color-text-dim)]">
+          <p className="mt-2 text-xs leading-relaxed text-[var(--color-text-dim)]">
             <span className="font-semibold text-[var(--color-ok)]">{unsolved.length} of the {total} linked FIRs</span> in this series are still unsolved.
             Arrest <span className="font-medium text-[var(--color-accent)]">{dna.offender}</span> — the shared hand across all {total} —
             and those {unsolved.length} open case{unsolved.length === 1 ? "" : "s"} across {unsolvedDistricts.length} district{unsolvedDistricts.length === 1 ? "" : "s"}
@@ -202,7 +190,7 @@ export default function CrimeDNA({ dna, scores, translations }: { dna: CrimeDna;
           </div>
           <button
             onClick={() => setShowClear((v) => !v)}
-            className="mt-2 rounded-lg border border-[var(--color-ok)]/50 px-2.5 py-1 text-[11px] font-medium text-[var(--color-ok)] hover:bg-[var(--color-ok)]/10"
+            className="mt-2.5 rounded-lg border border-[var(--color-ok)]/50 px-2.5 py-1 text-[11px] font-medium text-[var(--color-ok)] hover:bg-[var(--color-ok)]/10 transition-colors"
           >
             {showClear ? "Hide clearable cases" : `Reveal ${unsolved.length} clearable case${unsolved.length === 1 ? "" : "s"}`}
           </button>
