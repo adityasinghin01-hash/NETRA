@@ -2,17 +2,11 @@
 // "why flagged" statistic, and a New→Acknowledged→Assigned→Resolved lifecycle (a workflow an
 // officer works, not a list they read). Data: public/alerts-feed.json (build_alerts.py).
 // Clicking an alert opens its triggering FIR in Case Search with the alert-context panel.
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageHeader, Badge, State, SpecularCard } from "@/components/ui";
-import { getSession } from "@/lib/auth";
-
-interface Alert {
-  id: string; type: string; severity: string; district: string; crimeType: string;
-  message: string; why: string; count: number; date: string; status: string;
-  crimeNo?: string | null; clusterId?: string | null;
-}
-const FLOW = ["New", "Acknowledged", "Assigned", "Resolved"];
+import { advanceStatus, arrived, FLOW, SYNC_MS, type Alert } from "@/lib/liveAlerts";
+import { useLiveAlerts } from "@/lib/useLiveAlerts";
 const TYPE_TONE: Record<string, "danger" | "warn" | "accent" | "mute"> = {
   "Volume spike": "danger", "Emerging serial pattern": "accent", "Repeat offender": "warn",
 };
@@ -33,91 +27,27 @@ function useClock() {
 }
 
 export default function AlertCenter() {
-  const scope = getSession().district;
+  // District scoping now happens inside the shared store, so the bell and this page filter identically.
   const nav = useNavigate();
-  const [alerts, setAlerts] = useState<Alert[] | null>(null);
-  const [override, setOverride] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<string>("all");
   const now = useClock();
 
-  const [lastSync, setLastSync] = useState<Date | null>(null);
-  // Progressive live arrival: the feed's precomputed anomalies surface OVER TIME so the monitor
-  // reads as live rather than a static list. A few show at first; then each sync brings a
-  // previously-unshown detection to the top with a NEW flash. Every card is a real precomputed
-  // alert — this is reveal-over-time, never fabricated data.
-  const INITIAL_SHOWN = 4;
-  const [reveal, setReveal] = useState<{ shown: string[]; queue: string[] } | null>(null);
-  const [justId, setJustId] = useState<string | null>(null);
-
-  const loadedRef = useRef(false); // have we EVER loaded the feed? (avoids a stale `alerts` read)
-  useEffect(() => {
-    let alive = true;
-    const pull = () =>
-      fetch(`${import.meta.env.BASE_URL}alerts-feed.json?t=${Date.now()}`, { cache: "no-store" })
-        .then((r) => r.json())
-        .then((d) => { if (alive) { loadedRef.current = true; setAlerts(d); setLastSync(new Date()); } })
-        // Only fall back to empty on the FIRST-ever load failure. A transient failure on a later
-        // 20s re-sync must NOT wipe the already-loaded feed (the old `!alerts` closed over a stale
-        // null and cleared the list on every failed sync).
-        .catch(() => { if (alive && !loadedRef.current) setAlerts([]); });
-    pull();
-    // Each 20s sync re-fetches AND surfaces one more queued detection at the top.
-    const t = setInterval(() => {
-      pull();
-      setReveal((rv) => {
-        if (!rv || rv.queue.length === 0) return rv;
-        const [next, ...queue] = rv.queue;
-        setJustId(next);
-        return { shown: [next, ...rv.shown], queue };
-      });
-    }, 20000);
-    return () => { alive = false; clearInterval(t); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Seed the reveal queue once the feed loads, then only APPEND genuinely-new alert ids on later
-  // syncs — never reset. (Each 20s pull replaces the `alerts` array, so a plain re-seed here would
-  // reset the reveal back to the first few every sync — the bug that stopped new alerts appearing.)
-  useEffect(() => {
-    if (!alerts) return;
-    const ids = alerts
-      .filter((a) => !scope || a.district.includes(scope) || a.district === "state-wide")
-      .map((a) => a.id);
-    setReveal((rv) => {
-      if (!rv) return { shown: ids.slice(0, INITIAL_SHOWN), queue: ids.slice(INITIAL_SHOWN) };
-      const known = new Set([...rv.shown, ...rv.queue]);
-      const fresh = ids.filter((id) => !known.has(id));
-      return fresh.length ? { shown: rv.shown, queue: [...rv.queue, ...fresh] } : rv;
-    });
-  }, [alerts, scope]);
-
-  // The NEW flash on a just-arrived alert is transient.
-  useEffect(() => {
-    if (!justId) return;
-    const t = setTimeout(() => setJustId(null), 7000);
-    return () => clearTimeout(t);
-  }, [justId]);
-
-  const scoped = useMemo(
-    () => (alerts ?? [])
-      .filter((a) => !scope || a.district.includes(scope) || a.district === "state-wide")
-      .map((a) => ({ ...a, status: override[a.id] ?? a.status })),
-    [alerts, scope, override]
-  );
-  // Only alerts that have "arrived" are visible; ordered so the newest arrival is on top.
-  const byId = useMemo(() => new Map(scoped.map((a) => [a.id, a])), [scoped]);
-  const ordered = useMemo(
-    () => (reveal?.shown ?? []).map((id) => byId.get(id)).filter(Boolean) as typeof scoped,
-    [reveal, byId]
-  );
-  const incoming = reveal?.queue.length ?? 0;
+  // Feed, progressive arrival and workflow statuses all live in the shared store, so the nav bell
+  // and this page always agree and a new detection lights up both at the same moment.
+  const live = useLiveAlerts();
+  const { lastSync } = live;
+  const alerts = live.alerts;
+  const justId = live.justId;
+  // Only alerts that have "arrived" are visible; ordered so the newest arrival is on top. The
+  // reveal queue and statuses come from the shared store (see lib/liveAlerts.ts).
+  const ordered = useMemo(() => arrived(live), [live]);
+  const incoming = live.queue.length;
   const shown = filter === "all" ? ordered : ordered.filter((a) => a.status === filter);
   const openCount = ordered.filter((a) => a.status !== "Resolved").length;
   const highCount = ordered.filter((a) => a.severity === "high" && a.status !== "Resolved").length;
 
   function advance(a: Alert) {
-    const i = FLOW.indexOf(a.status);
-    setOverride((o) => ({ ...o, [a.id]: FLOW[Math.min(i + 1, FLOW.length - 1)] }));
+    advanceStatus(a.id, a.status); // shared store → the nav bell count updates with it
   }
   function openCase(a: Alert) {
     if (!a.crimeNo) return;
@@ -150,7 +80,7 @@ export default function AlertCenter() {
       <div className="mb-3 flex items-center gap-2 text-[11px] text-[var(--color-text-mute)]">
         <span className="netra-live-dot inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-ok)]" />
         Monitoring continuously · clock <span className="tnum text-[var(--color-text-dim)]">{hhmmss}</span>
-        {lastSync && <> · feed synced <span className="tnum text-[var(--color-text-dim)]">{Math.max(0, Math.round((now.getTime() - lastSync.getTime()) / 1000))}s ago</span> (every 20s)</>}
+        {lastSync && <> · feed synced <span className="tnum text-[var(--color-text-dim)]">{Math.max(0, Math.round((now.getTime() - lastSync.getTime()) / 1000))}s ago</span> (every {Math.round(SYNC_MS / 1000)}s)</>}
         · {ordered.length} active{incoming > 0 && <> · <span className="text-[var(--color-warn)]">{incoming} scanning…</span></>}
       </div>
 

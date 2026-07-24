@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { gsap } from "gsap";
 import { IS_MOCK } from "@/api/client";
 import { getSession, clearSession } from "@/lib/auth";
+import { useAlertCounts } from "@/lib/useLiveAlerts";
 import { Badge } from "./ui";
 import Copilot from "./Copilot";
 import logoImg from "@/assets/logo.png";
@@ -86,15 +87,12 @@ export default function AppShell() {
   const location = useLocation();
   const session = getSession();
   const initials = session.roleLabel.split(" · ")[0];
-  const [alertCount, setAlertCount] = useState(0);
+  // Live badge from the shared store: counts alerts that have ACTUALLY ARRIVED and are still
+  // unread ("New"), in the officer's district. It ticks up the moment a detection surfaces and
+  // down as alerts are acknowledged. (It used to fetch the feed once on mount and count every
+  // high-severity row in the file — a frozen number that ignored arrivals, scope and workflow.)
+  const { unread: alertCount, incoming } = useAlertCounts();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-
-  useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}alerts-feed.json`)
-      .then((r) => r.json())
-      .then((a: { severity: string }[]) => setAlertCount(a.filter((x) => x.severity === "high").length))
-      .catch(() => {});
-  }, []);
 
   const handleMouseEnter = (e: React.MouseEvent<HTMLAnchorElement>) => {
     const item = e.currentTarget;
@@ -266,15 +264,25 @@ export default function AppShell() {
 
           <div className="flex items-center gap-3">
             {IS_MOCK && <Badge tone="warn">MOCK DATA</Badge>}
-            <NavLink to="/alerts" className="relative p-1.5 rounded-lg text-slate-400 hover:text-cyan-400 hover:bg-[var(--color-surface-2)] transition-colors" title="Alert Center">
-              <svg className="w-5 h-5 text-cyan-400 stroke-[2]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+            {/* Bell: badge = unread alerts that have arrived. The bell swings and the badge pings
+                when one lands, so a new detection is noticeable from any page. `incoming` is the
+                queue still being scanned — shown as a quiet dot, never counted as a real alert. */}
+            <NavLink to="/alerts" className="relative p-1.5 rounded-lg text-slate-400 hover:text-cyan-400 hover:bg-[var(--color-surface-2)] transition-colors"
+              title={alertCount > 0 ? `${alertCount} unread alert${alertCount > 1 ? "s" : ""} — open Alert Center` : "Alert Center — no unread alerts"}>
+              <svg className={`w-5 h-5 text-cyan-400 stroke-[2] ${alertCount > 0 ? "netra-bell-swing" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
                 <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
               </svg>
               {alertCount > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-danger)] px-1 text-[9px] font-semibold text-white">
-                  {alertCount}
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-danger)] opacity-60" />
+                  <span className="relative flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-danger)] px-1 text-[9px] font-semibold text-white">
+                    {alertCount}
+                  </span>
                 </span>
+              )}
+              {alertCount === 0 && incoming > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-[var(--color-warn)]/70" title={`${incoming} detections scanning`} />
               )}
             </NavLink>
           </div>

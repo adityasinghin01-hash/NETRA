@@ -88,6 +88,20 @@ body {
   100% { background-position: -200% 0; }
 }
 
+/* Nav bell: a periodic swing while unread alerts are waiting. Subtle by design — it draws the
+   eye without becoming a distraction on a monitor an officer keeps open all shift. */
+@keyframes netraBellSwing {
+  0%, 88%, 100% { transform: rotate(0deg); }
+  90% { transform: rotate(12deg); }
+  93% { transform: rotate(-10deg); }
+  96% { transform: rotate(6deg); }
+  98% { transform: rotate(-3deg); }
+}
+.netra-bell-swing {
+  animation: netraBellSwing 4s ease-in-out infinite;
+  transform-origin: 50% 15%;
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
