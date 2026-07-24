@@ -235,14 +235,18 @@ export default function CopilotDiagram({ action }: { action: Extract<UiAction, {
 
     // An <img>-loaded SVG MUST carry explicit namespaces and pixel dimensions or it silently
     // refuses to load; mermaid emits width="100%" + a max-width style, both of which must go.
-    // Done as string surgery rather than DOMParser because a diagram containing foreignObject
-    // HTML is not well-formed XML and would fail to parse at all.
-    let markup = svg
-      .replace(/^\s*<svg\b/, '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"')
-      .replace(/(<svg\b[^>]*?)\swidth="[^"]*"/, "$1")
-      .replace(/(<svg\b[^>]*?)\sheight="[^"]*"/, "$1")
-      .replace(/(<svg\b[^>]*?)\sstyle="[^"]*"/, "$1")
-      .replace(/^\s*<svg\b/, `<svg width="${w}" height="${h}"`);
+    // Rewrite ONLY the opening <svg> tag, stripping each attribute we are about to set before
+    // setting it — mermaid already emits xmlns, and a duplicate attribute makes the document
+    // invalid XML, which is itself a silent load failure. String surgery rather than DOMParser
+    // because a diagram is not guaranteed to be well-formed XML in the first place.
+    let markup = svg;
+    const openTag = svg.match(/<svg\b[^>]*>/)?.[0];
+    if (openTag) {
+      const rebuilt = openTag
+        .replace(/\s(?:width|height|style|xmlns|xmlns:xlink)="[^"]*"/g, "")
+        .replace(/^<svg\b/, `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${w}" height="${h}"`);
+      markup = svg.replace(openTag, () => rebuilt);
+    }
 
     try {
       // foreignObject can't be rasterized by any major browser through an <img>. htmlLabels are
