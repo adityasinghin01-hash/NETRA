@@ -58,16 +58,30 @@ function suggestFollow(hits: Retrieved[]): string[] {
   return [...s].slice(0, 3);
 }
 
-// Persona for conversational turns — GLM replies naturally (not a canned script).
-const CONV_SYS = `You are NETRA, an AI crime-intelligence assistant for the Karnataka State Police — warm, concise and professional. This message is conversational (a greeting, small-talk, or a question about you or your abilities). Reply naturally and specifically to what the user actually said, in their language (English or Kannada). Do NOT paste a fixed feature list unless they ask what you can do — and even then keep it brief and human, varying your wording. Your abilities: answer questions grounded in live crime intelligence (hotspots, serial clusters, rings & kingpins, cold cases, district stats) with citations; draw diagrams (link charts, org-charts, timelines, money-trails, MO flows); draft police documents (FIR, charge-sheet, look-out notice) for human sign-off; read scanned documents (OCR). Everything stays in the police cloud (sovereign). Never invent crime facts, names, FIR numbers or statistics.`;
+// Persona for conversational turns. The hard rule here is anti-repetition: without it, GLM
+// re-lists its whole capability menu on every "you sure?" / "how can you help" turn (it mimics
+// its own earlier long answers in the history). Answer the ACTUAL message, briefly.
+const CONV_SYS = `You are NETRA, an AI crime-intelligence assistant for the Karnataka State Police — warm, concise, human. This turn is conversational (a greeting, small-talk, or a question about you).
+RULES — follow strictly:
+- Answer the user's ACTUAL message directly, in 1–3 short sentences. Reply in their language (English or Kannada).
+- If the conversation history shows you have ALREADY described your abilities, do NOT list them again. Just answer the point ("Yes, I'm sure." / "Happy to help — which case are you on?") and, at most, suggest ONE concrete next step.
+- Give a short capability overview ONLY if the user explicitly asks what you can do AND you have not already given one this conversation. Even then: 2–3 sentences of prose, never a numbered feature menu.
+- Never invent crime facts, names, FIR numbers or statistics.
+For your reference (do NOT recite as a list): you answer grounded questions on hotspots, serial clusters, rings & kingpins, cold cases and districts with citations; draw diagrams; draft police documents for sign-off; read scanned documents. Everything runs in the police cloud.`;
 
 // True for greetings / small-talk / questions about the assistant — NOT data questions.
-const DATA_HINT = /(hotspot|forecast|next week|predict|patrol|serial|cluster|link|kingpin|ring|gang|network|cold|undetected|unsolved|worklist|district|clock|peak|rossmo|strike|arrest|clear|burglar|theft|fraud|snatch|murder|robber|chargesheet|\bfir\b|\bcase|draft|diagram|chart|\bmap\b|offender|detection|heinous|\bstat)/i;
+const DATA_HINT = /(hotspot|forecast|next week|predict|patrol|serial|cluster|link|kingpin|ring|gang|network|cold|undetected|unsolved|worklist|district|clock|peak|rossmo|strike|arrest|clear|burglar|theft|fraud|snatch|murder|robber|chargesheet|\bfir\b|\bcase|draft|diagram|chart|\bmap\b|offender|detection|heinous|\bstat|\bsc\d{2}\b|\d{6,})/i;
 function isConversational(q: string): boolean {
   const s = q.toLowerCase().trim();
-  if (DATA_HINT.test(s)) return false;
+  if (DATA_HINT.test(s)) return false; // a real data question always wins
+  const words = s.split(/\s+/).filter(Boolean);
+  // Robust catch-all: a SHORT turn with no data-domain term is almost always a greeting,
+  // small-talk, or a meta follow-up ("you sure?", "how can you hep me", "and then?"). Chatting
+  // beats retrieving here — the old brittle keyword list mis-routed these into data search,
+  // which returned irrelevant cards and made GLM dump a capabilities menu with a ⚠️ warning.
+  if (words.length <= 6) return true;
   return /^(hi|hello|hey|yo|hola|namaste|namaskara|sup|good (morning|evening|afternoon))\b/.test(s)
-    || /(what can you|what do you do|what are you|who are you|who (made|built)|can you help|help me|how are you|how'?s it going|are you (there|real|an ai)|introduce|your name|thank|thanks|thx|goodbye|see you|nice|cool|great job|well done|good job|awesome|hmm|okay\b|test\b)/.test(s)
+    || /(what can you|what do you do|what are you|who are you|who (made|built)|can you (help|hep)|\b(help|hep) me|how are you|how'?s it going|are you (there|real|sure|an ai)|introduce|your name|thank|thanks|thx|goodbye|see you|nice|cool|great job|well done|good job|awesome|hmm|okay\b|test\b|you sure|really|promise|certain|confident|useful)/.test(s)
     || /^(ok|k|bye|hm+)\b/.test(s) || s.length < 3;
 }
 
@@ -81,7 +95,7 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
   // Conversational turn → natural GLM reply, no retrieval, no confidence gate.
   if (isConversational(query)) {
     try {
-      const r = await glmChat([{ role: "system", content: CONV_SYS }, ...hist, { role: "user", content: query }], { max_tokens: 350, temperature: 0.6 });
+      const r = await glmChat([{ role: "system", content: CONV_SYS }, ...hist, { role: "user", content: query }], { max_tokens: 160, temperature: 0.6 });
       if (r.text.trim())
         return { text: r.text, cites: [], cardIds: [], confidence: 1, grounded: true, actions: [], trace: ["conversational"], follow: followDefault };
     } catch { /* fall through to a simple non-LLM reply */ }

@@ -35,8 +35,21 @@ export default function AlertCenter() {
   const [filter, setFilter] = useState<string>("all");
   const now = useClock();
 
+  const [lastSync, setLastSync] = useState<Date | null>(null);
+  // Genuinely re-fetch the feed on an interval (not just a ticking clock) so the monitor is
+  // actually live: new alerts appear, worked ones the officer resolved persist via `override`.
+  // Cache-busted so a static host still serves the latest build of the feed.
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}alerts-feed.json`).then((r) => r.json()).then(setAlerts).catch(() => setAlerts([]));
+    let alive = true;
+    const pull = () =>
+      fetch(`${import.meta.env.BASE_URL}alerts-feed.json?t=${Date.now()}`, { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d) => { if (alive) { setAlerts(d); setLastSync(new Date()); } })
+        .catch(() => { if (alive && !alerts) setAlerts([]); });
+    pull();
+    const t = setInterval(pull, 20000); // refresh every 20s
+    return () => { alive = false; clearInterval(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const scoped = useMemo(
@@ -83,7 +96,9 @@ export default function AlertCenter() {
 
       <div className="mb-3 flex items-center gap-2 text-[11px] text-[var(--color-text-mute)]">
         <span className="netra-live-dot inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-ok)]" />
-        Monitoring continuously · anomaly scan clock <span className="tnum text-[var(--color-text-dim)]">{hhmmss}</span> · {scoped.length} active in view
+        Monitoring continuously · clock <span className="tnum text-[var(--color-text-dim)]">{hhmmss}</span>
+        {lastSync && <> · feed synced <span className="tnum text-[var(--color-text-dim)]">{Math.max(0, Math.round((now.getTime() - lastSync.getTime()) / 1000))}s ago</span> (every 20s)</>}
+        · {scoped.length} active in view
       </div>
 
       <div className="mb-4 flex flex-wrap gap-1.5">
