@@ -1,0 +1,51 @@
+# ============================================================================
+# NETRA BLIND TEST — secret serial-crime patterns
+# ============================================================================
+# HOW THIS WORKS
+#   You (Aditya) invent 5 serial-crime patterns and write them here. The AI's
+#   builder (Claude) NEVER sees this file. The harness mixes your patterns into
+#   1,500 real FIRs and checks whether the linkage AI pulls each pattern's FIRs
+#   together — proving it finds serial crimes it was never shown.
+#
+# WHAT TO WRITE
+#   5 patterns. For EACH pattern, write 5–8 short FIR narratives (one per line).
+#   • Same modus operandi within a pattern (same method / tool / target / quirk)
+#   • VARY the wording each time — do NOT copy-paste; describe it differently
+#   • Use DISTINCTIVE details (a specific tool, target, or signature) so it reads
+#     like a real serial offender, not a generic crime
+#   • Make the 5 patterns different crime types / methods from each other
+#   • English or Kannada, your choice
+#
+# FORMAT
+#   Separate patterns with a line starting with ===  (label after it is optional).
+#   Blank lines and #comment lines are ignored.
+#
+# WHEN DONE
+#   1. Save this file as:  pipeline/blindtest/patterns.txt
+#   2. Run:  python3 -m pipeline.blindtest
+#   3. Share ONLY the printed numbers with Claude. Keep this file private.
+#
+# Delete the EXAMPLE below and write your own 5 patterns.
+# ============================================================================
+
+=== EXAMPLE (delete this whole block)
+A ground-floor pharmacy was broken into overnight; the offender angle-ground the rear shutter and took only cash and codeine cough syrups, spray-painting the CCTV black.
+Chemist shop burgled before dawn — culprit cut the back shutter with a grinder, stole codeine syrup and the till cash, blacked out the camera with spray paint.
+Overnight break-in at a medical store; rear shutter ground open, codeine syrup and cash missing, CCTV lens sprayed over.
+A pharmacy reported theft of cough syrup and cash after someone grinded the rear shutter and painted the CCTV black at 2 AM.
+Medical shop shutter cut with an angle grinder at night; only codeine syrups and counter cash taken, security camera spray-painted.
+
+=== PATTERN 1: (your label)
+(write 5-8 varied FIR narratives, one per line)
+
+=== PATTERN 2: (your label)
+
+
+=== PATTERN 3: (your label)
+
+
+=== PATTERN 4: (your label)
+
+
+=== PATTERN 5: (your label)
+

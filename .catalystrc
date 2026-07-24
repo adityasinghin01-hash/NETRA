@@ -1,0 +1,30 @@
+{
+  "defaults": {
+    "project": 1,
+    "env": 1
+  },
+  "actives": {
+    "project": 1,
+    "env": 1
+  },
+  "projects": [
+    {
+      "idx": 1,
+      "id": "55012000000013048",
+      "name": "netra",
+      "domain": {
+        "id": "50043876889",
+        "name": "netra-60077866273.development"
+      },
+      "timezone": "Asia/Kolkata",
+      "env": [
+        {
+          "idx": 1,
+          "id": "60077866273",
+          "name": "Development",
+          "type": 3
+        }
+      ]
+    }
+  ]
+}

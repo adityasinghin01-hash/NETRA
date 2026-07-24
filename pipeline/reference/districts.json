@@ -1,0 +1,40 @@
+{
+  "_meta": {
+    "description": "31 Karnataka districts. Centroids are approximate (demo-grade), used to anchor synthetic FIR coordinates. districtCode is the 4-digit field in the KSP CrimeNo format (1 cat + 4 district + 4 station + 4 year + 5 serial). Codes here are sequential synthetic stand-ins, NOT real KSP unit IDs (those are not public).",
+    "population_weight_note": "weight = relative share of synthetic FIRs; Bengaluru Urban dominates, mirroring real crime-volume concentration.",
+    "regions": ["Bengaluru", "South", "Coastal", "Malnad", "North"]
+  },
+  "districts": [
+    { "districtId": 1,  "districtCode": "0001", "name": "Bengaluru Urban",   "aka": "Bangalore Urban", "lat": 12.9716, "lng": 77.5946, "region": "Bengaluru", "weight": 22 },
+    { "districtId": 2,  "districtCode": "0002", "name": "Bengaluru Rural",   "aka": "Bangalore Rural", "lat": 13.2210, "lng": 77.5730, "region": "Bengaluru", "weight": 4 },
+    { "districtId": 3,  "districtCode": "0003", "name": "Ramanagara",        "aka": null,              "lat": 12.7217, "lng": 77.2800, "region": "Bengaluru", "weight": 3 },
+    { "districtId": 4,  "districtCode": "0004", "name": "Kolar",             "aka": null,              "lat": 13.1367, "lng": 78.1292, "region": "Bengaluru", "weight": 3 },
+    { "districtId": 5,  "districtCode": "0005", "name": "Chikkaballapura",   "aka": null,              "lat": 13.4355, "lng": 77.7315, "region": "Bengaluru", "weight": 3 },
+    { "districtId": 6,  "districtCode": "0006", "name": "Tumakuru",          "aka": "Tumkur",          "lat": 13.3379, "lng": 77.1017, "region": "Bengaluru", "weight": 4 },
+    { "districtId": 7,  "districtCode": "0007", "name": "Mysuru",            "aka": "Mysore",          "lat": 12.2958, "lng": 76.6394, "region": "South",     "weight": 7 },
+    { "districtId": 8,  "districtCode": "0008", "name": "Mandya",            "aka": null,              "lat": 12.5223, "lng": 76.8954, "region": "South",     "weight": 3 },
+    { "districtId": 9,  "districtCode": "0009", "name": "Hassan",            "aka": null,              "lat": 13.0033, "lng": 76.1004, "region": "South",     "weight": 3 },
+    { "districtId": 10, "districtCode": "0010", "name": "Chamarajanagar",    "aka": null,              "lat": 11.9236, "lng": 76.9456, "region": "South",     "weight": 2 },
+    { "districtId": 11, "districtCode": "0011", "name": "Kodagu",            "aka": "Coorg",           "lat": 12.4218, "lng": 75.7400, "region": "South",     "weight": 2 },
+    { "districtId": 12, "districtCode": "0012", "name": "Dakshina Kannada",  "aka": "Mangaluru",       "lat": 12.8500, "lng": 75.2400, "region": "Coastal",   "weight": 5 },
+    { "districtId": 13, "districtCode": "0013", "name": "Udupi",             "aka": null,              "lat": 13.3409, "lng": 74.7421, "region": "Coastal",   "weight": 3 },
+    { "districtId": 14, "districtCode": "0014", "name": "Uttara Kannada",    "aka": "Karwar",          "lat": 14.8000, "lng": 74.6800, "region": "Coastal",   "weight": 2 },
+    { "districtId": 15, "districtCode": "0015", "name": "Chikkamagaluru",    "aka": "Chikmagalur",     "lat": 13.3161, "lng": 75.7720, "region": "Malnad",    "weight": 2 },
+    { "districtId": 16, "districtCode": "0016", "name": "Shivamogga",        "aka": "Shimoga",         "lat": 13.9299, "lng": 75.5681, "region": "Malnad",    "weight": 3 },
+    { "districtId": 17, "districtCode": "0017", "name": "Davanagere",        "aka": null,              "lat": 14.4644, "lng": 75.9218, "region": "North",     "weight": 3 },
+    { "districtId": 18, "districtCode": "0018", "name": "Chitradurga",       "aka": null,              "lat": 14.2251, "lng": 76.3980, "region": "North",     "weight": 3 },
+    { "districtId": 19, "districtCode": "0019", "name": "Ballari",           "aka": "Bellary",         "lat": 15.1394, "lng": 76.9214, "region": "North",     "weight": 3 },
+    { "districtId": 20, "districtCode": "0020", "name": "Vijayanagara",      "aka": "Hosapete",        "lat": 15.2690, "lng": 76.3900, "region": "North",     "weight": 2 },
+    { "districtId": 21, "districtCode": "0021", "name": "Koppal",            "aka": null,              "lat": 15.3500, "lng": 76.1543, "region": "North",     "weight": 2 },
+    { "districtId": 22, "districtCode": "0022", "name": "Raichur",           "aka": null,              "lat": 16.2076, "lng": 77.3463, "region": "North",     "weight": 3 },
+    { "districtId": 23, "districtCode": "0023", "name": "Yadgir",            "aka": null,              "lat": 16.7700, "lng": 77.1376, "region": "North",     "weight": 2 },
+    { "districtId": 24, "districtCode": "0024", "name": "Kalaburagi",        "aka": "Gulbarga",        "lat": 17.3297, "lng": 76.8343, "region": "North",     "weight": 4 },
+    { "districtId": 25, "districtCode": "0025", "name": "Bidar",             "aka": null,              "lat": 17.9104, "lng": 77.5199, "region": "North",     "weight": 3 },
+    { "districtId": 26, "districtCode": "0026", "name": "Vijayapura",        "aka": "Bijapur",         "lat": 16.8302, "lng": 75.7100, "region": "North",     "weight": 3 },
+    { "districtId": 27, "districtCode": "0027", "name": "Bagalkot",          "aka": null,              "lat": 16.1817, "lng": 75.6960, "region": "North",     "weight": 2 },
+    { "districtId": 28, "districtCode": "0028", "name": "Belagavi",          "aka": "Belgaum",         "lat": 15.8497, "lng": 74.4977, "region": "North",     "weight": 5 },
+    { "districtId": 29, "districtCode": "0029", "name": "Dharwad",           "aka": "Hubli-Dharwad",   "lat": 15.4589, "lng": 75.0078, "region": "North",     "weight": 4 },
+    { "districtId": 30, "districtCode": "0030", "name": "Gadag",             "aka": null,              "lat": 15.4292, "lng": 75.6280, "region": "North",     "weight": 2 },
+    { "districtId": 31, "districtCode": "0031", "name": "Haveri",            "aka": null,              "lat": 14.7935, "lng": 75.4040, "region": "North",     "weight": 2 }
+  ]
+}

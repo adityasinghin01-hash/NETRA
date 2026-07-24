@@ -1,0 +1,10 @@
+{
+  "name": "netra_api",
+  "version": "1.0.0",
+  "description": "NETRA API — reads dashboard payloads from Catalyst Data Store",
+  "main": "index.js",
+  "dependencies": {
+    "express": "^4.21.2",
+    "zcatalyst-sdk-node": "3.4.0"
+  }
+}

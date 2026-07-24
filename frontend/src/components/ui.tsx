@@ -1,0 +1,80 @@
+// Shared NETRA UI primitives + data hook. Small on purpose — the frontend
+// teammate can swap useApi for TanStack Query later (see FRONTEND_PATTERNS §10).
+import { useEffect, useState, type ReactNode } from "react";
+import { api } from "@/api/client";
+
+export function useApi<T>(path: string | null) {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!path) return;
+    let alive = true;
+    setLoading(true);
+    setError(null);
+    api<T>(path)
+      .then((d) => alive && setData(d))
+      .catch((e) => alive && setError(String(e)))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [path]);
+  return { data, loading, error };
+}
+
+export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={`rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+export function StatTile({ label, value, sub }: { label: string; value: ReactNode; sub?: string }) {
+  return (
+    <Card className="card-hover relative overflow-hidden p-4">
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[var(--color-accent)] to-transparent opacity-40" />
+      <div className="text-[11px] uppercase tracking-wider text-[var(--color-text-mute)]">{label}</div>
+      <div className="tnum mt-1.5 text-[26px] font-semibold leading-none text-[var(--color-text)]">{value}</div>
+      {sub && <div className="mt-1 text-xs text-[var(--color-text-dim)]">{sub}</div>}
+    </Card>
+  );
+}
+
+export function Badge({ children, tone = "accent" }: { children: ReactNode; tone?: "accent" | "danger" | "warn" | "ok" | "mute" }) {
+  const c = {
+    accent: "text-[var(--color-accent)] border-[var(--color-accent-dim)]",
+    danger: "text-[var(--color-danger)] border-[var(--color-danger)]",
+    warn: "text-[var(--color-warn)] border-[var(--color-warn)]",
+    ok: "text-[var(--color-ok)] border-[var(--color-ok)]",
+    mute: "text-[var(--color-text-dim)] border-[var(--color-border-strong)]",
+  }[tone];
+  return <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs ${c}`}>{children}</span>;
+}
+
+export function State({ loading, error, empty, children }: { loading: boolean; error: string | null; empty?: boolean; children: ReactNode }) {
+  if (loading)
+    return (
+      <div className="space-y-2 p-1">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="skeleton h-4" style={{ width: `${90 - i * 12}%` }} />
+        ))}
+      </div>
+    );
+  if (error) return <div className="p-6 text-sm text-[var(--color-danger)]">Couldn’t load data. {error}</div>;
+  if (empty) return <div className="p-6 text-sm text-[var(--color-text-mute)]">No data for this view.</div>;
+  return <>{children}</>;
+}
+
+export function PageHeader({ title, desc, right }: { title: string; desc?: string; right?: ReactNode }) {
+  return (
+    <div className="mb-5 flex items-start justify-between">
+      <div>
+        <h1 className="text-xl font-semibold text-[var(--color-text)]">{title}</h1>
+        {desc && <p className="mt-0.5 text-sm text-[var(--color-text-dim)]">{desc}</p>}
+      </div>
+      {right}
+    </div>
+  );
+}
