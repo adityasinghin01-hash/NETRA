@@ -550,11 +550,19 @@ export default function Cases() {
           <button
             onClick={semanticSearch}
             disabled={semQ.trim().length < 4 || semLoading || !caseVecs}
-            className="shrink-0 rounded-lg bg-[var(--color-accent)] px-4 py-1.5 text-sm font-medium text-[var(--color-bg)] disabled:opacity-40"
+            title={semLoading ? "Searching…"
+              : !caseVecs ? "Loading the semantic index — available in a moment"
+              : semQ.trim().length < 4 ? "Type at least 4 characters to search"
+              : "Search cases by meaning, not keywords"}
+            className="shrink-0 rounded-lg bg-[var(--color-accent)] px-4 py-1.5 text-sm font-medium text-[var(--color-bg)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {semLoading ? "Searching…" : "Search"}
           </button>
         </div>
+        {/* Say why the button is unavailable — especially while the index is still loading. */}
+        {!caseVecs && !semLoading && (
+          <div className="mt-1.5 text-[11px] text-[var(--color-text-mute)]">Loading the semantic index…</div>
+        )}
         {semRes && (
           <div className="mt-3 space-y-1.5">
             {semRes.length === 0 && <div className="text-xs text-[var(--color-text-mute)]">No semantic matches.</div>}

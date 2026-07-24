@@ -216,10 +216,19 @@ export default function Linkage() {
           >
             Try an example
           </button>
+          {/* A disabled control must say WHY, or the officer is just stuck looking at a grey button. */}
+          {query.trim().length < 15 && !matching && (
+            <span className="text-[11px] text-[var(--color-text-mute)]">
+              Paste at least 15 characters of the narrative to analyse
+            </span>
+          )}
           <button
             onClick={analyze}
             disabled={query.trim().length < 15 || matching}
-            className="rounded-lg bg-[var(--color-accent)] px-4 py-1.5 text-sm font-medium text-[var(--color-bg)] disabled:opacity-40"
+            title={matching ? "Matching against the serial-cluster index…"
+              : query.trim().length < 15 ? "Paste at least 15 characters of the FIR narrative first"
+              : "Find this narrative's serial cluster"}
+            className="rounded-lg bg-[var(--color-accent)] px-4 py-1.5 text-sm font-medium text-[var(--color-bg)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {matching ? "Analyzing…" : "Analyze"}
           </button>
