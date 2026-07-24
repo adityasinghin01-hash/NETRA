@@ -5,7 +5,7 @@ import LiveAlerts from "@/components/LiveAlerts";
 import { getSession } from "@/lib/auth";
 import { optimize, type Area } from "@/lib/optimizer";
 import { buildPlan, KIND_COLOR, type PatrolPlan } from "@/lib/patrolPlan";
-import { openReport } from "@/lib/pdf";
+import { openReport, escapeHtml as e } from "@/lib/pdf";
 
 interface Summary {
   totalCases: number;
@@ -129,7 +129,7 @@ export default function CommandMap() {
   }
   function dutyChart() {
     if (!opt) return;
-    const rows = opt.alloc.map((a) => `<tr><td>${a.district}</td><td>${a.units}</td><td>${a.crimeType}</td><td>${a.tactic}</td></tr>`).join("");
+    const rows = opt.alloc.map((a) => `<tr><td>${e(a.district)}</td><td>${a.units}</td><td>${e(a.crimeType)}</td><td>${e(a.tactic)}</td></tr>`).join("");
     openReport({
       title: "State Patrol Deployment Order",
       subtitle: `${DEPLOY_UNITS} units · covers ~${Math.round(opt.coveredPct * 100)}% of the 7-day forecast crime`,

@@ -107,7 +107,7 @@ export default function CopilotDocument({ action }: { action: Extract<UiAction, 
     if (!f) return;
     e.target.value = "";
     setBusy(true); setStatus(`Reading ${f.name}…`);
-    const dataUrl = await new Promise<string>((res) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.readAsDataURL(f); });
+    const dataUrl = await new Promise<string>((res) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = () => res(""); r.readAsDataURL(f); });
     const b64 = dataUrl.split(",")[1] || "";
     let extracted = "";
     try {

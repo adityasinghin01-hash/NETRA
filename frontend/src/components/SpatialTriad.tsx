@@ -50,13 +50,14 @@ export default function SpatialTriad({ spatial, focusCaseNo }: { spatial: Spatia
 
   // Base-zone radius from the Rossmo surface spread → a next-strike zone of similar feel.
   const baseRadiusM = useMemo(() => {
-    const a = spatial.rossmo.anchor;
-    const ds = spatial.rossmo.surface.map((p) => distM(a.lat, a.lng, p.lat, p.lng)).sort((x, y) => x - y);
+    const a = spatial.rossmo?.anchor;
+    if (!a) return 8000;
+    const ds = (spatial.rossmo.surface ?? []).map((p) => distM(a.lat, a.lng, p.lat, p.lng)).sort((x, y) => x - y);
     return Math.min(18000, Math.max(4000, ds[Math.floor(ds.length * 0.7)] || 8000));
   }, [spatial]);
 
   useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
+    if (!containerRef.current || mapRef.current || !spatial.route?.length) return;
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: SAT_STYLE,
@@ -91,7 +92,7 @@ export default function SpatialTriad({ spatial, focusCaseNo }: { spatial: Spatia
   useEffect(() => {
     const map = mapRef.current;
     const overlay = overlayRef.current;
-    if (!map || !overlay) return;
+    if (!map || !overlay || !spatial.route?.length || !spatial.rossmo || !spatial.nextStrike) return;
 
     const route = spatial.route;
     const path = route.map((p) => [p.lng, p.lat] as [number, number]);

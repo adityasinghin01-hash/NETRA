@@ -2,7 +2,7 @@
 // "why flagged" statistic, and a New→Acknowledged→Assigned→Resolved lifecycle (a workflow an
 // officer works, not a list they read). Data: public/alerts-feed.json (build_alerts.py).
 // Clicking an alert opens its triggering FIR in Case Search with the alert-context panel.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, PageHeader, Badge, State } from "@/components/ui";
 import { getSession } from "@/lib/auth";
@@ -44,13 +44,17 @@ export default function AlertCenter() {
   const [reveal, setReveal] = useState<{ shown: string[]; queue: string[] } | null>(null);
   const [justId, setJustId] = useState<string | null>(null);
 
+  const loadedRef = useRef(false); // have we EVER loaded the feed? (avoids a stale `alerts` read)
   useEffect(() => {
     let alive = true;
     const pull = () =>
       fetch(`${import.meta.env.BASE_URL}alerts-feed.json?t=${Date.now()}`, { cache: "no-store" })
         .then((r) => r.json())
-        .then((d) => { if (alive) { setAlerts(d); setLastSync(new Date()); } })
-        .catch(() => { if (alive && !alerts) setAlerts([]); });
+        .then((d) => { if (alive) { loadedRef.current = true; setAlerts(d); setLastSync(new Date()); } })
+        // Only fall back to empty on the FIRST-ever load failure. A transient failure on a later
+        // 20s re-sync must NOT wipe the already-loaded feed (the old `!alerts` closed over a stale
+        // null and cleared the list on every failed sync).
+        .catch(() => { if (alive && !loadedRef.current) setAlerts([]); });
     pull();
     // Each 20s sync re-fetches AND surfaces one more queued detection at the top.
     const t = setInterval(() => {

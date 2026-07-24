@@ -4,6 +4,7 @@
 // and ranks serial clusters by cosine similarity. Same vector space = valid cosine.
 import { pipeline, env } from "@huggingface/transformers";
 import type { MatchResult, ClusterMatch } from "@/api/client";
+import { memoJson, memoAsync } from "@/lib/loader";
 
 const MODEL = "Xenova/paraphrase-multilingual-MiniLM-L12-v2";
 
@@ -18,19 +19,12 @@ interface ClusterVec extends Omit<ClusterMatch, "score"> {
   vector: number[];
 }
 
+// Memoized loaders that never cache a failure (see lib/loader.ts). getExtractor is the
+// sovereign model-load path — a transient HuggingFace fetch failure must not permanently
+// kill all linkage for the session; the next call retries.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let extractorP: Promise<any> | null = null;
-let clustersP: Promise<{ clusters: ClusterVec[] }> | null = null;
-
-function getExtractor() {
-  if (!extractorP) extractorP = pipeline("feature-extraction", MODEL);
-  return extractorP;
-}
-function getClusters() {
-  if (!clustersP)
-    clustersP = fetch(`${import.meta.env.BASE_URL}cluster-embeddings.json`).then((r) => r.json());
-  return clustersP;
-}
+const getExtractor = memoAsync<any>(() => pipeline("feature-extraction", MODEL));
+const getClusters = memoJson<{ clusters: ClusterVec[] }>(() => `${import.meta.env.BASE_URL}cluster-embeddings.json`);
 
 // Start downloading the model + vectors ahead of time so the first click is fast.
 export function preloadEmbedder() {
@@ -40,8 +34,9 @@ export function preloadEmbedder() {
 }
 
 function dot(a: number[], b: number[]) {
+  const n = Math.min(a.length, b.length); // guard dim mismatch → no silent NaN
   let s = 0;
-  for (let i = 0; i < a.length; i++) s += a[i] * b[i];
+  for (let i = 0; i < n; i++) s += a[i] * b[i];
   return s;
 }
 
@@ -68,11 +63,7 @@ export interface CaseVec {
   clusterId: string; clusterLabel: string; solved: boolean; facts: string;
   language: string; vector: number[];
 }
-let casesP: Promise<{ cases: CaseVec[] }> | null = null;
-function getCases() {
-  if (!casesP) casesP = fetch(`${import.meta.env.BASE_URL}case-embeddings.json`).then((r) => r.json());
-  return casesP;
-}
+const getCases = memoJson<{ cases: CaseVec[] }>(() => `${import.meta.env.BASE_URL}case-embeddings.json`);
 // The member FIRs of a series (used for its unsolved leads + its signature centroid).
 export async function seriesCases(clusterId: string): Promise<CaseVec[]> {
   const { cases } = await getCases();
@@ -80,6 +71,7 @@ export async function seriesCases(clusterId: string): Promise<CaseVec[]> {
 }
 // Normalized mean of vectors — the honest "signature" of a confirmed set of FIRs.
 export function centroid(vecs: number[][]): number[] {
+  if (!vecs.length) return []; // empty series (e.g. a bad clusterId) → no signature, no crash
   const n = vecs[0].length;
   const c = new Array(n).fill(0);
   for (const v of vecs) for (let i = 0; i < n; i++) c[i] += v[i];
@@ -197,5 +189,6 @@ export async function embedMatch(text: string): Promise<MatchResult> {
     .sort((a, b) => b.score - a.score);
   // Return ALL clusters ranked (the live-match panel slices the top few; the cluster list uses
   // the full set to re-rank every series card by its match % to the pasted FIR).
+  if (!ranked.length) throw new Error("no clusters loaded"); // handled by the caller's fallback
   return { method: "semantic", best: ranked[0], matches: ranked };
 }

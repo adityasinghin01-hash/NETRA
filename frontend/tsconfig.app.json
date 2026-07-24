@@ -19,6 +19,7 @@
     "paths": { "@/*": ["./src/*"] },
 
     /* Linting */
+    "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,

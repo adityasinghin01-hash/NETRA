@@ -19,16 +19,27 @@ async function getMermaid() {
   if (!_mm) {
     const mod = await import("mermaid");
     _mm = mod.default;
-    _mm.initialize({
-      startOnLoad: false, securityLevel: "loose", theme: "base", fontFamily: "Inter, system-ui, sans-serif",
-      themeVariables: {
-        background: "#0b1220", primaryColor: "#111a2e", primaryTextColor: "#e2e8f0", primaryBorderColor: "#2b3a55",
-        lineColor: "#3b4a66", secondaryColor: "#1f2b45", tertiaryColor: "#0b1220", fontSize: "13px",
-        clusterBkg: "#0e1526", clusterBorder: "#2b3a55", titleColor: "#e2e8f0",
-      },
-    });
   }
   return _mm;
+}
+// Initialize per render with a securityLevel matched to the SOURCE of the mermaid, because the SVG
+// is injected via dangerouslySetInnerHTML:
+//   • trusted=true  → our own deterministic charts (link/org/timeline/money/mo). "antiscript" keeps
+//                     HTML labels on so their <br/> renders; the source is app-built, not user text.
+//   • trusted=false → GLM- or user-authored mermaid (kind='other', chat tweaks, source edits).
+//                     "strict" turns HTML labels OFF, closing the attribute-based XSS sink (e.g. an
+//                     onerror in an HTML label) that "antiscript" (which strips <script>/javascript:
+//                     but leaves htmlLabels enabled) would still let through.
+function initMermaid(mm: any, trusted: boolean) {
+  mm.initialize({
+    startOnLoad: false, securityLevel: trusted ? "antiscript" : "strict",
+    theme: "base", fontFamily: "Inter, system-ui, sans-serif",
+    themeVariables: {
+      background: "#0b1220", primaryColor: "#111a2e", primaryTextColor: "#e2e8f0", primaryBorderColor: "#2b3a55",
+      lineColor: "#3b4a66", secondaryColor: "#1f2b45", tertiaryColor: "#0b1220", fontSize: "13px",
+      clusterBkg: "#0e1526", clusterBorder: "#2b3a55", titleColor: "#e2e8f0",
+    },
+  });
 }
 const clean = (s: string) => s.replace(/```+\s*mermaid/gi, "").replace(/```+/g, "").trim();
 const san = (s: any) => String(s ?? "").replace(/["`]/g, "'").replace(/[()#;{}|]/g, " ").replace(/\s+/g, " ").trim();
@@ -120,29 +131,39 @@ export default function CopilotDiagram({ action }: { action: Extract<UiAction, {
     if (started.current) return;
     if (dna === null && action.diagram !== "other") return;
     started.current = true;
-    // Honor GLM's own Mermaid whenever it supplied it (a custom/free-form diagram). Only build the
-    // deterministic grounded chart for a core kind when GLM gave NO Mermaid (a real-series request).
+    // Honesty: the 5 core kinds (link/org/timeline/money/mo) are ALWAYS built deterministically
+    // from real case data — GLM-supplied mermaid is ignored for them (otherwise it could invent a
+    // "real-series" chart). GLM's own mermaid is honoured ONLY for kind='other' (free-form). If a
+    // core build has no data, we show nothing rather than a fabricated diagram.
     const core = action.diagram !== "other";
     const given = clean(action.mermaid || "");
-    const initial = given || (core ? buildGrounded(action.diagram, action.clusterId, dna || {}, net) || "" : "");
-    if (initial) { setCode(initial); void render(initial); }
+    const initial = core
+      ? (buildGrounded(action.diagram, action.clusterId, dna || {}, net) || "")
+      : given;
+    // Core kinds are app-built from real data (trusted); kind='other' is GLM-authored (untrusted).
+    if (initial) { setCode(initial); void render(initial, core); }
     else { setErr("No diagram content was provided."); setBusy(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dna, net]);
 
-  async function render(src: string) {
+  // `trusted` selects the mermaid securityLevel (see initMermaid). Defaults to false: any src that
+  // has passed through GLM (auto-repair, chat tweak) or the user (source textarea) is untrusted.
+  async function render(src: string, trusted = false) {
     setBusy(true); setErr("");
     try {
       const m = await getMermaid();
+      initMermaid(m, trusted);
       const out = await m.render("netra-dia-" + Math.random().toString(36).slice(2), src);
       setSvg(out.svg);
     } catch (e) {
-      // One auto-repair pass, then fall back to an editable source view (never a broken card).
+      // One auto-repair pass, then fall back to an editable source view (never a broken card). The
+      // repaired code came back through GLM, so it renders untrusted regardless of the original src.
       try {
         const r = await glmChat([{ role: "system", content: EDIT_SYS },
           { role: "user", content: `This Mermaid failed to parse (${String(e).slice(0, 120)}). Return only the corrected Mermaid:\n${src}` }], { max_tokens: 900, temperature: 0.1 });
         const fixed = clean(r.text);
         const m = await getMermaid();
+        initMermaid(m, false);
         const out = await m.render("netra-dia-r" + Math.random().toString(36).slice(2), fixed);
         setCode(fixed); setSvg(out.svg);
       } catch {

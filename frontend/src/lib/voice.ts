@@ -2,6 +2,7 @@
 // (sovereign, no network); STT via Web Speech recognition for a spoken conversation.
 // (In-browser Whisper is the sovereign STT upgrade on the roadmap.)
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { stripEmoji } from "@/lib/text";
 export function stopSpeaking() { window.speechSynthesis?.cancel(); }
 export const isKannada = (t: string) => /[ಀ-೿]/.test(t);
 
@@ -9,7 +10,7 @@ export const isKannada = (t: string) => /[ಀ-೿]/.test(t);
 // chain back into listening for a hands-free conversation.
 export function speak(text: string, lang: "en-IN" | "kn-IN" = "en-IN", onEnd?: () => void): void {
   const synth = window.speechSynthesis;
-  const clean = text.replace(/\*\*/g, "").replace(/\[[^\]]+\]/g, "").replace(/[•📎📊📄🔧🧠⚠️👍👎🗺️👋]/g, "");
+  const clean = stripEmoji(text.replace(/\*\*/g, "").replace(/\[[^\]]+\]/g, "").replace(/•/g, ""));
   if (!synth || !clean.trim()) { onEnd?.(); return; }
   synth.cancel();
   const u = new SpeechSynthesisUtterance(clean);

@@ -222,7 +222,9 @@ export function buildPlan(h: Hotspot, incidents: Incident[] = [], unitsOverride?
       return { lat: lat + dLat(r * Math.sin(ang)), lng: lng + dLng(r * Math.cos(ang)), label: KIND_LABEL[kind], kind };
     });
   } else {
-    pickets = ringPickets(cLat, cLng, radiusM, kinds);
+    // Only draw the ring fallback when we actually have a district centre. A hotspot missing
+    // lat/lng defaults to (0,0); without this guard the pickets would land in the ocean.
+    pickets = (cLat || cLng) ? ringPickets(cLat, cLng, radiusM, kinds) : [];
   }
 
   const steps = stepsFor(family, h.district, window, kinds, grounded);

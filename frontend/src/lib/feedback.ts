@@ -43,7 +43,11 @@ export function recallMemory(q: string): Memory | null {
   for (const mem of m) {
     const mt = toks(mem.q);
     const inter = [...qt].filter((t) => mt.has(t)).length;
-    const score = inter / Math.max(1, Math.min(qt.size, mt.size));
+    // Jaccard (union denominator), NOT overlap-coefficient (min denominator). Overlap let a very
+    // short stored question whose few tokens all appear in a long new query score 1.0 → recalling a
+    // stale answer for a different question. Jaccard requires genuine two-way overlap.
+    const union = qt.size + mt.size - inter;
+    const score = inter / Math.max(1, union);
     if (score > bestScore) { bestScore = score; best = mem; }
   }
   return bestScore >= 0.6 ? best : null;

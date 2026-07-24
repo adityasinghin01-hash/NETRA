@@ -3,6 +3,7 @@
 // grounding layer — every Copilot answer is built from the cards this returns, each cited.
 import { embedText } from "@/lib/embedMatch";
 import { weightOf } from "@/lib/feedback";
+import { memoJson } from "@/lib/loader";
 
 export interface Card {
   id: string; type: string; title: string; text: string; cite: string;
@@ -13,18 +14,15 @@ export interface Retrieved extends Card { score: number; dense: number; sparse: 
 
 interface Index { model: string; dim: number; idf: Record<string, number>; avgLen: number; cards: Card[] }
 
-let idxP: Promise<Index> | null = null;
-function getIndex(): Promise<Index> {
-  if (!idxP)
-    idxP = fetch(`${import.meta.env.BASE_URL}copilot-cards-embeddings.json`).then((r) => r.json());
-  return idxP;
-}
+const getIndex = memoJson<Index>(() => `${import.meta.env.BASE_URL}copilot-cards-embeddings.json`);
 export function preloadRetrieval() { getIndex(); }
 
 const STOP = new Set("the a an and or of to in on at for with by from is was were are be been that this it as who what which where when how".split(" "));
 const tok = (s: string) => (s.toLowerCase().match(/[a-z0-9]{2,}/g) || []).filter((t) => !STOP.has(t));
 
-function dot(a: number[], b: number[]) { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; }
+// Guard the dimension: a model/index version mismatch would otherwise read undefined and
+// silently propagate NaN through every score (garbage ranking, no error). Length 0 → 0.
+function dot(a: number[], b: number[]) { const n = Math.min(a.length, b.length); let s = 0; for (let i = 0; i < n; i++) s += a[i] * b[i]; return s; }
 
 // BM25 score of a query against one card.
 function bm25(qterms: string[], c: Card, idf: Record<string, number>, avgLen: number) {

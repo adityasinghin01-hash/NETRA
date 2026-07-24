@@ -1,15 +1,13 @@
 // GraphRAG: reason over NETRA's crime knowledge graph (offenders ↔ rings ↔ clusters ↔
 // districts). Entity-links the query, traverses 1–2 hops, and verbalizes the subgraph as
 // grounded context the LLM (or template) can reason over — multi-hop answers flat search can't give.
+import { memoJson } from "@/lib/loader";
+
 export interface Entity { id: string; type: string; name: string; [k: string]: unknown }
 export interface Relation { src: string; rel: string; dst: string; [k: string]: unknown }
 interface KG { entities: Entity[]; relations: Relation[] }
 
-let kgP: Promise<KG> | null = null;
-function getKG(): Promise<KG> {
-  if (!kgP) kgP = fetch(`${import.meta.env.BASE_URL}copilot-kg.json`).then((r) => r.json());
-  return kgP;
-}
+const getKG = memoJson<KG>(() => `${import.meta.env.BASE_URL}copilot-kg.json`);
 export function preloadGraph() { getKG(); }
 
 const REL_PHRASE: Record<string, string> = {
@@ -24,8 +22,9 @@ function matchEntities(q: string, kg: KG): Entity[] {
   for (const e of kg.entities) {
     const n = e.name.toLowerCase();
     if (n.length < 3) continue;
-    // full-name or any significant word match
-    if (lo.includes(n) || n.split(/\s+/).some((w) => w.length > 3 && lo.includes(w))) hits.push(e);
+    // Full-name match, or a distinctive (>=5 char) name word — the >=5 bar avoids seeding on
+    // short/common name tokens (e.g. a bare "Kumar") that would pull in unrelated entities.
+    if (lo.includes(n) || n.split(/\s+/).some((w) => w.length >= 5 && lo.includes(w))) hits.push(e);
   }
   // de-dup by id, prefer offenders/clusters/rings over districts
   const seen = new Set<string>();

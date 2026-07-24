@@ -81,21 +81,25 @@ export default function Linkage() {
     if (!result || result.method !== "semantic" || result.best.score < MATCH_MIN) { setCold(null); return; }
     let live = true;
     (async () => {
-      const members = await seriesCases(result.best.clusterId);
-      let scores: Record<string, number> = {};
-      let qvec: number[] = [];
-      let hybrid: HybridCase[] = [];
       try {
-        qvec = await embedText(query);
-        scores = scoreByCrimeNo(qvec, members);
-        hybrid = await hybridCases(query, qvec, 12); // all matching FIRs, semantic + keyword
-      } catch { /* model busy */ }
-      if (!live) return;
-      setCold({
-        members, unsolved: members.filter((m) => !m.solved), count: members.length,
-        confirmed: isConfirmed(keyOf(query)), confirmedAt: ledger[keyOf(query)]?.at ?? null,
-        candidates: [], scores, qvec, hybrid,
-      });
+        // seriesCases (getCases) can reject on a load failure — keep it INSIDE the try so a failure
+        // degrades to cold=null instead of an unhandled rejection.
+        const members = await seriesCases(result.best.clusterId);
+        let scores: Record<string, number> = {};
+        let qvec: number[] = [];
+        let hybrid: HybridCase[] = [];
+        try {
+          qvec = await embedText(query);
+          scores = scoreByCrimeNo(qvec, members);
+          hybrid = await hybridCases(query, qvec, 12); // all matching FIRs, semantic + keyword
+        } catch { /* model busy — members still shown */ }
+        if (!live) return;
+        setCold({
+          members, unsolved: members.filter((m) => !m.solved), count: members.length,
+          confirmed: isConfirmed(keyOf(query)), confirmedAt: ledger[keyOf(query)]?.at ?? null,
+          candidates: [], scores, qvec, hybrid,
+        });
+      } catch { if (live) setCold(null); }
     })();
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -552,7 +556,7 @@ export default function Linkage() {
                   <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-[var(--color-text-mute)]">
                     <span>🗺️</span> Spatial Intelligence — route · predicted base · next strike
                   </div>
-                  <SpatialTriad spatial={spatialMap[cluster.clusterId]} focusCaseNo={selFir && selFir.clusterId === cluster.clusterId ? selFir.crimeNo : undefined} />
+                  <SpatialTriad key={cluster.clusterId} spatial={spatialMap[cluster.clusterId]} focusCaseNo={selFir && selFir.clusterId === cluster.clusterId ? selFir.crimeNo : undefined} />
                 </div>
               )}
               {dnaMap?.[cluster.clusterId] ? (

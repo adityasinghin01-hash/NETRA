@@ -45,6 +45,9 @@ let availP: Promise<boolean> | null = null;
 export function llmAvailable(): Promise<boolean> {
   if (!availP)
     availP = glmChat([{ role: "user", content: "ping" }], { max_tokens: 3 })
-      .then(() => true).catch(() => false);
+      .then(() => true)
+      // Cache only "available". A transient failure clears the cache so the next call re-probes,
+      // instead of locking the UI into "sovereign fallback" for the whole session.
+      .catch(() => { availP = null; return false; });
   return availP;
 }

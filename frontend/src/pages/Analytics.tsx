@@ -87,7 +87,9 @@ function TrendsTab({ scope, da }: { scope: string | null; da: DA | null }) {
     fetch(`${import.meta.env.BASE_URL}trend-forecast.json`).then((r) => r.json()).then(setFc).catch(() => {});
   }, []);
   const clockMatrix = scope ? clock?.districts[scope] : clock?.state;
-  const seriesNames = scope ? [scope] : (state.data ?? []).map((s) => s.name);
+  // Memoize so this array is referentially stable — otherwise the chartData useMemo below (which
+  // depends on it) recomputes on every render, defeating its own memoization.
+  const seriesNames = useMemo(() => (scope ? [scope] : (state.data ?? []).map((s) => s.name)), [scope, state.data]);
 
   // History rows + a forecast continuation (dashed line + confidence band for the scoped view).
   const { chartData, firstFcMonth } = useMemo(() => {

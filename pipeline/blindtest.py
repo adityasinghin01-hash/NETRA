@@ -3,10 +3,16 @@
 Aditya (NOT the AI's builder) authors 5 secret serial-crime patterns in
 pipeline/blindtest/patterns.txt — several short FIR narratives each, same modus
 operandi, varied wording. This harness mixes them with 1,500 real distractor FIRs
-and tests the linkage capability the way it's actually deployed: for each pattern,
-take one FIR as a "new incoming report" and check whether its top nearest-neighbours
-are its own siblings (not distractors). The builder never sees the patterns —
-Aditya shares only the final numbers.
+and, for each pattern, takes one FIR as a "new incoming report" and checks whether its
+top nearest-neighbours are its own siblings (not distractors). The builder never sees
+the patterns — Aditya shares only the final numbers.
+
+METHOD NOTE (honesty): this harness scores with TF-IDF cosine — the same method as the
+BACKEND /match fallback, NOT the primary transformer-embedding linkage the UI uses. So
+these numbers are a conservative, model-agnostic check that the DATA has recoverable
+signal; they are not a measurement of the deployed embedding model. Any claim citing
+them (e.g. "blind-validated 5/5") must say "TF-IDF blind test", not imply the semantic
+model was validated.
 
 Usage:
   python3 -m pipeline.blindtest --calibrate   # sanity check on KNOWN patterns
@@ -64,7 +70,9 @@ def run(groups, label):
     print(f"  patterns RECOVERED      : {recovered} / {n}")
     print(f"  avg precision@k         : {round(sum(precs) / n, 2)}")
     print(f"  distractor FIRs mixed in: {len(dist):,}")
+    print("  method                  : TF-IDF cosine (data-separability check, not the embedding model)")
     print("\n→ Share ONLY these numbers with Claude. Keep patterns.txt private.")
+    print("  When citing, say 'TF-IDF blind test' — don't imply the semantic model was validated.")
 
 
 def parse_patterns(path):
