@@ -381,10 +381,12 @@ export default function Cases() {
   const deepLink = useRef(!!params.get("q")); // arrived via ?q=<crimeNo> → auto-open that case file
   const alertId = params.get("alert"); // arrived from Alert Center → show the "why it fired" panel
   const [alertsFeed, setAlertsFeed] = useState<Record<string, AlertCtx>>({});
-  const [district, setDistrict] = useState(scope ?? "");
-  const [type, setType] = useState("");
-  const [gravity, setGravity] = useState("");
-  const [status, setStatus] = useState("");
+  // Deep-link filters (from the Copilot's search_cases action → /cases?type=&district=&status=).
+  // A scoped officer stays locked to their own district regardless of the URL.
+  const [district, setDistrict] = useState(scope ?? params.get("district") ?? "");
+  const [type, setType] = useState(params.get("type") ?? "");
+  const [gravity, setGravity] = useState(params.get("gravity") ?? "");
+  const [status, setStatus] = useState(params.get("status") ?? "");
   const [page, setPage] = useState(0);
   const [rows, setRows] = useState<CaseRow[]>([]);
   const [hasMore, setHasMore] = useState(false);

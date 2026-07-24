@@ -47,6 +47,37 @@ def jload(path):
     return json.load(open(path, encoding="utf-8"))
 
 
+def _tfidf_cohesion(texts):
+    try:
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.metrics.pairwise import cosine_similarity
+        S = cosine_similarity(TfidfVectorizer(lowercase=True).fit_transform(texts))
+        n = S.shape[0]
+        vals = [S[i, j] for i in range(n) for j in range(i + 1, n)]
+        return round(sum(vals) / len(vals), 2) if vals else 0.75
+    except Exception:
+        return 0.75
+
+
+def cohesion(members, emb):
+    """Real MO cohesion = mean pairwise cosine similarity of the member FIR EMBEDDINGS — the SAME
+    multilingual vectors NETRA's linkage uses. This is an honest, SEMANTIC measure of how alike the
+    linked cases are (it captures "same MO, different wording", which TF-IDF misses), and it REPLACES
+    the old fabricated formula 0.78 + 0.02*(n%6) that NETRA's "no fabricated numbers" rule forbids.
+    Falls back to TF-IDF on the narratives, then to 0.75, so a pipeline run can never crash on this."""
+    vecs = [emb[m["crimeNo"]] for m in members if m.get("crimeNo") in emb]
+    if len(vecs) >= 2:  # semantic (embeddings are unit-normalized → dot == cosine)
+        total, cnt = 0.0, 0
+        for i in range(len(vecs)):
+            for j in range(i + 1, len(vecs)):
+                total += sum(a * b for a, b in zip(vecs[i], vecs[j]))
+                cnt += 1
+        if cnt:
+            return round(max(0.0, total / cnt), 2)
+    texts = [m.get("briefFacts", "") for m in members if m.get("briefFacts", "").strip()]
+    return _tfidf_cohesion(texts) if len(texts) >= 2 else 0.75
+
+
 def cases_by_id():
     m = {}
     with open(os.path.join(DATA, "cases.jsonl"), encoding="utf-8") as f:
@@ -97,6 +128,11 @@ def main():
     submap = {s["crimeSubHeadId"]: s for s in tax["crimeSubHeads"]}
     dmap = {d["districtId"]: d for d in districts}
     cmap = cases_by_id()
+    # Member embeddings (same vectors the linkage UI uses) → real semantic MO cohesion.
+    try:
+        emb = {c["crimeNo"]: c["vector"] for c in jload("frontend/public/case-embeddings.json")["cases"]}
+    except Exception:
+        emb = {}
 
     # cstype A = chargesheeted/detected (solved); B/C or none = unsolved. Offender names
     # come from the network graph. Together these power "one arrest → many clearances".
@@ -151,7 +187,7 @@ def main():
             "crimeType": submap[cl["subheadId"]]["name"],
             "districts": district_names,
             "memberCount": len(members),
-            "confidence": round(0.78 + 0.02 * (len(members) % 6), 2),
+            "confidence": cohesion(members, emb),
             "signature": sig,
             "sharedDimensions": [s["dim"] for s in sig],
             "span": {"first": dates[0] if dates else None,

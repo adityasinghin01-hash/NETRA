@@ -3,7 +3,7 @@
 // read court-familiar to KSP.
 import { useEffect, useState } from "react";
 import { Card, PageHeader } from "@/components/ui";
-import { openReport } from "@/lib/pdf";
+import { openReport, escapeHtml as e } from "@/lib/pdf";
 import { DISTRICTS, getSession } from "@/lib/auth";
 import { type CrimeDna } from "@/components/CrimeDNA";
 
@@ -34,27 +34,27 @@ export default function DocumentCenter() {
         ? `<span class="tag" style="background:#e7f6ed;color:#1f8a5b">Chargesheeted</span>`
         : `<span class="tag" style="background:#fdecea;color:#c0392b">UNSOLVED</span>`;
       const acc = (m as any).accused?.name ?? "—";
-      return `<tr><td>${m.caseNo}</td><td>${m.district}</td><td>${m.date}</td><td>${acc}</td><td>${tag}</td></tr>`;
+      return `<tr><td>${e(m.caseNo)}</td><td>${e(m.district)}</td><td>${e(m.date)}</td><td>${e(acc)}</td><td>${tag}</td></tr>`;
     }).join("");
     // §D — Forensic & Physical Evidence catalogue, per linked FIR (from the case forensic layer).
     const forRows = c.members.map((m) => {
       const f = (m as any).forensic;
       if (!f) return "";
       const wt = `${f.weapon}${f.tools?.length ? "; " + f.tools.join(", ") : ""}`;
-      return `<tr><td>${m.caseNo}</td><td>${wt}</td><td>${(f.evidenceRecovered ?? []).join(", ")}</td><td>${f.fingerprint}</td><td>${f.seizure?.memoNo ?? "—"}</td><td>${f.fsl?.ref ?? "—"}</td></tr>`;
+      return `<tr><td>${e(m.caseNo)}</td><td>${e(wt)}</td><td>${e((f.evidenceRecovered ?? []).join(", "))}</td><td>${e(f.fingerprint)}</td><td>${e(f.seizure?.memoNo ?? "—")}</td><td>${e(f.fsl?.ref ?? "—")}</td></tr>`;
     }).join("");
     openReport({
       title: "Serial-Crime Linkage & Evidence Report",
       subtitle: `${c.label} · ${c.memberCount} linked FIRs · ${c.districts.length} districts`,
       classification: "RESTRICTED — DECISION SUPPORT",
       sections: [
-        { heading: "A · Serial Pattern Summary", html: `<p>${c.why} Strike cadence ~${c.span.cadenceDays ?? "—"} days over ${c.span.days} days. Spans: ${c.districts.join(", ")}.</p>` },
-        { heading: "B · Modus Operandi (CCTNS-aligned)", html: c.signature.map((s) => `<p><b>${s.dim}:</b> ${s.value}</p>`).join("") },
+        { heading: "A · Serial Pattern Summary", html: `<p>${e(c.why)} Strike cadence ~${c.span.cadenceDays ?? "—"} days over ${c.span.days} days. Spans: ${e(c.districts.join(", "))}.</p>` },
+        { heading: "B · Modus Operandi (CCTNS-aligned)", html: c.signature.map((s) => `<p><b>${e(s.dim)}:</b> ${e(s.value)}</p>`).join("") },
         { heading: "C · Linked-Cases Register", html: `<table><thead><tr><th>FIR No.</th><th>District</th><th>Date</th><th>Accused</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>` },
         { heading: "D · Forensic &amp; Physical Evidence Catalogue", html: `<table><thead><tr><th>FIR No.</th><th>Weapon / Tools</th><th>Evidence Recovered</th><th>Fingerprint / NAFIS</th><th>Seizure Memo</th><th>FSL Ref.</th></tr></thead><tbody>${forRows}</tbody></table><p style="margin-top:6px"><b>Chain of custody:</b> each seizure drawn on a memo before two independent panchas, entered in the PS malkhana register; exhibits forwarded to FSL where applicable. Forensic conclusions rest with the accredited FSL.</p>` },
-        { heading: "E · NETRA AI Analysis", html: `<p>Linkage by multi-dimensional MO signature (semantic text + geography + time + method + target). ${sp?.rossmo ? `Geographic profiling (Rossmo/CGT) predicts an operating-base <b>zone</b> near ${sp.rossmo.anchor.lat}, ${sp.rossmo.anchor.lng} — a place, not a person.` : ""} ${sp?.nextStrike ? `Projected next strike: <b>${sp.nextStrike.district}</b>, ${sp.nextStrike.window}, ${sp.nextStrike.timeWindow} (${Math.round(sp.nextStrike.confidence * 100)}% confidence)${sp.nextStrike.cadenceDays ? `, projected ~${sp.nextStrike.cadenceDays} days on from the series&rsquo; last recorded FIR` : ""}.` : ""}</p>` },
-        { heading: "F · Investigative Recommendation", html: `<p>${c.offender && c.unsolvedCount ? `Interrogate/arrest <b>${c.offender}</b> — could clear <b>${c.unsolvedCount} unsolved cases</b> in this series ("one arrest, many clearances"). ` : ""}Issue a lookout notice; alert the affected stations; concentrate the search on the profiled zone. Human-in-the-loop.</p>` },
-        { heading: "G · Methodology, Validation & Legal Note", html: `<p>Blind-validated (5/5 planted patterns recovered, precision@k 0.96) and method-validated on 503k real Chicago crimes. This is investigative <b>decision support, not primary evidence</b>; forensic conclusions rest with the accredited FSL; human verification required. Ethics: no caste/religion in any model; predicts patterns &amp; places, never guilt.</p>` },
+        { heading: "E · NETRA AI Analysis", html: `<p>Linkage by multi-dimensional MO signature (semantic text + geography + time + method + target). ${sp?.rossmo ? `Geographic profiling (Rossmo/CGT) predicts an operating-base <b>zone</b> near ${e(sp.rossmo.anchor.lat)}, ${e(sp.rossmo.anchor.lng)} — a place, not a person.` : ""} ${sp?.nextStrike ? `Projected next strike: <b>${e(sp.nextStrike.district)}</b>, ${e(sp.nextStrike.window)}, ${e(sp.nextStrike.timeWindow)} (${Math.round(sp.nextStrike.confidence * 100)}% confidence)${sp.nextStrike.cadenceDays ? `, projected ~${sp.nextStrike.cadenceDays} days on from the series&rsquo; last recorded FIR` : ""}.` : ""}</p>` },
+        { heading: "F · Investigative Recommendation", html: `<p>${c.offender && c.unsolvedCount ? `Interrogate/arrest <b>${e(c.offender)}</b> — could clear <b>${c.unsolvedCount} unsolved cases</b> in this series ("one arrest, many clearances"). ` : ""}Issue a lookout notice; alert the affected stations; concentrate the search on the profiled zone. Human-in-the-loop.</p>` },
+        { heading: "G · Methodology, Validation & Legal Note", html: `<p>TF-IDF blind-validated (5/5 planted patterns recovered, precision@k 0.96 — a data-separability check) and method-validated on 503k real Chicago crimes. This is investigative <b>decision support, not primary evidence</b>; forensic conclusions rest with the accredited FSL; human verification required. Ethics: no caste/religion in any model; predicts patterns &amp; places, never guilt.</p>` },
         { heading: "H · Signature", html: `<p>Prepared by: NETRA (system) &nbsp;·&nbsp; Reviewed by: ________________ (rank/no.) &nbsp;·&nbsp; Forwarded by SHO: ________________</p>` },
       ],
     });
@@ -69,15 +69,15 @@ export default function DocumentCenter() {
       subtitle: `${dist} District · ${b.date}`,
       sections: [
         { heading: "Key Metrics", html: `<p>30-day FIRs: <b>${s.fir30d}</b> · vs prev month: <b>${s.changePct > 0 ? "+" : ""}${s.changePct}%</b> · Detection: <b>${s.detectionPct}%</b></p>` },
-        { heading: "Executive Summary", html: `<p>${b.en}</p>` },
-        { heading: "Leading Crime Types", html: (s.topCrimes ?? []).map((t: any) => `<p>${t.type} — ${t.pct}%</p>`).join("") },
+        { heading: "Executive Summary", html: `<p>${e(b.en)}</p>` },
+        { heading: "Leading Crime Types", html: (s.topCrimes ?? []).map((t: any) => `<p>${e(t.type)} — ${t.pct}%</p>`).join("") },
       ],
     });
   }
 
   function forecastReport() {
     const hs = forecast?.hotspots ?? [];
-    const rows = hs.map((h: any) => `<tr><td>${h.district}</td><td>${h.crimeType}</td><td>${h.riskLevel}</td><td>${h.patrolWindow}</td></tr>`).join("");
+    const rows = hs.map((h: any) => `<tr><td>${e(h.district)}</td><td>${e(h.crimeType)}</td><td>${e(h.riskLevel)}</td><td>${e(h.patrolWindow)}</td></tr>`).join("");
     openReport({
       title: "7-Day Forecast & Patrol Plan",
       subtitle: `Next 7 days · gradient-boosting model`,

@@ -1,6 +1,12 @@
 // Demo auth: a role + jurisdiction session in localStorage. HQ sees the whole
 // state; a District/Station officer picks their jurisdiction at sign-in and the
 // app scopes every screen to it.
+//
+// SCOPE OF ENFORCEMENT (honesty): this is DEMO auth only — the role/jurisdiction is a
+// client-side convenience, NOT a security boundary. Credentials are not verified and the
+// backend does not authorize by role, so the scoping is presentational. This is acceptable
+// for the prototype (synthetic data, zones-not-people); a production build would enforce
+// authn/authz server-side. Documented so the demo never misrepresents it as real RBAC.
 export type Role = "hq" | "district" | "station";
 
 export interface Session {

@@ -5,6 +5,7 @@ import type { ToolDef } from "@/lib/llm";
 import type { Retrieved } from "@/lib/retrieval";
 
 export type DiagramKind = "link" | "org" | "timeline" | "money" | "mo" | "other";
+const DIAGRAM_KINDS: DiagramKind[] = ["link", "org", "timeline", "money", "mo", "other"];
 export type UiAction =
   | { kind: "map"; district?: string; clusterId?: string }
   | { kind: "diagram"; diagram: DiagramKind; mermaid?: string; title?: string; subject?: string; clusterId?: string }
@@ -67,16 +68,31 @@ export function runTool(name: string, args: any, hits: Retrieved[]): { result: s
     case "show_on_map":
       return { result: `Highlighted ${args.district || clusterId || "the area"} on the Command Map.`,
         ui: { kind: "map", district: args.district, clusterId } };
-    case "make_diagram":
+    case "make_diagram": {
+      // Validate the model-supplied kind against the enum (the schema enum is only a hint); an
+      // out-of-enum value would flow into DiagramKind and mishandle downstream. Fall back to "other".
+      const kind: DiagramKind = DIAGRAM_KINDS.includes(args.kind) ? args.kind : "other";
       return { result: `Rendered the diagram below.`,
-        ui: { kind: "diagram", diagram: args.kind || "other", mermaid: args.mermaid, title: args.title, subject: args.subject, clusterId } };
-    case "draft_document":
-      return { result: `Drafted a ${String(args.docType).replace(/_/g, " ")} below (review before use).`,
-        ui: { kind: "document", docType: args.docType, clusterId, crimeNo: args.crimeNo } };
+        ui: { kind: "diagram", diagram: kind, mermaid: args.mermaid, title: args.title, subject: args.subject, clusterId } };
+    }
+    case "draft_document": {
+      const docType = args.docType || "case_diary"; // guard a missing (schema-required) docType
+      return { result: `Drafted a ${String(docType).replace(/_/g, " ")} below (review before use).`,
+        ui: { kind: "document", docType, clusterId, crimeNo: args.crimeNo } };
+    }
     case "search_cases": {
-      const f = [args.crimeType, args.district, args.year, args.status].filter(Boolean).join(" · ");
-      return { result: `Opening Case Search filtered by ${f || "your criteria"}.`,
-        ui: { kind: "navigate", to: "/cases", label: `Search: ${f || "cases"}` } };
+      // Encode the filters into the URL so Case Search actually applies them (it reads
+      // ?type/?district/?status). Only claim the filters we can honor — Cases has no year filter,
+      // so we never say "filtered by <year>" (honesty: don't promise a filter that won't happen).
+      const qs = new URLSearchParams();
+      const applied: string[] = [];
+      if (args.crimeType) { qs.set("type", String(args.crimeType)); applied.push(String(args.crimeType)); }
+      if (args.district) { qs.set("district", String(args.district)); applied.push(String(args.district)); }
+      if (args.status) { qs.set("status", String(args.status)); applied.push(String(args.status)); }
+      const f = applied.join(" · ");
+      const to = qs.toString() ? `/cases?${qs.toString()}` : "/cases";
+      return { result: `Opening Case Search${f ? ` filtered by ${f}` : ""}.`,
+        ui: { kind: "navigate", to, label: `Search: ${f || "cases"}` } };
     }
     default:
       return { result: "Unknown tool." };

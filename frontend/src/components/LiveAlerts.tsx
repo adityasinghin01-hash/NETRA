@@ -26,7 +26,10 @@ export default function LiveAlerts({ alerts }: { alerts: Alert[] }) {
     seeded.current = true;
   }, [alerts]);
 
-  // Tick ages every 3s; every few ticks, promote a random alert as a "new" spike.
+  // Tick ages every 3s; every few ticks, promote a random alert as a "new" spike. The interval is
+  // (re)created only when the feed crosses empty↔non-empty — `hasAlerts` is a plain boolean so the
+  // dependency is statically checkable (the old inline `live.length ? true : false` was not).
+  const hasAlerts = live.length > 0;
   useEffect(() => {
     if (!seeded.current) return;
     let ticks = 0;
@@ -46,7 +49,7 @@ export default function LiveAlerts({ alerts }: { alerts: Alert[] }) {
       });
     }, 3000);
     return () => clearInterval(id);
-  }, [live.length ? true : false]);
+  }, [hasAlerts]);
 
   if (!live.length) return <div className="text-xs text-[var(--color-text-mute)]">No active alerts.</div>;
 

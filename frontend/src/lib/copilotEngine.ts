@@ -164,7 +164,14 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
 
   // Scope-aware retrieval: fold the user's district into the query when unstated.
   const rq = scope && !query.toLowerCase().includes(scope.toLowerCase()) ? `${query} ${scope}` : query;
-  const [hits, graph] = await Promise.all([retrieve(rq, 8), graphContext(rq)]);
+  // Retrieval/embedding can throw (model or index load failure). It must degrade, not propagate:
+  // on failure we continue with an empty set so sovereignAnswer still returns a reply — honouring
+  // the "never fails" contract instead of letting askNetra throw.
+  let hits: Retrieved[] = [];
+  let graph: Awaited<ReturnType<typeof graphContext>> = null;
+  try {
+    [hits, graph] = await Promise.all([retrieve(rq, 8), graphContext(rq)]);
+  } catch { /* degrade to empty-context sovereign answer below */ }
   const confidence = confidenceFrom(hits);
   const trace: string[] = [`Retrieved ${hits.length} grounded cards (hybrid dense+BM25)`];
   if (graph) trace.push(`Traversed knowledge graph: ${graph.entities.length} entities, ${graph.facts.length} relations`);
@@ -188,7 +195,7 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
     grounded = true;
     for (const tc of (first.toolCalls ?? []) as ToolCall[]) {
       const { ui } = runTool(tc.function.name, safeArgs(tc.function.arguments), hits);
-      trace.push(`🔧 ${tc.function.name}(${tc.function.arguments})`);
+      trace.push(`${tc.function.name}(${tc.function.arguments})`);
       if (ui) actions.push(ui);
     }
     text = first.text.trim() || actionLead(actions);
@@ -196,7 +203,7 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
   } catch {
     grounded = false;
     text = sovereignAnswer(hits, graph?.facts ?? null);
-    trace.push("⚠️ sovereign fallback (LLM unavailable) — answered from cards directly");
+    trace.push("Sovereign fallback (LLM unavailable) — answered from cards directly");
   }
 
   // Confidence gate → honest escalation, but ONLY on a genuine data lookup with no action. A meta
@@ -209,7 +216,7 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
   }
 
   const prior = recallMemory(query);
-  if (prior) trace.push("🧠 Recognised from a prior confirmed answer (memory) — ranking reinforced");
+  if (prior) trace.push("Recognised from a prior confirmed answer (memory) — ranking reinforced");
 
   const cites = isDataQ ? [...new Set(hits.slice(0, 5).map((h) => h.cite))] : [];
   return { text, cites, cardIds: hits.map((h) => h.id), confidence, follow: suggestFollow(hits), trace, actions, grounded };

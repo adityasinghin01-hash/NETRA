@@ -47,6 +47,21 @@ def jload(path):
     return json.load(open(path, encoding="utf-8"))
 
 
+def cohesion(members, emb):
+    """Real MO cohesion = mean pairwise cosine of the member FIR EMBEDDINGS (the same vectors the
+    linkage UI uses) — an honest SEMANTIC measure that REPLACES the old fabricated 0.78+0.02*(n%6)
+    formula. Falls back to 0.75 only if embeddings are unavailable, so a build never crashes."""
+    vecs = [emb[m["crimeNo"]] for m in members if m.get("crimeNo") in emb]
+    if len(vecs) < 2:
+        return 0.75
+    total, cnt = 0.0, 0
+    for i in range(len(vecs)):
+        for j in range(i + 1, len(vecs)):
+            total += sum(a * b for a, b in zip(vecs[i], vecs[j]))
+            cnt += 1
+    return round(max(0.0, total / cnt), 2) if cnt else 0.75
+
+
 def main():
     gt = jload(f"{DATA}/planted_patterns.json")
     tax = jload(f"{REF}/crime-taxonomy.json")
@@ -56,6 +71,10 @@ def main():
 
     all_cases = jsonl("cases.jsonl", IDF_SAMPLE)
     cmap = {c["caseMasterId"]: c for c in jsonl("cases.jsonl")}  # full, for cluster members
+    try:
+        emb = {c["crimeNo"]: c["vector"] for c in jload("frontend/public/case-embeddings.json")["cases"]}
+    except Exception:
+        emb = {}
 
     # IDF over the sample corpus
     df = defaultdict(int)
@@ -82,7 +101,7 @@ def main():
             "crimeType": submap[cl["subheadId"]]["name"],
             "districts": sorted({dmap[m["districtId"]]["name"] for m in members}),
             "memberCount": len(members),
-            "confidence": round(0.78 + 0.02 * (len(members) % 6), 2),
+            "confidence": cohesion(members, emb),
             "tf": profile,
         })
 

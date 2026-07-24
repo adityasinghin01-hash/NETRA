@@ -9,6 +9,7 @@ import { getSession } from "@/lib/auth";
 import { recordFeedback, remember } from "@/lib/feedback";
 import { vlmExtract } from "@/lib/llm";
 import { speak, listen, stopSpeaking, isKannada } from "@/lib/voice";
+import { stripEmoji } from "@/lib/text";
 import type { UiAction } from "@/lib/copilotTools";
 import CopilotDiagram from "@/components/CopilotDiagram";
 import CopilotDocument from "@/components/CopilotDocument";
@@ -42,11 +43,6 @@ function bold(t: string) {
   );
 }
 
-// Pure info: strip any emoji/pictographs from model output so answers read clean (defence in depth
-// alongside the "no emojis" system-prompt rule). Kannada and normal punctuation are untouched.
-const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}]/gu;
-const stripEmoji = (t: string) => t.replace(EMOJI, "").replace(/[ \t]{2,}/g, " ").replace(/^[ \t]+/gm, "").trim();
-
 export default function Copilot() {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -79,17 +75,19 @@ export default function Copilot() {
     }
     setThinking(false);
     setMsgs((m) => [...m, { role: "netra", text: a.text, q: t, cites: a.cites, cardIds: a.cardIds, follow: a.follow, trace: a.trace, confidence: a.confidence, actions: a.actions, grounded: a.grounded }]);
-    // A voice-asked question speaks its reply (full hands-free lives in Talk mode).
-    if (fromVoice) speak(a.text, isKannada(a.text) ? "kn-IN" : "en-IN");
+    // A voice-asked question speaks its reply (full hands-free lives in Talk mode). Strip emoji
+    // first so speech synthesis never reads pictograph names aloud (matches the "Read aloud" button).
+    if (fromVoice) speak(stripEmoji(a.text), isKannada(a.text) ? "kn-IN" : "en-IN");
   }
 
   function feedback(i: number, up: boolean) {
-    setMsgs((m) => m.map((msg, k) => {
-      if (k !== i || msg.role !== "netra") return msg;
-      recordFeedback(msg.cardIds ?? [], up);
-      if (up && msg.q) remember(msg.q, msg.text, msg.cites ?? []);
-      return { ...msg, fed: up ? "up" : "down" };
-    }));
+    // Side effects (localStorage writes) must live OUTSIDE the setState updater — React can
+    // invoke an updater twice (StrictMode / concurrent), which would double-record feedback.
+    const msg = msgs[i];
+    if (!msg || msg.role !== "netra" || msg.fed) return;
+    recordFeedback(msg.cardIds ?? [], up);
+    if (up && msg.q) remember(msg.q, msg.text, msg.cites ?? []);
+    setMsgs((m) => m.map((mm, k) => (k === i ? { ...mm, fed: up ? "up" : "down" } : mm)));
   }
 
   // Multimodal OCR: drop a scanned FIR / document → Qwen VLM extracts structured fields.
@@ -97,7 +95,7 @@ export default function Copilot() {
     const f = e.target.files?.[0];
     if (!f) return;
     e.target.value = "";
-    const b64 = await new Promise<string>((res) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.readAsDataURL(f); });
+    const b64 = await new Promise<string>((res) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.onerror = () => res(""); r.readAsDataURL(f); });
     setMsgs((m) => [...m, { role: "user", text: `Uploaded ${f.name}` }]);
     setThinking(true);
     let out = "";

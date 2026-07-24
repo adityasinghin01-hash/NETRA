@@ -468,10 +468,11 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
       popupRef.current.setLngLat(best.position).setHTML(html).addTo(map);
     });
     // "Open in Case Search" link inside the FIR popup → route there with the FIR number.
-    map.getContainer().addEventListener("click", (ev) => {
+    const onContainerClick = (ev: MouseEvent) => {
       const a = (ev.target as HTMLElement)?.closest?.(".netra-open-case") as HTMLElement | null;
       if (a) { ev.preventDefault(); navRef.current(`/cases?q=${a.getAttribute("data-cn")}`); }
-    });
+    };
+    map.getContainer().addEventListener("click", onContainerClick);
     // Hover (zoomed out) → nearest district's FIR count, for a quick DSP compare.
     map.on("mousemove", (e) => {
       const ds = districtsRef.current;
@@ -497,6 +498,7 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (import.meta.env.DEV) (window as any).__netraMap = map;
     return () => {
+      map.getContainer().removeEventListener("click", onContainerClick);
       map.remove();
       mapRef.current = null;
       overlayRef.current = null;

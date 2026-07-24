@@ -12,6 +12,29 @@ app.use(express.json({ limit: "6mb" })); // larger for Copilot context + VLM ima
 
 const VALID_KEY = /^[a-z0-9/_-]+$/;
 
+// Never leak internal error detail to the client (info disclosure). Log server-side, return generic.
+function fail(res, where, err) {
+  console.error(`netra_api ${where}:`, err && err.stack ? err.stack : err);
+  return res.status(500).json({ error: "internal error" });
+}
+
+// Best-effort per-IP rate limit for the sovereign LLM proxy so a public caller can't burn the
+// GLM/VLM quota. In-memory → per function instance (not global), which is acceptable for a
+// prototype; a production deploy would use a shared store (Catalyst Cache/Data Store).
+const RL_WINDOW_MS = 60000, RL_MAX = 20; // 20 LLM calls / IP / minute
+const rlHits = new Map();
+function rateLimited(req) {
+  const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.ip || "unknown";
+  const now = Date.now();
+  const arr = (rlHits.get(ip) || []).filter((t) => now - t < RL_WINDOW_MS);
+  arr.push(now);
+  rlHits.set(ip, arr);
+  if (rlHits.size > 5000) { // opportunistic cleanup of idle IPs
+    for (const [k, v] of rlHits) if (!v.some((t) => now - t < RL_WINDOW_MS)) rlHits.delete(k);
+  }
+  return arr.length > RL_MAX;
+}
+
 // ---- Sovereign LLM (Catalyst QuickML: GLM-4.7 + Qwen VLM) ----
 // Creds (refresh token) live in the Data Store Store table under a private '_llm_creds'
 // key — never in the repo. Seeded once over HTTPS via /llm-seed. The function mints
@@ -59,10 +82,11 @@ app.post(/\/llm-seed$/, async (req, res) => {
     await app_.datastore().table("Store").insertRow({ rkey: "_llm_creds", rvalue: JSON.stringify({ refresh_token, client_id, client_secret }) });
     _creds = null;
     return res.json({ ok: true });
-  } catch (err) { return res.status(500).json({ error: String(err && err.message ? err.message : err) }); }
+  } catch (err) { return fail(res, "/llm-seed", err); }
 });
 
 app.post(/\/glm$/, async (req, res) => {
+  if (rateLimited(req)) return res.status(429).json({ error: "rate limit exceeded — try again shortly" });
   try {
     const b = req.body || {};
     const payload = {
@@ -73,10 +97,11 @@ app.post(/\/glm$/, async (req, res) => {
     };
     const { status, json } = await callQml(req, "glm/chat", payload);
     return res.status(status).json(json);
-  } catch (err) { return res.status(500).json({ error: String(err && err.message ? err.message : err) }); }
+  } catch (err) { return fail(res, "/glm", err); }
 });
 
 app.post(/\/vlm$/, async (req, res) => {
+  if (rateLimited(req)) return res.status(429).json({ error: "rate limit exceeded — try again shortly" });
   try {
     const b = req.body || {};
     const payload = { model: "VL-Qwen3.6-35B-A3B", prompt: b.prompt, images: b.images,
@@ -84,7 +109,7 @@ app.post(/\/vlm$/, async (req, res) => {
       temperature: 0.2, top_k: 50, top_p: 0.9, max_tokens: b.max_tokens ?? 800 };
     const { status, json } = await callQml(req, "vlm/chat", payload);
     return res.status(status).json(json);
-  } catch (err) { return res.status(500).json({ error: String(err && err.message ? err.message : err) }); }
+  } catch (err) { return fail(res, "/vlm", err); }
 });
 
 // ---- linkage matcher (v1, keyword TF-IDF) ----
@@ -147,6 +172,9 @@ app.post(/.*/, (req, res) => {
 });
 
 // ---- case search over the 50k Cases table (ZCQL) ----
+// NOTE: ZCQL has no parameterized-query API here, so filters are string-interpolated. Injection is
+// contained by clean() (strips quotes/semicolons/backslash/percent + caps length) and the numeric
+// regex on crimeNo. If a parameterized ZCQL binding becomes available, switch to it.
 app.get(/\/cases$/, async (req, res) => {
   const clean = (v) => String(v || "").replace(/['";\\%]/g, "").slice(0, 60);
   const district = clean(req.query.district);
@@ -175,7 +203,7 @@ app.get(/\/cases$/, async (req, res) => {
     const items = (rows || []).map((r) => r.Cases || r);
     return res.json({ page, size, items, hasMore: items.length === size });
   } catch (err) {
-    return res.status(500).json({ error: String(err && err.message ? err.message : err) });
+    return fail(res, "/cases", err);
   }
 });
 
@@ -196,7 +224,7 @@ app.get(/.*/, async (req, res) => {
     res.set("Cache-Control", "public, max-age=60");
     return res.json(JSON.parse(row.rvalue));
   } catch (err) {
-    return res.status(500).json({ error: String(err && err.message ? err.message : err) });
+    return fail(res, "/data", err);
   }
 });
 

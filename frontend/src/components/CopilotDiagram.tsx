@@ -20,7 +20,10 @@ async function getMermaid() {
     const mod = await import("mermaid");
     _mm = mod.default;
     _mm.initialize({
-      startOnLoad: false, securityLevel: "loose", theme: "base", fontFamily: "Inter, system-ui, sans-serif",
+      // "antiscript" keeps HTML labels (our deterministic charts use <br/>) but strips <script> and
+      // javascript: from the mermaid source — GLM/user-supplied mermaid is rendered via
+      // dangerouslySetInnerHTML, so "loose" would have been an XSS sink.
+      startOnLoad: false, securityLevel: "antiscript", theme: "base", fontFamily: "Inter, system-ui, sans-serif",
       themeVariables: {
         background: "#0b1220", primaryColor: "#111a2e", primaryTextColor: "#e2e8f0", primaryBorderColor: "#2b3a55",
         lineColor: "#3b4a66", secondaryColor: "#1f2b45", tertiaryColor: "#0b1220", fontSize: "13px",
@@ -120,11 +123,15 @@ export default function CopilotDiagram({ action }: { action: Extract<UiAction, {
     if (started.current) return;
     if (dna === null && action.diagram !== "other") return;
     started.current = true;
-    // Honor GLM's own Mermaid whenever it supplied it (a custom/free-form diagram). Only build the
-    // deterministic grounded chart for a core kind when GLM gave NO Mermaid (a real-series request).
+    // Honesty: the 5 core kinds (link/org/timeline/money/mo) are ALWAYS built deterministically
+    // from real case data — GLM-supplied mermaid is ignored for them (otherwise it could invent a
+    // "real-series" chart). GLM's own mermaid is honoured ONLY for kind='other' (free-form). If a
+    // core build has no data, we show nothing rather than a fabricated diagram.
     const core = action.diagram !== "other";
     const given = clean(action.mermaid || "");
-    const initial = given || (core ? buildGrounded(action.diagram, action.clusterId, dna || {}, net) || "" : "");
+    const initial = core
+      ? (buildGrounded(action.diagram, action.clusterId, dna || {}, net) || "")
+      : given;
     if (initial) { setCode(initial); void render(initial); }
     else { setErr("No diagram content was provided."); setBusy(false); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
