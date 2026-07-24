@@ -7,16 +7,12 @@ import type { MatchResult, ClusterMatch } from "@/api/client";
 
 const MODEL = "Xenova/paraphrase-multilingual-MiniLM-L12-v2";
 
-// SOVEREIGN: serve the embedding model from our own host, never the HuggingFace CDN. The model
-// files live in public/models/<MODEL>/ (config, tokenizer, onnx/model_quantized.onnx) and ship
-// with the app; the onnxruntime WASM is already bundled locally by Vite. Result: no external
-// call ever leaves the police cloud for semantic matching (Linkage, Case Search, Copilot).
-env.allowLocalModels = true;
-env.allowRemoteModels = false; // hard-off: if a file is missing it fails loudly, never phones home
-env.localModelPath = `${import.meta.env.BASE_URL}models/`;
-// The onnxruntime WASM runtime otherwise fetches from cdn.jsdelivr.net — pin it to our own host
-// too (files copied into public/ort/), so NOTHING about semantic matching leaves the police cloud.
-if (env.backends?.onnx?.wasm) env.backends.onnx.wasm.wasmPaths = `${import.meta.env.BASE_URL}ort/`;
+// SOVEREIGNTY NOTE (see docs/SOVEREIGN-MODEL.md): hosting the model on-host was attempted but the
+// 112MB weights exceed Catalyst web hosting's single-file cap (HTTP 413), and Catalyst also rejects
+// the .wasm/.mjs paths (HTTP 400) so the runtime must stay Vite-bundled. Full sovereignty therefore
+// needs object storage (Catalyst Stratus) for the model — tracked separately. For now the model
+// loads from the open-weights host; the onnxruntime WASM is served from the Vite bundle (local).
+env.allowLocalModels = false; // model weights fetched from the model host (see note above)
 
 interface ClusterVec extends Omit<ClusterMatch, "score"> {
   vector: number[];
