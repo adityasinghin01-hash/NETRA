@@ -33,6 +33,14 @@ async function getMermaid() {
 function initMermaid(mm: any, trusted: boolean) {
   mm.initialize({
     startOnLoad: false, securityLevel: trusted ? "antiscript" : "strict",
+    // htmlLabels OFF everywhere → mermaid emits real <text>/<tspan> instead of <foreignObject>
+    // HTML. Two reasons: (1) PNG export — browsers refuse to rasterize foreignObject through an
+    // <img>, and its HTML isn't valid XML so it can't even be parsed; (2) it removes HTML from
+    // labels entirely, which is the same thing securityLevel 'strict' is protecting against.
+    // <br/> still breaks lines correctly — mermaid splits it into tspans when htmlLabels is false.
+    htmlLabels: false,
+    flowchart: { htmlLabels: false },
+    class: { htmlLabels: false },
     theme: "base", fontFamily: "Inter, system-ui, sans-serif",
     themeVariables: {
       background: "#0b1220", primaryColor: "#111a2e", primaryTextColor: "#e2e8f0", primaryBorderColor: "#2b3a55",
@@ -197,40 +205,81 @@ export default function CopilotDiagram({ action }: { action: Extract<UiAction, {
   const title = action.title || action.subject || (action.diagram === "other" ? "Diagram" : `${action.diagram} diagram`);
   const fileName = (title || "diagram").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "diagram";
 
-  // Rasterize the current SVG to a crisp 2x PNG and download it. The SVG is self-contained (no
-  // external refs), so the canvas isn't tainted and toDataURL works. We stamp explicit pixel
-  // dimensions from the viewBox and drop mermaid's max-width cap so the export is full-resolution.
+  function triggerDownload(href: string, name: string) {
+    const a = document.createElement("a");
+    a.download = name; a.href = href; a.rel = "noopener";
+    document.body.appendChild(a); // Firefox needs the anchor in the document for .click()
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  // Download the diagram as SVG — the always-works fallback. The markup is self-contained, so a
+  // blob URL opens/prints fine anywhere that reads SVG.
+  function downloadSvg(markup: string) {
+    const blob = new Blob([markup], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    triggerDownload(url, fileName + ".svg");
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+
+  // Rasterize the current SVG to a crisp 2x PNG. Rendering an SVG through an <img> is picky, so
+  // every step that can fail reports WHY instead of returning silently, and any failure falls back
+  // to an SVG download so the button always produces a file.
   async function downloadPng() {
     if (!svg) return;
-    let doc: Document;
-    try { doc = new DOMParser().parseFromString(svg, "image/svg+xml"); } catch { return; }
-    const el = doc.documentElement as unknown as SVGSVGElement;
-    const vb = (el.getAttribute("viewBox") || "").trim().split(/\s+/).map(Number);
-    const w = vb.length === 4 && vb[2] ? vb[2] : (el.clientWidth || 1200);
-    const h = vb.length === 4 && vb[3] ? vb[3] : (el.clientHeight || 800);
-    el.setAttribute("width", String(w));
-    el.setAttribute("height", String(h));
-    el.style.maxWidth = "none";
-    const xml = new XMLSerializer().serializeToString(el);
-    const img = new Image();
+    setErr("");
+    // Size comes from the viewBox, which is present on every mermaid SVG.
+    const vbRaw = (svg.match(/viewBox="([^"]+)"/)?.[1] || "").trim().split(/\s+/).map(Number);
+    const w = Math.ceil(vbRaw.length === 4 && vbRaw[2] ? vbRaw[2] : 1200);
+    const h = Math.ceil(vbRaw.length === 4 && vbRaw[3] ? vbRaw[3] : 800);
+
+    // An <img>-loaded SVG MUST carry explicit namespaces and pixel dimensions or it silently
+    // refuses to load; mermaid emits width="100%" + a max-width style, both of which must go.
+    // Done as string surgery rather than DOMParser because a diagram containing foreignObject
+    // HTML is not well-formed XML and would fail to parse at all.
+    let markup = svg
+      .replace(/^\s*<svg\b/, '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"')
+      .replace(/(<svg\b[^>]*?)\swidth="[^"]*"/, "$1")
+      .replace(/(<svg\b[^>]*?)\sheight="[^"]*"/, "$1")
+      .replace(/(<svg\b[^>]*?)\sstyle="[^"]*"/, "$1")
+      .replace(/^\s*<svg\b/, `<svg width="${w}" height="${h}"`);
+
     try {
+      // foreignObject can't be rasterized by any major browser through an <img>. htmlLabels are
+      // off (see initMermaid) so this should not occur — fail loudly rather than export a blank.
+      if (/<foreignObject/i.test(markup)) throw new Error("diagram uses HTML labels (foreignObject)");
+
+      // Fonts must be resolved before rasterizing or labels can come out blank.
+      try { await (document as any).fonts?.ready; } catch { /* non-fatal */ }
+
+      const img = new Image();
+      img.decoding = "sync";
       await new Promise<void>((res, rej) => {
-        img.onload = () => res(); img.onerror = () => rej(new Error("img"));
-        img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(xml);
+        img.onload = () => res();
+        img.onerror = () => rej(new Error("the browser could not load the SVG as an image"));
+        img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(markup);
       });
-    } catch { return; }
-    const scale = 2;
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(w * scale); canvas.height = Math.round(h * scale);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.fillStyle = "#0b1220"; ctx.fillRect(0, 0, canvas.width, canvas.height); // match the card bg
-    ctx.setTransform(scale, 0, 0, scale, 0, 0);
-    ctx.drawImage(img, 0, 0, w, h);
-    const a = document.createElement("a");
-    a.download = fileName + ".png";
-    a.href = canvas.toDataURL("image/png");
-    a.click();
+
+      const scale = 2;
+      const canvas = document.createElement("canvas");
+      canvas.width = w * scale; canvas.height = h * scale;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("canvas unavailable");
+      ctx.fillStyle = "#0b1220"; ctx.fillRect(0, 0, canvas.width, canvas.height); // match the card bg
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+      ctx.drawImage(img, 0, 0, w, h);
+      // toDataURL throws on a tainted canvas; a big diagram can also exceed the data-URI cap, so
+      // prefer a blob and only then fall back.
+      const blob: Blob | null = await new Promise((r) => canvas.toBlob(r, "image/png"));
+      if (!blob) throw new Error("PNG encoding failed");
+      const url = URL.createObjectURL(blob);
+      triggerDownload(url, fileName + ".png");
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    } catch (e) {
+      // Never fail silently: say what broke, and still hand over a usable file.
+      downloadSvg(markup);
+      setErr(`PNG export failed (${String((e as Error)?.message || e).slice(0, 80)}) — downloaded SVG instead.`);
+    }
   }
 
   return (
