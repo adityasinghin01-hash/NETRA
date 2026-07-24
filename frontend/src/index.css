@@ -4,9 +4,9 @@
    no toggle). Semantic tokens only; components never hardcode hex.
    See docs/TEAMMATE_FRONTEND_GUIDE.md §2. */
 @theme {
-  --color-bg: #0b1220; /* page — near-black navy (never pure #000) */
-  --color-surface: #111a2e; /* cards / panels */
-  --color-surface-2: #16213b; /* elevated */
+  --color-bg: #000000; /* Pure black base */
+  --color-surface: #0a0a0c; /* Deep black surface */
+  --color-surface-2: #141416; /* Elevated deep surface */
   --color-border: #1e293b;
   --color-border-strong: #2b3a55;
 
@@ -37,7 +37,8 @@ body,
 }
 
 body {
-  background: var(--color-bg);
+  background: #000000;
+  color: var(--color-text);
   /* Subtle command-center ambient glow: faint cyan top-left, indigo top-right. */
   background-image:
     radial-gradient(900px 500px at 12% -8%, rgba(34, 211, 238, 0.06), transparent 60%),
@@ -50,6 +51,11 @@ body {
   letter-spacing: -0.006em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure all cards/bordered boxes have a subtle boundary shadow on pure black */
+[class*="border-[var(--color-border)]"] {
+  box-shadow: 0 8px 24px rgba(255, 255, 255, 0.03), 0 2px 8px rgba(255, 255, 255, 0.02);
 }
 
 /* Tabular numbers everywhere numbers appear */
@@ -72,6 +78,7 @@ body {
 /* Shimmer skeleton for loading states */
 .skeleton {
   background: linear-gradient(90deg, #131f38 25%, #1b2b4a 50%, #131f38 75%);
+  background-color: var(--color-surface);
   background-size: 200% 100%;
   animation: shimmer 1.4s ease-in-out infinite;
   border-radius: 8px;
@@ -79,6 +86,20 @@ body {
 @keyframes shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* Nav bell: a periodic swing while unread alerts are waiting. Subtle by design — it draws the
+   eye without becoming a distraction on a monitor an officer keeps open all shift. */
+@keyframes netraBellSwing {
+  0%, 88%, 100% { transform: rotate(0deg); }
+  90% { transform: rotate(12deg); }
+  93% { transform: rotate(-10deg); }
+  96% { transform: rotate(6deg); }
+  98% { transform: rotate(-3deg); }
+}
+.netra-bell-swing {
+  animation: netraBellSwing 4s ease-in-out infinite;
+  transform-origin: 50% 15%;
 }
 
 ::-webkit-scrollbar {

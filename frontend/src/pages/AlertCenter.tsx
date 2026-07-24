@@ -2,19 +2,18 @@
 // "why flagged" statistic, and a New→Acknowledged→Assigned→Resolved lifecycle (a workflow an
 // officer works, not a list they read). Data: public/alerts-feed.json (build_alerts.py).
 // Clicking an alert opens its triggering FIR in Case Search with the alert-context panel.
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, PageHeader, Badge, State } from "@/components/ui";
-import { getSession } from "@/lib/auth";
-
-interface Alert {
-  id: string; type: string; severity: string; district: string; crimeType: string;
-  message: string; why: string; count: number; date: string; status: string;
-  crimeNo?: string | null; clusterId?: string | null;
-}
-const FLOW = ["New", "Acknowledged", "Assigned", "Resolved"];
+import { PageHeader, Badge, State, SpecularCard } from "@/components/ui";
+import { advanceStatus, arrived, FLOW, SYNC_MS, type Alert } from "@/lib/liveAlerts";
+import { useLiveAlerts } from "@/lib/useLiveAlerts";
 const TYPE_TONE: Record<string, "danger" | "warn" | "accent" | "mute"> = {
   "Volume spike": "danger", "Emerging serial pattern": "accent", "Repeat offender": "warn",
+};
+const SPECULAR_LINE_COLOR: Record<string, string> = {
+  "Volume spike": "#f43f5e",
+  "Emerging serial pattern": "#38bdf8",
+  "Repeat offender": "#f59e0b",
 };
 
 // A live wall-clock that ticks every second, so the feed reads as an always-on monitor.
@@ -28,91 +27,27 @@ function useClock() {
 }
 
 export default function AlertCenter() {
-  const scope = getSession().district;
+  // District scoping now happens inside the shared store, so the bell and this page filter identically.
   const nav = useNavigate();
-  const [alerts, setAlerts] = useState<Alert[] | null>(null);
-  const [override, setOverride] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<string>("all");
   const now = useClock();
 
-  const [lastSync, setLastSync] = useState<Date | null>(null);
-  // Progressive live arrival: the feed's precomputed anomalies surface OVER TIME so the monitor
-  // reads as live rather than a static list. A few show at first; then each sync brings a
-  // previously-unshown detection to the top with a NEW flash. Every card is a real precomputed
-  // alert — this is reveal-over-time, never fabricated data.
-  const INITIAL_SHOWN = 4;
-  const [reveal, setReveal] = useState<{ shown: string[]; queue: string[] } | null>(null);
-  const [justId, setJustId] = useState<string | null>(null);
-
-  const loadedRef = useRef(false); // have we EVER loaded the feed? (avoids a stale `alerts` read)
-  useEffect(() => {
-    let alive = true;
-    const pull = () =>
-      fetch(`${import.meta.env.BASE_URL}alerts-feed.json?t=${Date.now()}`, { cache: "no-store" })
-        .then((r) => r.json())
-        .then((d) => { if (alive) { loadedRef.current = true; setAlerts(d); setLastSync(new Date()); } })
-        // Only fall back to empty on the FIRST-ever load failure. A transient failure on a later
-        // 20s re-sync must NOT wipe the already-loaded feed (the old `!alerts` closed over a stale
-        // null and cleared the list on every failed sync).
-        .catch(() => { if (alive && !loadedRef.current) setAlerts([]); });
-    pull();
-    // Each 20s sync re-fetches AND surfaces one more queued detection at the top.
-    const t = setInterval(() => {
-      pull();
-      setReveal((rv) => {
-        if (!rv || rv.queue.length === 0) return rv;
-        const [next, ...queue] = rv.queue;
-        setJustId(next);
-        return { shown: [next, ...rv.shown], queue };
-      });
-    }, 20000);
-    return () => { alive = false; clearInterval(t); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Seed the reveal queue once the feed loads, then only APPEND genuinely-new alert ids on later
-  // syncs — never reset. (Each 20s pull replaces the `alerts` array, so a plain re-seed here would
-  // reset the reveal back to the first few every sync — the bug that stopped new alerts appearing.)
-  useEffect(() => {
-    if (!alerts) return;
-    const ids = alerts
-      .filter((a) => !scope || a.district.includes(scope) || a.district === "state-wide")
-      .map((a) => a.id);
-    setReveal((rv) => {
-      if (!rv) return { shown: ids.slice(0, INITIAL_SHOWN), queue: ids.slice(INITIAL_SHOWN) };
-      const known = new Set([...rv.shown, ...rv.queue]);
-      const fresh = ids.filter((id) => !known.has(id));
-      return fresh.length ? { shown: rv.shown, queue: [...rv.queue, ...fresh] } : rv;
-    });
-  }, [alerts, scope]);
-
-  // The NEW flash on a just-arrived alert is transient.
-  useEffect(() => {
-    if (!justId) return;
-    const t = setTimeout(() => setJustId(null), 7000);
-    return () => clearTimeout(t);
-  }, [justId]);
-
-  const scoped = useMemo(
-    () => (alerts ?? [])
-      .filter((a) => !scope || a.district.includes(scope) || a.district === "state-wide")
-      .map((a) => ({ ...a, status: override[a.id] ?? a.status })),
-    [alerts, scope, override]
-  );
-  // Only alerts that have "arrived" are visible; ordered so the newest arrival is on top.
-  const byId = useMemo(() => new Map(scoped.map((a) => [a.id, a])), [scoped]);
-  const ordered = useMemo(
-    () => (reveal?.shown ?? []).map((id) => byId.get(id)).filter(Boolean) as typeof scoped,
-    [reveal, byId]
-  );
-  const incoming = reveal?.queue.length ?? 0;
+  // Feed, progressive arrival and workflow statuses all live in the shared store, so the nav bell
+  // and this page always agree and a new detection lights up both at the same moment.
+  const live = useLiveAlerts();
+  const { lastSync } = live;
+  const alerts = live.alerts;
+  const justId = live.justId;
+  // Only alerts that have "arrived" are visible; ordered so the newest arrival is on top. The
+  // reveal queue and statuses come from the shared store (see lib/liveAlerts.ts).
+  const ordered = useMemo(() => arrived(live), [live]);
+  const incoming = live.queue.length;
   const shown = filter === "all" ? ordered : ordered.filter((a) => a.status === filter);
   const openCount = ordered.filter((a) => a.status !== "Resolved").length;
   const highCount = ordered.filter((a) => a.severity === "high" && a.status !== "Resolved").length;
 
   function advance(a: Alert) {
-    const i = FLOW.indexOf(a.status);
-    setOverride((o) => ({ ...o, [a.id]: FLOW[Math.min(i + 1, FLOW.length - 1)] }));
+    advanceStatus(a.id, a.status); // shared store → the nav bell count updates with it
   }
   function openCase(a: Alert) {
     if (!a.crimeNo) return;
@@ -145,7 +80,7 @@ export default function AlertCenter() {
       <div className="mb-3 flex items-center gap-2 text-[11px] text-[var(--color-text-mute)]">
         <span className="netra-live-dot inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-ok)]" />
         Monitoring continuously · clock <span className="tnum text-[var(--color-text-dim)]">{hhmmss}</span>
-        {lastSync && <> · feed synced <span className="tnum text-[var(--color-text-dim)]">{Math.max(0, Math.round((now.getTime() - lastSync.getTime()) / 1000))}s ago</span> (every 20s)</>}
+        {lastSync && <> · feed synced <span className="tnum text-[var(--color-text-dim)]">{Math.max(0, Math.round((now.getTime() - lastSync.getTime()) / 1000))}s ago</span> (every {Math.round(SYNC_MS / 1000)}s)</>}
         · {ordered.length} active{incoming > 0 && <> · <span className="text-[var(--color-warn)]">{incoming} scanning…</span></>}
       </div>
 
@@ -162,10 +97,22 @@ export default function AlertCenter() {
       </div>
 
       <State loading={!alerts} error={null} empty={!!alerts && shown.length === 0}>
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {shown.map((a, i) => (
+            // Wrapper keeps the staggered entry animation; SpecularCard supplies the shell. The
+            // just-arrived alert keeps its red ring on top of the specular border.
             <div key={a.id} className="netra-alert-in" style={{ animationDelay: `${Math.min(i, 8) * 45}ms` }}>
-            <Card className={`p-4 transition-colors hover:border-[var(--color-accent)]/50 ${a.id === justId ? "border-[var(--color-danger)]/60 ring-1 ring-[var(--color-danger)]/40" : ""}`}>
+            <SpecularCard
+              radius={12}
+              lineColor={SPECULAR_LINE_COLOR[a.type] ?? (a.severity === "high" ? "#f43f5e" : "#f59e0b")}
+              baseColor="#0f172a"
+              intensity={1.3}
+              shineSize={15}
+              shineFade={35}
+              thickness={1.5}
+              proximity={280}
+              className={`card-hover p-4 border bg-[var(--color-surface)] shadow-lg ${a.id === justId ? "border-[var(--color-danger)]/60 ring-1 ring-[var(--color-danger)]/40" : "border-[var(--color-border)]"}`}
+            >
               <div className="flex items-start gap-3">
                 <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${a.severity === "high" ? "bg-[var(--color-danger)]" : "bg-[var(--color-warn)]"} ${a.status === "New" ? "netra-live-dot" : ""}`} />
                 <button onClick={() => openCase(a)} disabled={!a.crimeNo}
@@ -178,7 +125,17 @@ export default function AlertCenter() {
                     <span className="text-xs text-[var(--color-text-mute)]">{a.district} · {a.date}</span>
                   </div>
                   <div className="text-sm text-[var(--color-text)]">{a.message}</div>
-                  <div className="mt-1 text-xs text-[var(--color-text-dim)]">🔬 Why flagged: <span className="text-[var(--color-text)]">{a.why}</span></div>
+                  {/* SVG icon replaces the 🔬 emoji; the drill-down affordance stays. */}
+                  <div className="mt-1.5 flex items-center gap-1.5 text-xs text-[var(--color-text-dim)]">
+                    <span className="flex items-center gap-1 font-semibold text-cyan-400">
+                      <svg className="w-3.5 h-3.5 text-cyan-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                      </svg>
+                      <span>Why flagged:</span>
+                    </span>
+                    <span className="text-[var(--color-text)]">{a.why}</span>
+                  </div>
                   {a.crimeNo && (
                     <div className="mt-1.5 text-[11px] text-[var(--color-accent)]">Open triggering FIR in Case Search →</div>
                   )}
@@ -192,7 +149,7 @@ export default function AlertCenter() {
                   )}
                 </div>
               </div>
-            </Card>
+            </SpecularCard>
             </div>
           ))}
         </div>

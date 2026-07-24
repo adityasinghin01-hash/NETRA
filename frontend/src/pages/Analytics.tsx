@@ -29,7 +29,11 @@ interface RiskData {
   districts: { district: string; riskScore: number }[];
 }
 
-const LINE_COLORS = ["#22d3ee", "#f59e0b", "#ec4899", "#a3e635", "#3b82f6"];
+// Categorical series colours. Assigned in fixed order, never cycled by rank, so a district keeps
+// its colour when the series count changes. Validated for the dark surface (lightness band, chroma
+// floor, colour-vision-deficiency separation, contrast) rather than picked by eye — the previous
+// set put cyan next to blue, which is indistinguishable on a line chart, and ran too light.
+const LINE_COLORS = ["#0891b2", "#d95926", "#199e70", "#c98500", "#d55181"];
 const TABS = ["Trends", "Outcomes", "Network"] as const;
 
 function OutcomeBar({ a, b, c }: { a: number; b: number; c: number }) {
@@ -51,9 +55,14 @@ const OUTCOME_LEGEND = (
 );
 
 const CLOCK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+// Sequential ramp for a MAGNITUDE (FIRs per hour): one hue, monotonically increasing lightness,
+// so "more" is readable as "brighter" at a glance and stays ordered for colour-blind viewers.
+// The old ramp ran navy → teal → amber → red: a rainbow, which encodes magnitude as hue and is
+// unreadable as an ordered scale (and its caption claimed "darker = more" while it got brighter).
 function clockColor(t: number) {
-  const stops = [[13, 20, 40], [30, 100, 150], [56, 178, 178], [246, 180, 64], [206, 32, 52]];
-  const p = t * (stops.length - 1); const i = Math.floor(p); const f = p - i;
+  const stops = [[15, 23, 42], [14, 116, 144], [6, 182, 212], [103, 232, 249]]; // slate-900 → cyan-300
+  const p = Math.max(0, Math.min(1, t)) * (stops.length - 1);
+  const i = Math.floor(p); const f = p - i;
   const a = stops[i]; const b = stops[Math.min(i + 1, stops.length - 1)];
   return `rgb(${a.map((x, k) => Math.round(x + (b[k] - x) * f)).join(",")})`;
 }
@@ -75,6 +84,13 @@ function CrimeClock({ matrix }: { matrix: number[][] }) {
           ))}
         </div>
       ))}
+      {/* Scale legend — a magnitude encoding is unreadable without one; states what the colour means. */}
+      <div className="mt-2 flex items-center gap-2 pl-9 text-[9px] text-[var(--color-text-mute)]">
+        <span>0 FIRs</span>
+        <span style={{ display: "inline-block", width: 96, height: 8, borderRadius: 4,
+          background: `linear-gradient(90deg, ${clockColor(0)}, ${clockColor(0.33)}, ${clockColor(0.66)}, ${clockColor(1)})` }} />
+        <span>{max} FIRs (peak hour)</span>
+      </div>
     </div>
   );
 }
@@ -206,7 +222,9 @@ function TrendsTab({ scope, da }: { scope: string | null; da: DA | null }) {
           <div className="text-sm font-medium">Monthly FIRs — {scope ?? "top districts"}</div>
           {firstFcMonth && (
             <span className="flex items-center gap-1.5 text-[11px] text-[var(--color-text-mute)]">
-              <span className="inline-block h-0 w-4 border-t-2 border-dashed border-[var(--color-accent)]" /> forecast (±80%)
+              {/* The ±80% band is only drawn for a single scoped district (the <Area/> below), so
+                  only claim it there — state-wide shows the projection line alone. */}
+              <span className="inline-block h-0 w-4 border-t-2 border-dashed border-[var(--color-accent)]" /> forecast{scope ? " (±80%)" : ""}
             </span>
           )}
         </div>
@@ -248,14 +266,14 @@ function TrendsTab({ scope, da }: { scope: string | null; da: DA | null }) {
         </div>
         {firstFcMonth && (
           <div className="mt-2 text-[11px] text-[var(--color-text-mute)]">
-            Dashed = projected next {fc?.horizon} months (linear trend + monthly seasonal index); shaded band = ~80% interval. Predictive, not just retrospective.{scope ? " 🔴 markers = months >2σ above this district’s own average (statistical spikes)." : ""}
+            Dashed = projected next {fc?.horizon} months (linear trend + monthly seasonal index){scope ? "; shaded band = ~80% interval" : ""}. Predictive, not just retrospective.{scope ? " 🔴 markers = months >2σ above this district’s own average (statistical spikes)." : " Select a district to see its ~80% interval and anomaly markers."}
           </div>
         )}
       </Card>
       {clockMatrix && (
         <Card className="p-4">
           <div className="text-sm font-medium">Crime Clock — when crime happens {scope ? `· ${scope}` : "· state-wide"}</div>
-          <div className="mb-3 text-xs text-[var(--color-text-dim)]">Darker = more crime. Reveals the exact hours to deploy patrols.</div>
+          <div className="mb-3 text-xs text-[var(--color-text-dim)]">Brighter = more crime. Each square is one hour of one weekday — reveals the exact hours to deploy patrols.</div>
           <CrimeClock matrix={clockMatrix} />
         </Card>
       )}

@@ -13,6 +13,7 @@ import { stripEmoji } from "@/lib/text";
 import type { UiAction } from "@/lib/copilotTools";
 import CopilotDiagram from "@/components/CopilotDiagram";
 import CopilotDocument from "@/components/CopilotDocument";
+import logoImg from "@/assets/logo.png";
 
 interface Msg {
   role: "user" | "netra";
@@ -120,7 +121,7 @@ export default function Copilot() {
         className="fixed bottom-5 right-5 z-[2000] flex items-center gap-2 rounded-full border border-[var(--color-accent-dim)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-medium text-[var(--color-text)] shadow-xl transition-transform hover:scale-105"
         style={{ boxShadow: "0 0 26px rgba(34,211,238,0.3)" }}
       >
-        <span className={`text-xl ${thinking ? "netra-eye-scan" : ""}`}>👁️</span>
+        <img src={logoImg} alt="NETRA" className={`w-6 h-6 object-contain ${thinking ? "netra-eye-scan" : ""}`} />
         {!open && <span>Ask NETRA</span>}
       </button>
 
@@ -129,7 +130,7 @@ export default function Copilot() {
           {/* Header */}
           <div className="flex items-center justify-between border-b border-[var(--color-border)] px-4 py-3">
             <div className="flex items-center gap-2">
-              <span className={`inline-block h-2 w-2 rounded-full bg-[var(--color-accent)] ${thinking ? "animate-pulse" : ""}`} />
+              <img src={logoImg} alt="NETRA" className={`w-6 h-6 object-contain ${thinking ? "netra-eye-scan" : ""}`} />
               <div>
                 <div className="text-sm font-semibold text-[var(--color-text)]">NETRA Copilot</div>
                 <div className="text-[10px] text-[var(--color-text-mute)]">grounded · cited · sovereign{scope ? ` · ${scope}` : ""}</div>
@@ -139,8 +140,14 @@ export default function Copilot() {
               <button
                 onClick={() => setDeep((d) => !d)}
                 title="Deep-analysis mode (slower, step-by-step reasoning)"
-                className={`rounded-md border px-2 py-1 text-[10px] transition-colors ${deep ? "border-[var(--color-accent)] bg-[var(--color-accent)]/15 text-[var(--color-accent)]" : "border-[var(--color-border)] text-[var(--color-text-mute)]"}`}
-              >Deep</button>
+                className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] transition-colors ${deep ? "border-[var(--color-accent)] bg-[var(--color-accent)]/15 text-[var(--color-accent)]" : "border-[var(--color-border)] text-[var(--color-text-mute)]"}`}
+              >
+                <svg className="w-3 h-3 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="4" y="4" width="16" height="16" rx="2" />
+                  <rect x="9" y="9" width="6" height="6" />
+                </svg>
+                <span>Deep</span>
+              </button>
               <button onClick={() => setOpen(false)} className="text-[var(--color-text-mute)] hover:text-[var(--color-text)]">✕</button>
             </div>
           </div>
@@ -184,7 +191,13 @@ export default function Copilot() {
                             {showTrace === i ? "hide reasoning" : "how?"}
                           </button>
                         )}
-                        <button onClick={() => speak(stripEmoji(m.text))} title="Read aloud" className="text-[9px] text-[var(--color-text-mute)] hover:text-[var(--color-accent)]">Read aloud</button>
+                        {/* stripEmoji: speech synthesis must never read pictograph names aloud. */}
+                        <button onClick={() => speak(stripEmoji(m.text))} title="Read aloud" className="text-slate-400 hover:text-cyan-400 transition-colors">
+                          <svg className="w-3.5 h-3.5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                          </svg>
+                        </button>
                       </div>
                       {showTrace === i && m.trace && (
                         <ul className="mt-1.5 space-y-0.5 border-t border-[var(--color-border)] pt-1.5 text-[9px] text-[var(--color-text-mute)]">
@@ -193,7 +206,14 @@ export default function Copilot() {
                       )}
                       {m.cites && m.cites.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-1">
-                          {m.cites.map((c) => <span key={c} className="rounded bg-[var(--color-surface-2)] px-1.5 py-0.5 text-[9px] text-[var(--color-text-mute)]">{c}</span>)}
+                          {m.cites.map((c) => (
+                            <span key={c} className="flex items-center gap-1 rounded bg-[var(--color-surface-2)] px-1.5 py-0.5 text-[9px] text-[var(--color-text-mute)]">
+                              <svg className="w-2.5 h-2.5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57a4 4 0 1 1 5.66 5.66l-8.59 8.58a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                              </svg>
+                              <span>{c}</span>
+                            </span>
+                          ))}
                         </div>
                       )}
                       {/* feedback — the honest learning loop */}
@@ -216,7 +236,14 @@ export default function Copilot() {
                         <button key={k} onClick={() => { nav(act.to); setOpen(false); }} className="rounded-lg border border-[var(--color-accent-dim)] px-2.5 py-1.5 text-[11px] text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10">→ {act.label}</button>
                       );
                       if (act.kind === "map") return (
-                        <button key={k} onClick={() => { nav("/map"); setOpen(false); }} className="rounded-lg border border-[var(--color-accent-dim)] px-2.5 py-1.5 text-[11px] text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10">Show on the Command Map</button>
+                        <button key={k} onClick={() => { nav("/map"); setOpen(false); }} className="flex items-center gap-1.5 rounded-lg border border-[var(--color-accent-dim)] px-2.5 py-1.5 text-[11px] text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10">
+                          <svg className="w-3.5 h-3.5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+                            <line x1="9" x2="9" y1="3" y2="18" />
+                            <line x1="15" x2="15" y1="6" y2="21" />
+                          </svg>
+                          <span>Show on the Command Map</span>
+                        </button>
                       );
                       return null;
                     })}
@@ -235,7 +262,8 @@ export default function Copilot() {
 
             {thinking && (
               <div className="flex items-center gap-2 text-xs text-[var(--color-text-mute)]">
-                <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[var(--color-accent)]" /> {deep ? "Reasoning deeply…" : "Scanning the records…"}
+                <img src={logoImg} alt="NETRA scanning" className="w-5 h-5 object-contain netra-eye-scan" />
+                <span>{deep ? "Reasoning deeply…" : "Scanning the records…"}</span>
               </div>
             )}
           </div>
@@ -243,8 +271,18 @@ export default function Copilot() {
           {/* Input */}
           <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="flex items-center gap-1.5 border-t border-[var(--color-border)] p-3">
             <input ref={fileRef} type="file" accept="image/*" onChange={onFile} className="hidden" />
-            <button type="button" onClick={() => fileRef.current?.click()} title="Upload a document to read (OCR)" className="shrink-0 rounded-lg border border-[var(--color-border)] px-2 py-2 text-[10px] text-[var(--color-text-mute)] hover:text-[var(--color-accent)]">Attach</button>
-            <button type="button" onClick={mic} title="Speak your question" className={`shrink-0 rounded-lg border px-2 py-2 text-[10px] ${listening ? "border-[var(--color-danger)] text-[var(--color-danger)]" : "border-[var(--color-border)] text-[var(--color-text-mute)] hover:text-[var(--color-accent)]"}`}>{listening ? "Stop" : "Speak"}</button>
+            <button type="button" onClick={() => fileRef.current?.click()} title="Upload a document to read (OCR)" className="shrink-0 rounded-lg border border-[var(--color-border)] p-2 text-slate-400 hover:text-cyan-400 hover:border-cyan-400/40 transition-colors">
+              <svg className="w-4 h-4 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57a4 4 0 1 1 5.66 5.66l-8.59 8.58a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+              </svg>
+            </button>
+            <button type="button" onClick={mic} title="Speak your question" className={`shrink-0 rounded-lg border p-2 transition-colors ${listening ? "border-[var(--color-danger)] text-[var(--color-danger)]" : "border-[var(--color-border)] text-slate-400 hover:text-cyan-400 hover:border-cyan-400/40"}`}>
+              <svg className="w-4 h-4 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="22"/>
+              </svg>
+            </button>
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}

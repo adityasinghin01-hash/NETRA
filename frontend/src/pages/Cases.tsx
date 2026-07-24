@@ -101,7 +101,15 @@ function Dossier({ c }: { c: CaseRow }) {
     <div className="mt-3 space-y-3">
       {hasParties && (
         <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-          <div className="mb-2 text-xs font-semibold text-[var(--color-text)]">👥 Parties</div>
+          <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text)]">
+            <svg className="w-4 h-4 text-cyan-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            <span>Parties</span>
+          </div>
           {c.complainant && (
             <Field label="Complainant">
               {c.complainant.name}{c.complainant.age ? ` · ${c.complainant.age}y` : ""}{c.complainant.gender ? ` · ${c.complainant.gender}` : ""}
@@ -129,7 +137,13 @@ function Dossier({ c }: { c: CaseRow }) {
       )}
       {f && (
         <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
-          <div className="mb-2 text-xs font-semibold text-[var(--color-text)]">🔬 Forensic &amp; physical evidence</div>
+          <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-[var(--color-text)]">
+            <svg className="w-4 h-4 text-cyan-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <span>Forensic &amp; physical evidence</span>
+          </div>
           <div className="space-y-1.5">
             <Field label="Weapon / tools">{f.weapon}{f.tools.length ? ` · ${f.tools.join(", ")}` : ""}</Field>
             <Field label="Evidence">
@@ -517,8 +531,13 @@ export default function Cases() {
       </Card>
 
       <Card className="mb-4 p-3">
-        <div className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-[var(--color-text)]">
-          🧠 Smart MO search <span className="text-xs font-normal text-[var(--color-text-mute)]">— describe the crime in plain words (English or ಕನ್ನಡ)</span>
+        <div className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold text-[var(--color-text)]">
+          <svg className="w-4 h-4 text-cyan-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"/>
+            <path d="M12 8v4l3 3"/>
+          </svg>
+          <span>Smart MO search</span>
+          <span className="text-xs font-normal text-[var(--color-text-mute)]">— describe the crime in plain words (English or ಕನ್ನಡ)</span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <input
@@ -531,11 +550,19 @@ export default function Cases() {
           <button
             onClick={semanticSearch}
             disabled={semQ.trim().length < 4 || semLoading || !caseVecs}
-            className="shrink-0 rounded-lg bg-[var(--color-accent)] px-4 py-1.5 text-sm font-medium text-[var(--color-bg)] disabled:opacity-40"
+            title={semLoading ? "Searching…"
+              : !caseVecs ? "Loading the semantic index — available in a moment"
+              : semQ.trim().length < 4 ? "Type at least 4 characters to search"
+              : "Search cases by meaning, not keywords"}
+            className="shrink-0 rounded-lg bg-[var(--color-accent)] px-4 py-1.5 text-sm font-medium text-[var(--color-bg)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {semLoading ? "Searching…" : "Search"}
           </button>
         </div>
+        {/* Say why the button is unavailable — especially while the index is still loading. */}
+        {!caseVecs && !semLoading && (
+          <div className="mt-1.5 text-[11px] text-[var(--color-text-mute)]">Loading the semantic index…</div>
+        )}
         {semRes && (
           <div className="mt-3 space-y-1.5">
             {semRes.length === 0 && <div className="text-xs text-[var(--color-text-mute)]">No semantic matches.</div>}
@@ -555,7 +582,13 @@ export default function Cases() {
 
       {dnaMap && (
         <div className="mb-4 flex flex-wrap items-center gap-1.5 text-xs">
-          <span className="text-[var(--color-text-mute)]">🔍 Serial cases with linked intelligence:</span>
+          <span className="flex items-center gap-1 text-[var(--color-text-mute)] font-medium">
+            <svg className="w-3.5 h-3.5 text-cyan-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <span>Serial cases with linked intelligence:</span>
+          </span>
           {Object.values(dnaMap).slice(0, 5).map((c) => {
             const m = c.members.find((x) => x.solved === false) ?? c.members[0];
             const row = {
