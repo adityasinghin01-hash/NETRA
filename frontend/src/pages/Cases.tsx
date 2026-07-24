@@ -166,6 +166,70 @@ function Select({ value, onChange, options, placeholder }: {
   );
 }
 
+// Alert that led the officer here (Alert Center → Case Search). Carries the "why did this fire"
+// detail so the case file opens with the reason surfaced, not buried.
+interface AlertCtx {
+  id: string; type: string; severity: string; district: string; crimeType: string;
+  message: string; why: string; date: string; crimeNo?: string | null; clusterId?: string | null;
+  where?: string; when?: string; how?: string; stat?: string; recommendation?: string;
+}
+const ALERT_TONE: Record<string, "danger" | "warn" | "accent"> = {
+  "Volume spike": "danger", "Emerging serial pattern": "accent", "Repeat offender": "warn",
+};
+
+// The dedicated "why this alert fired" panel — shown ONLY for alert-originated case files.
+// It answers the officer's first question on opening the file: what tripped, where, how, and
+// what to do — in plain language, before the FIR body.
+function AlertContext({ a }: { a: AlertCtx }) {
+  const sev = a.severity === "high" ? "danger" : "warn";
+  return (
+    <Card className={`mb-4 border-l-4 p-4 ${a.severity === "high" ? "border-l-[var(--color-danger)]" : "border-l-[var(--color-warn)]"}`}>
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <span className="text-sm font-semibold text-[var(--color-text)]">🚨 Why this alert fired</span>
+        <Badge tone={ALERT_TONE[a.type] ?? "mute"}>{a.type}</Badge>
+        <Badge tone={sev}>{a.severity} severity</Badge>
+        <span className="ml-auto tnum text-[10px] text-[var(--color-text-mute)]">{a.id}</span>
+      </div>
+      <p className="text-sm leading-relaxed text-[var(--color-text-dim)]">{a.message}</p>
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <AlertFact icon="📍" label="Where">{a.where || a.district}</AlertFact>
+        <AlertFact icon="🕑" label="When">{a.when || a.date}</AlertFact>
+        <AlertFact icon="🎯" label="Crime type">{a.crimeType}</AlertFact>
+        <AlertFact icon="🔬" label="Flagged because">{a.why}</AlertFact>
+      </div>
+      {a.how && (
+        <div className="mt-3">
+          <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-accent)]">How it works</div>
+          <p className="text-xs leading-relaxed text-[var(--color-text-dim)]">{a.how}</p>
+        </div>
+      )}
+      {a.stat && (
+        <div className="mt-3">
+          <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-accent)]">The statistic</div>
+          <p className="text-xs leading-relaxed text-[var(--color-text-dim)]">{a.stat}</p>
+        </div>
+      )}
+      {a.recommendation && (
+        <div className="mt-3 rounded-lg border border-[var(--color-ok)]/30 bg-[var(--color-ok)]/5 p-2.5">
+          <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--color-ok)]">Recommended action</div>
+          <p className="text-xs leading-relaxed text-[var(--color-text-dim)]">{a.recommendation}</p>
+        </div>
+      )}
+      <div className="mt-3 text-[10px] text-[var(--color-text-mute)]">
+        The FIR below is the triggering case for this alert. NETRA flags and explains — the officer decides.
+      </div>
+    </Card>
+  );
+}
+function AlertFact({ icon, label, children }: { icon: string; label: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-2">
+      <div className="text-[10px] uppercase tracking-wide text-[var(--color-text-mute)]">{icon} {label}</div>
+      <div className="mt-0.5 text-xs text-[var(--color-text-dim)]">{children}</div>
+    </div>
+  );
+}
+
 function ReportSec({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
@@ -315,6 +379,8 @@ export default function Cases() {
   const [params] = useSearchParams();
   const [q, setQ] = useState(params.get("q") ?? ""); // deep-link from a map dot → search that FIR
   const deepLink = useRef(!!params.get("q")); // arrived via ?q=<crimeNo> → auto-open that case file
+  const alertId = params.get("alert"); // arrived from Alert Center → show the "why it fired" panel
+  const [alertsFeed, setAlertsFeed] = useState<Record<string, AlertCtx>>({});
   const [district, setDistrict] = useState(scope ?? "");
   const [type, setType] = useState("");
   const [gravity, setGravity] = useState("");
@@ -332,7 +398,13 @@ export default function Cases() {
     fetch(`${import.meta.env.BASE_URL}crime-dna.json`).then((r) => r.json()).then(setDnaMap).catch(() => {});
     fetch(`${import.meta.env.BASE_URL}spatial.json`).then((r) => r.json()).then(setSpatialMap).catch(() => {});
     fetch(`${import.meta.env.BASE_URL}case-translations.json`).then((r) => r.json()).then(setCaseTx).catch(() => {});
+    fetch(`${import.meta.env.BASE_URL}alerts-feed.json`).then((r) => r.json())
+      .then((list: AlertCtx[]) => setAlertsFeed(Object.fromEntries(list.map((a) => [a.id, a])))).catch(() => {});
   }, []);
+  // The alert that led here — shown only while its own triggering FIR is the open case.
+  const activeAlert = alertId ? alertsFeed[alertId] : undefined;
+  const showAlert = activeAlert && selected && String(activeAlert.crimeNo) === String(selected.crimeNo)
+    ? activeAlert : undefined;
   // crimeNo → serial cluster (Investigator Copilot: surface linked intelligence on any FIR)
   const clusterByCase = useMemo(() => {
     const m: Record<string, CrimeDna> = {};
@@ -375,6 +447,15 @@ export default function Cases() {
     const hit = memberByCase[crimeNo];
     if (hit) setSelected(rowFromMember(hit.mem, hit.crimeType));
   }
+  // A deep-linked FIR that belongs to a known serial cluster can open straight from local data —
+  // instant, and independent of the backend (so alert/map deep-links to serial cases always land).
+  useEffect(() => {
+    if (deepLink.current && !selected && q && memberByCase[q]) {
+      const hit = memberByCase[q];
+      setSelected(rowFromMember(hit.mem, hit.crimeType));
+      deepLink.current = false;
+    }
+  }, [memberByCase, q, selected]);
 
   useEffect(() => {
     let alive = true;
@@ -404,6 +485,8 @@ export default function Cases() {
         title="Case Search"
         desc={`Search the ${scope ? scope + " district" : "state-wide"} FIR register (50,000 records in Data Store)`}
       />
+
+      {showAlert && <AlertContext a={showAlert} />}
 
       <Card className="mb-4 p-3">
         <div className="flex flex-wrap items-center gap-2">
