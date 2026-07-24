@@ -62,3 +62,7 @@ pipeline/blindtest/patterns.txt
 
 # Pre-rendered briefing audio (reproducible via pipeline/build_briefing_audio.py; ~21MB, do not commit)
 frontend/public/audio/
+
+# Sovereign embedding model + onnxruntime WASM (~130MB; fetched by scripts/fetch-models.sh, not committed)
+frontend/public/models/
+frontend/public/ort/

@@ -7,7 +7,16 @@ import type { MatchResult, ClusterMatch } from "@/api/client";
 
 const MODEL = "Xenova/paraphrase-multilingual-MiniLM-L12-v2";
 
-env.allowLocalModels = false; // always fetch the model from the HF CDN
+// SOVEREIGN: serve the embedding model from our own host, never the HuggingFace CDN. The model
+// files live in public/models/<MODEL>/ (config, tokenizer, onnx/model_quantized.onnx) and ship
+// with the app; the onnxruntime WASM is already bundled locally by Vite. Result: no external
+// call ever leaves the police cloud for semantic matching (Linkage, Case Search, Copilot).
+env.allowLocalModels = true;
+env.allowRemoteModels = false; // hard-off: if a file is missing it fails loudly, never phones home
+env.localModelPath = `${import.meta.env.BASE_URL}models/`;
+// The onnxruntime WASM runtime otherwise fetches from cdn.jsdelivr.net — pin it to our own host
+// too (files copied into public/ort/), so NOTHING about semantic matching leaves the police cloud.
+if (env.backends?.onnx?.wasm) env.backends.onnx.wasm.wasmPaths = `${import.meta.env.BASE_URL}ort/`;
 
 interface ClusterVec extends Omit<ClusterMatch, "score"> {
   vector: number[];
