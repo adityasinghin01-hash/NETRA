@@ -84,10 +84,14 @@ export default function Copilot() {
     // Side effects (localStorage writes) must live OUTSIDE the setState updater — React can
     // invoke an updater twice (StrictMode / concurrent), which would double-record feedback.
     const msg = msgs[i];
-    if (!msg || msg.role !== "netra" || msg.fed) return;
+    if (!msg || msg.role !== "netra") return;
+    const next = up ? "up" : "down";
+    // Block re-recording the SAME vote (double-count guard), but allow flipping up↔down so a
+    // mis-click can be corrected.
+    if (msg.fed === next) return;
     recordFeedback(msg.cardIds ?? [], up);
     if (up && msg.q) remember(msg.q, msg.text, msg.cites ?? []);
-    setMsgs((m) => m.map((mm, k) => (k === i ? { ...mm, fed: up ? "up" : "down" } : mm)));
+    setMsgs((m) => m.map((mm, k) => (k === i ? { ...mm, fed: next } : mm)));
   }
 
   // Multimodal OCR: drop a scanned FIR / document → Qwen VLM extracts structured fields.

@@ -24,7 +24,13 @@ function fail(res, where, err) {
 const RL_WINDOW_MS = 60000, RL_MAX = 20; // 20 LLM calls / IP / minute
 const rlHits = new Map();
 function rateLimited(req) {
-  const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.ip || "unknown";
+  // Key on the trusted-proxy-appended IP, NOT the client-controllable LEFTMOST X-Forwarded-For
+  // token — a caller can set that header to a random value per request to get a fresh bucket every
+  // time and never hit RL_MAX. The RIGHTMOST XFF hop is the address the platform's edge proxy
+  // actually saw the connection from (attacker-injected entries land on the left); req.ip is the
+  // fallback when no XFF is present.
+  const xff = String(req.headers["x-forwarded-for"] || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const ip = xff[xff.length - 1] || req.ip || "unknown";
   const now = Date.now();
   const arr = (rlHits.get(ip) || []).filter((t) => now - t < RL_WINDOW_MS);
   arr.push(now);

@@ -103,7 +103,7 @@ export default function Briefing() {
     if (mode === "fax") {
       const bars = s.topCrimes.map((c) =>
         `<div class="bar">${e(c.type)} — ${"█".repeat(Math.max(1, Math.round(c.pct / 3)))} ${c.pct}%</div>`).join("");
-      html = `<!doctype html><html><head><meta charset="utf-8"><title>NETRA FAX — ${brief.district}</title>
+      html = `<!doctype html><html><head><meta charset="utf-8"><title>NETRA FAX — ${dist}</title>
         <style>
           *{box-sizing:border-box} body{font-family:'Times New Roman',Georgia,serif;color:#000;background:#fff;margin:0}
           .page{max-width:720px;margin:0 auto;padding:40px 44px}
@@ -146,7 +146,7 @@ export default function Briefing() {
       const fcHtml = s.forecast
         ? `<div class="callout callout-fc"><div class="callout-h">7-day forecast</div><b>${fcRisk}</b> risk projected (primarily ${fcType}). Suggested patrol window <b>${fcWindow}</b>.</div>`
         : "";
-      html = `<!doctype html><html><head><meta charset="utf-8"><title>NETRA Briefing — ${brief.district}</title>
+      html = `<!doctype html><html><head><meta charset="utf-8"><title>NETRA Briefing — ${dist}</title>
         <style>
           *{box-sizing:border-box} body{font-family:Inter,system-ui,-apple-system,sans-serif;color:#0f1e33;margin:0;background:#fff}
           .page{max-width:720px;margin:0 auto;padding:44px 48px}
