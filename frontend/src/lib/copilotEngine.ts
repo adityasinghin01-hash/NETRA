@@ -66,19 +66,42 @@ RULES — follow strictly:
 - Answer the user's ACTUAL message directly, in 1–3 short sentences. Reply in their language (English or Kannada).
 - If the conversation history shows you have ALREADY described your abilities, do NOT list them again. Just answer the point ("Yes, I'm sure." / "Happy to help — which case are you on?") and, at most, suggest ONE concrete next step.
 - Give a short capability overview ONLY if the user explicitly asks what you can do AND you have not already given one this conversation. Even then: 2–3 sentences of prose, never a numbered feature menu.
+- If the user asks you to draft/write/generate a police document (FIR, charge-sheet, notice, etc.), do NOT write the document text here. Say briefly you'll prepare it and ask them to name the document + series/case (e.g. "draft an FIR for the shutter-cutting series") so it renders as an editable draft.
 - Never invent crime facts, names, FIR numbers or statistics.
 For your reference (do NOT recite as a list): you answer grounded questions on hotspots, serial clusters, rings & kingpins, cold cases and districts with citations; draw diagrams; draft police documents for sign-off; read scanned documents. Everything runs in the police cloud.`;
 
+// When the user explicitly asks to EXPAND ("in detail", "one by one", "more"), a fuller, organised
+// answer is wanted — the brevity rule above would otherwise clip it to one unhelpful sentence.
+const CONV_SYS_DETAIL = `You are NETRA, an AI crime-intelligence assistant for the Karnataka State Police. The user is explicitly asking you to explain — in detail — what you can do (or to expand a point you made). Give a clear, well-organised answer: a short lead-in, then a tidy numbered/bulleted breakdown is welcome here. Be specific and concrete. Do NOT invent crime facts, names, FIR numbers or statistics. Reply in the user's language.`;
+const ELABORATE = /\b(in detail|detailed|in depth|elaborate|expand|one by one|point by point|more detail|tell me more|explain|breakdown|break it down|list (them|out)|full list|everything)\b/i;
+
+// Document drafting intent — routed to the TOOL path so the draft renders as a document card,
+// never as raw text in a chat bubble.
+const DOC_NOUN = /(f\.?i\.?r\b|first information report|charge ?sheet|look-?out notice|summons|seizure memo|panchnama|case diary|court brief|daily summary|\bmemo\b|\bnotice\b|\bdocument\b|\breport\b)/i;
+const DOC_VERB = /\b(draft|generate|create|make|prepare|write|issue|produce|give me)\b/i;
+// A short affirmation/deferral continuing a task the assistant just offered ("you decide", "yes",
+// "go ahead", "all of them") — context matters, so it's evaluated against the previous reply.
+const DEFER = /^(you (decide|choose|pick|fill|do)|yes|yep|yeah|ok(ay)?|sure|go ahead|please do|do it|proceed|whatever|any(thing)?|all of (them|it))\b/i;
+// True if the previous assistant turn asked the user for details to draft a document.
+function pendingDocDraft(prevNetra: string): boolean {
+  return DOC_NOUN.test(prevNetra) && /(provide|share|detail|following|need|so i can)/i.test(prevNetra);
+}
+
 // True for greetings / small-talk / questions about the assistant — NOT data questions.
 const DATA_HINT = /(hotspot|forecast|next week|predict|patrol|serial|cluster|link|kingpin|ring|gang|network|cold|undetected|unsolved|worklist|district|clock|peak|rossmo|strike|arrest|clear|burglar|theft|fraud|snatch|murder|robber|chargesheet|\bfir\b|\bcase|draft|diagram|chart|\bmap\b|offender|detection|heinous|\bstat|\bsc\d{2}\b|\d{6,})/i;
-function isConversational(q: string): boolean {
+function isConversational(q: string, prevNetra = ""): boolean {
   const s = q.toLowerCase().trim();
+  // A short "you decide / yes / go ahead" that continues a document the assistant just offered to
+  // draft is NOT small-talk — it belongs on the tool path so a document card renders (issue #3/#4).
+  if (DEFER.test(s) && pendingDocDraft(prevNetra)) return false;
   if (DATA_HINT.test(s)) return false; // a real data question always wins
+  // Capability / "what can you do" questions — robust to typos & length. These must never reach
+  // data retrieval (which slaps a ⚠️ warning and irrelevant citations on a "what can you do" turn).
+  if (/(what|which|how|list|tell|show|give).{0,25}(you|u|netra).{0,10}(do|can|help|offer|handle|able|assist|capab)/i.test(s)
+    || /\bcapabilit|\babilities\b|\bfeatures?\b/i.test(s)) return true;
   const words = s.split(/\s+/).filter(Boolean);
   // Robust catch-all: a SHORT turn with no data-domain term is almost always a greeting,
-  // small-talk, or a meta follow-up ("you sure?", "how can you hep me", "and then?"). Chatting
-  // beats retrieving here — the old brittle keyword list mis-routed these into data search,
-  // which returned irrelevant cards and made GLM dump a capabilities menu with a ⚠️ warning.
+  // small-talk, or a meta follow-up ("you sure?", "how can you hep me", "and then?").
   if (words.length <= 6) return true;
   return /^(hi|hello|hey|yo|hola|namaste|namaskara|sup|good (morning|evening|afternoon))\b/.test(s)
     || /(what can you|what do you do|what are you|who are you|who (made|built)|can you (help|hep)|\b(help|hep) me|how are you|how'?s it going|are you (there|real|sure|an ai)|introduce|your name|thank|thanks|thx|goodbye|see you|nice|cool|great job|well done|good job|awesome|hmm|okay\b|test\b|you sure|really|promise|certain|confident|useful)/.test(s)
@@ -91,16 +114,27 @@ const toMsgs = (h: Turn[]): LlmMsg[] => h.slice(-6).map((t) => ({ role: t.role =
 export async function askNetra(query: string, scope: string | null, opts: { thinking?: boolean; history?: Turn[] } = {}): Promise<NetraAnswer> {
   const hist = toMsgs(opts.history ?? []);
   const followDefault = ["Which hotspots next week?", "Who are the crime kingpins?", "Cases at risk of going cold?"];
+  const prevNetra = [...(opts.history ?? [])].reverse().find((t) => t.role === "netra")?.text ?? "";
 
-  // Conversational turn → natural GLM reply, no retrieval, no confidence gate.
-  if (isConversational(query)) {
+  // Conversational turn → natural GLM reply, no retrieval, no confidence gate. Elaboration
+  // requests ("in detail", "one by one") get a fuller, organised answer instead of one clipped line.
+  if (isConversational(query, prevNetra)) {
+    const detail = ELABORATE.test(query);
     try {
-      const r = await glmChat([{ role: "system", content: CONV_SYS }, ...hist, { role: "user", content: query }], { max_tokens: 160, temperature: 0.6 });
+      const r = await glmChat(
+        [{ role: "system", content: detail ? CONV_SYS_DETAIL : CONV_SYS }, ...hist, { role: "user", content: query }],
+        { max_tokens: detail ? 550 : 160, temperature: 0.6 }
+      );
       if (r.text.trim())
-        return { text: r.text, cites: [], cardIds: [], confidence: 1, grounded: true, actions: [], trace: ["conversational"], follow: followDefault };
+        return { text: r.text, cites: [], cardIds: [], confidence: 1, grounded: true, actions: [], trace: [detail ? "conversational · detailed" : "conversational"], follow: followDefault };
     } catch { /* fall through to a simple non-LLM reply */ }
     return { text: "Hi — I'm NETRA. Ask me about hotspots, serial series, rings & kingpins, cold cases or any district; I can also draw diagrams and draft documents.", cites: [], cardIds: [], confidence: 1, grounded: false, actions: [], trace: [], follow: followDefault };
   }
+
+  // Document intent (explicit, or a "you decide" continuation of a draft the assistant offered) →
+  // force the make_document tool so the draft renders as a card, never as raw text in the bubble.
+  const isDocIntent = (DOC_VERB.test(query) && DOC_NOUN.test(query))
+    || (DEFER.test(query.toLowerCase().trim()) && pendingDocDraft(prevNetra));
 
   // Scope-aware retrieval: fold the user's district into the query when unstated.
   const rq = scope && !query.toLowerCase().includes(scope.toLowerCase()) ? `${query} ${scope}` : query;
@@ -116,10 +150,13 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
   try {
     // GLM answers from context and may call action tools (map/diagram/document/search).
     // Tools are ACTIONS, not data the model needs back — so one call, execute, done.
+    const docHint = isDocIntent
+      ? `\n\n(The user wants a police document drafted. Call the make_document tool with the right document type — do NOT write the document text in your reply; the tool renders it. Use [officer to verify] for anything not in the records; never invent facts.)`
+      : "";
     const msgs: LlmMsg[] = [
       { role: "system", content: SYS },
       ...hist,
-      { role: "user", content: `${context}\n\nQUESTION: ${query}` },
+      { role: "user", content: `${context}\n\nQUESTION: ${query}${docHint}` },
     ];
     const first = await glmChat(msgs, { tools: TOOLS as ToolDef[], thinking: opts.thinking, max_tokens: 700 });
     grounded = true;
@@ -136,8 +173,11 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
     trace.push("⚠️ sovereign fallback (LLM unavailable) — answered from cards directly");
   }
 
-  // Confidence gate → honest escalation.
-  if (confidence < 0.12 && hits.length) {
+  // Confidence gate → honest escalation, but ONLY on a genuine data lookup with no action. A meta
+  // question or a document/diagram action should never carry a "not confident" warning or
+  // irrelevant citations (issue #2 — the ⚠️ that appeared on "what can you do").
+  const isDataQ = DATA_HINT.test(query);
+  if (isDataQ && !actions.length && confidence < 0.12 && hits.length) {
     text = `⚠️ I'm not fully confident on this — here's the closest I found; please verify with a human.\n\n${text}`;
     trace.push(`Low confidence (${confidence.toFixed(2)}) → flagged for human review`);
   }
@@ -145,7 +185,7 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
   const prior = recallMemory(query);
   if (prior) trace.push("🧠 Recognised from a prior confirmed answer (memory) — ranking reinforced");
 
-  const cites = [...new Set(hits.slice(0, 5).map((h) => h.cite))];
+  const cites = isDataQ ? [...new Set(hits.slice(0, 5).map((h) => h.cite))] : [];
   return { text, cites, cardIds: hits.map((h) => h.id), confidence, follow: suggestFollow(hits), trace, actions, grounded };
 }
 
