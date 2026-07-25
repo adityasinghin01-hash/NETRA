@@ -48,7 +48,8 @@ TONE:
 - Never flatter or pad ("great question", "certainly"). Do NOT use emojis.
 - Be firm when it matters: if asked to fabricate data, skip human verification, or treat a low-confidence result as fact, decline plainly and say why. Flag risk directly.
 
-- When the user asks to DRAW/SHOW a diagram, MAP something, or DRAFT a document, call the matching tool — do not describe it in prose.`;
+- When the user asks to DRAW/SHOW a diagram, MAP something, or DRAFT a document, call the matching tool — do not describe it in prose.
+- You CAN draw AND re-draw/convert diagrams (link chart, timeline, org chart, MO, money-trail) with make_diagram — including "make it a timeline" or "show it as a chart" (call make_diagram again with the new kind, same clusterId). NEVER claim you cannot generate diagrams, timelines or visualizations.`;
 
 // Lightweight intent-steer: GLM-4.7 is too small to reliably self-select register, so we classify
 // the turn and hand it one line telling it the response shape. Cheap (regex), no extra latency.
@@ -112,6 +113,9 @@ const ELABORATE = /\b(in detail|detailed|in depth|elaborate|expand|one by one|po
 // never as raw text in a chat bubble.
 const DOC_NOUN = /(f\.?i\.?r\b|first information report|charge ?sheet|look-?out notice|summons|seizure memo|panchnama|case diary|court brief|daily summary|\bmemo\b|\bnotice\b|\bdocument\b|\breport\b)/i;
 const DOC_VERB = /\b(draft|generate|create|make|prepare|write|issue|produce|give me)\b/i;
+// Diagram / re-draw intent — including CONVERT phrasings ("make it a timeline", "show as a chart")
+// that don't say "draw", so the model reliably calls make_diagram instead of refusing in prose.
+const DIAGRAM_INTENT = /\b(draw|chart|diagram|timeline|flow ?chart|org ?chart|link chart|mind ?map|visuali[sz]e|\bplot\b|make it (a|an|into)|convert (it )?(to|into)|turn it into|redraw|re-?draw|show (it |them )?as)\b/i;
 // A short affirmation/deferral continuing a task the assistant just offered ("you decide", "yes",
 // "go ahead", "all of them") — context matters, so it's evaluated against the previous reply.
 const DEFER = /^(you (decide|choose|pick|fill|do)|yes|yep|yeah|ok(ay)?|sure|go ahead|please do|do it|proceed|whatever|any(thing)?|all of (them|it))\b/i;
@@ -308,8 +312,12 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
   try {
     // GLM answers from context and may call action tools (map/diagram/document/search).
     // Tools are ACTIONS, not data the model needs back — so one call, execute, done.
+    // Doc intent wins over diagram intent ("draft a lookout notice" is a document, not a chart).
+    const isDiagramIntent = !isDocIntent && DIAGRAM_INTENT.test(query);
     const docHint = isDocIntent
-      ? `\n\n(The user wants a police document drafted. Call the make_document tool with the right document type — do NOT write the document text in your reply; the tool renders it. Use [officer to verify] for anything not in the records; never invent facts.)`
+      ? `\n\n(The user wants a police document drafted. Call the draft_document tool with the right document type — do NOT write the document text in your reply; the tool renders it. Use [officer to verify] for anything not in the records; never invent facts.)`
+      : isDiagramIntent
+      ? `\n\n(The user wants a diagram drawn or re-drawn. Call make_diagram — for a NETRA serial cluster use a core kind (link/org/timeline/money/mo) with its clusterId${resolved.clusterId ? ` (this conversation is about ${resolved.clusterId})` : ""}; otherwise kind='other' with your own Mermaid. Do NOT answer in prose and NEVER say you cannot draw or convert a diagram.)`
       : `\n\n(Style: ${styleSteer(query)})`;
     const msgs: LlmMsg[] = [
       { role: "system", content: SYS },
