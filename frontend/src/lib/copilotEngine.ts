@@ -180,7 +180,14 @@ function isConversational(q: string, prevNetra = ""): boolean {
 }
 
 type Turn = { role: "user" | "netra"; text: string };
-const toMsgs = (h: Turn[]): LlmMsg[] => h.slice(-6).map((t) => ({ role: t.role === "netra" ? "assistant" : "user", content: t.text }));
+// Feed history back for continuity, but CAP prior assistant turns: the model was echoing a previous
+// verbose "recommendation + options" block verbatim for a differently-worded follow-up. Trimming the
+// assistant text removes the block to copy while keeping enough (the lead + entities) for continuity;
+// the active entity + retrieval re-supply full detail each turn anyway.
+const toMsgs = (h: Turn[]): LlmMsg[] => h.slice(-6).map((t) => ({
+  role: t.role === "netra" ? "assistant" : "user",
+  content: t.role === "netra" && t.text.length > 220 ? t.text.slice(0, 220) + " […]" : t.text,
+}));
 
 // ── Active-entity resolution ──────────────────────────────────────────────────
 // The single source of truth for "which series/offender is this turn about". Without it, every
