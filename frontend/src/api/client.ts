@@ -106,15 +106,23 @@ export async function lookupFir(firNo: string): Promise<CaseRow | null> {
     const sample = ((seed as Record<string, unknown>)["cases/sample"] as CaseRow[]) ?? [];
     return sample.find((c) => String(c.crimeNo) === num) ?? null;
   }
-  try {
-    const res = await fetch(`/server/netra_api/cases?q=${encodeURIComponent(num)}`);
-    if (!res.ok) return null;
-    const body = await res.json();
-    const items: CaseRow[] = body.items ?? [];
-    return items.find((c) => String(c.crimeNo) === num) ?? null;
-  } catch {
-    return null;
+  // Retry once: the Advanced I/O function can cold-start and time out the first hit, which showed up
+  // as a spurious "I don't hold the full FIR record" that worked on the reworded retry.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(`/server/netra_api/cases?q=${encodeURIComponent(num)}`);
+      if (res.ok) {
+        const body = await res.json();
+        const items: CaseRow[] = body.items ?? [];
+        const hit = items.find((c) => String(c.crimeNo) === num) ?? null;
+        if (hit) return hit;
+      }
+    } catch {
+      /* fall through to retry */
+    }
+    if (attempt === 0) await new Promise((r) => setTimeout(r, 400)); // brief cold-start backoff
   }
+  return null;
 }
 
 // Live case-linkage match: POST a FIR narrative, get the best-matching serial cluster.

@@ -197,6 +197,9 @@ const toMsgs = (h: Turn[]): LlmMsg[] => h.slice(-6).map((t) => ({
 // and deterministic: an SCxx id, a distinctive title token, or a known offender name in the CURRENT
 // query wins; a referential/continuation turn inherits the entity from recent history.
 const REFERENTIAL = /\b(this|that|these|those|the series|the ring|the above|it|its|same|which is it|his|her|their|them|him|he|she)\b/i;
+// Case-attribute follow-ups that are clearly about the FIR in play ("who is the accused?", "what's
+// the status?") but contain no pronoun — used to carry the active FIR forward.
+const FIR_FOLLOWUP = /\b(the (accused|complainant|victim|offender|location|status|sections?|property|case|gravity|date|district)|who did it|where did (it|this) happen|what happened)\b/i;
 
 function resolveEntity(query: string, history: Turn[], cards: Card[], isCont: boolean): { clusterId?: string; offender?: string } {
   const clusters = cards.filter((c) => c.type === "cluster" && c.meta?.clusterId);
@@ -348,7 +351,17 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
 
   // A specific FIR number in the query → pull the REAL record from the live Cases table (the cards
   // hold only aggregates). Runs alongside retrieval so it adds no serial latency.
-  const firNo = (query.match(/\d[\d\s-]{8,}\d/)?.[0] ?? "").replace(/\D/g, "");
+  let firNo = (query.match(/\d[\d\s-]{8,}\d/)?.[0] ?? "").replace(/\D/g, "");
+  // Carry the ACTIVE FIR across referential follow-ups. A standalone FIR (not part of a cluster)
+  // has no clusterId to resolve, so "location of this fir?" / "who's the accused?" / "aur batao"
+  // would otherwise lose it and answer about a random retrieved cluster (the reported hallucination).
+  // When no number is in this turn and no cluster is in play, re-use the FIR last discussed.
+  if (!firNo && !resolved.clusterId && (REFERENTIAL.test(query) || isContinuation || FIR_FOLLOWUP.test(query))) {
+    for (const t of [...(opts.history ?? [])].reverse()) {
+      const m = t.text.match(/\b\d{12,}\b/);
+      if (m) { firNo = m[0]; break; }
+    }
+  }
 
   // Retrieval/embedding can throw (model or index load failure). It must degrade, not propagate:
   // on failure we continue with an empty set so sovereignAnswer still returns a reply — honouring
