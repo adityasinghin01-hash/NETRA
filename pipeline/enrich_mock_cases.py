@@ -112,7 +112,8 @@ def main():
                              "gender": gender_name.get(comp.get("genderId"), "")} if comp else None),
             "accused": accused,
             "forensic": forensic_for(c["crimeNo"], sub["name"], sub["gravity"], solved,
-                                     accused_name=primary_accused),
+                                     accused_name=primary_accused,
+                                     district=dmap[c["districtId"]]["name"]),
         })
 
     seed = jload(SEED)

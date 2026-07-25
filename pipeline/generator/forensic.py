@@ -56,7 +56,8 @@ def _rng(crime_no: str) -> random.Random:
 
 
 def forensic_for(crime_no: str, subhead: str, gravity: str,
-                 solved: bool, io_name: str = "", accused_name: str = "") -> dict:
+                 solved: bool, io_name: str = "", accused_name: str = "",
+                 district: str = "") -> dict:
     """Return a deterministic forensic/evidence profile for one FIR."""
     r = _rng(crime_no)
     cat = _cat(subhead)
@@ -88,7 +89,14 @@ def forensic_for(crime_no: str, subhead: str, gravity: str,
             "status": "Received — corroborative" if solved else "Report awaited",
         }
 
-    custody = "Forwarded to FSL, Bengaluru" if fsl and fsl["status"] == "Report awaited" else "In PS Malkhana"
+    # Custody is a per-FIR location, NOT a shared status string. Each FIR's exhibits sit in ITS OWN
+    # police-station malkhana (district-scoped) under a unique register number — so eight linked FIRs
+    # across three districts read as eight distinct custody entries, never one identical "In PS
+    # Malkhana" line (which looked, wrongly, like all the property sat in one place).
+    where = f"PS Malkhana, {district}" if district else "PS Malkhana"
+    malkhana = f"{where} · Reg. No. {yy}/{n:03d}"
+    custody = ("Forwarded to FSL, Bengaluru" if fsl and fsl["status"] == "Report awaited"
+               else f"In {malkhana}")
     return {
         "weapon": weapon,
         "tools": tools,
@@ -98,7 +106,7 @@ def forensic_for(crime_no: str, subhead: str, gravity: str,
             "memoNo": f"SM/{stn}/{yy}/{n:03d}",
             "panchnama": "Drawn at scene before two independent panchas",
             "seizingOfficer": io_name or "Investigating Officer",
-            "malkhana": f"PS Malkhana Reg. No. {yy}/{n:03d}",
+            "malkhana": malkhana,
             "custody": custody,
         },
         "fsl": fsl,

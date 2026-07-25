@@ -48,6 +48,19 @@ def main():
                          f"{round(ns.get('confidence',0)*100)}% confidence.")
         if ross:
             parts.append(f"Rossmo geographic profile predicts an operating-base ZONE near {ross['lat']:.3f}, {ross['lng']:.3f} — a place, not a person.")
+        # Enumerate the member FIR numbers so the Copilot can actually answer "which FIRs are in this
+        # series?" / "show me <offender>'s cases" instead of knowing only the series in the aggregate.
+        mem = c.get("members", [])
+        if mem:
+            fir_list = "; ".join(
+                f"{m['caseNo']} ({m.get('district','')}, {m.get('date','')}, "
+                f"{'chargesheeted/solved' if m.get('solved') else 'unsolved'})" for m in mem[:8])
+            parts.append(f"Linked FIRs in this series: {fir_list}.")
+            if c.get("offender"):
+                parts.append(
+                    f"{c['offender']} is the shared hand these FIRs point to — the common thread linking the "
+                    f"series (an investigative LEAD from MO + co-accused analysis, not a filed charge on each "
+                    f"FIR). These are the specific FIRs {c['offender']} is connected to in this series.")
         add(f"cluster-{cid}", "cluster", c["label"], " ".join(parts),
             f"Linkage · {cid}", {"clusterId": cid, "districts": c["districts"], "offender": c.get("offender")})
 
@@ -71,6 +84,26 @@ def main():
             "; ".join(f"{k['name']} ({k.get('cases',0)} cases)" for k in kings[:6]) +
             ". These coordinators, if removed, fragment their rings.",
             "Analytics · offender network")
+
+    # --- Active alerts (anomaly detections from the live feed) ---
+    # Without these the Copilot had no grounding for any alert question ("tell me about the Motor
+    # Vehicle Theft spike in Bengaluru Urban") and wrongly answered "the context shows no such alert".
+    alerts = j("alerts-feed") or []
+    for a in alerts:
+        aparts = [f"ALERT [{str(a.get('severity','')).upper()}] — {a.get('type','')} in {a.get('district','')}: "
+                  f"{a.get('message','')}"]
+        for key, lbl in (("where", "Where"), ("when", "When"), ("how", "How"),
+                         ("stat", "Signal"), ("why", "Why flagged"), ("recommendation", "Recommended action")):
+            if a.get(key):
+                aparts.append(f"{lbl}: {a[key]}.")
+        if a.get("clusterId"):
+            aparts.append(f"Linked serial cluster: {a['clusterId']}.")
+        if a.get("crimeNo"):
+            aparts.append(f"Trigger FIR: {a['crimeNo']}.")
+        add(f"alert-{a['id']}", "alert",
+            f"{a.get('crimeType','')} alert — {a.get('district','')}", " ".join(aparts),
+            "Alerts · live feed",
+            {"district": a.get("district"), "clusterId": a.get("clusterId"), "crimeNo": a.get("crimeNo")})
 
     # --- District analytics ---
     da = j("district-analytics") or {}

@@ -19,13 +19,38 @@ TOP_N = 45
 def main():
     offenders = {o["offenderId"]: o for o in json.load(open(f"{DATA}/offenders.json", encoding="utf-8"))}
 
-    # group accused (with an offender ref) by case
+    # ID→name resolvers + a per-case (district, crime-type) index. Every offender node then carries
+    # its dominant crime type and the districts it operates in — without this the profile panel and
+    # the Copilot had NO crime type / "active in" for a kingpin (they showed "—"), and the ring
+    # ("kingpin") world and the serial-cluster ("shared hand") world used different, unreconciled
+    # offender schemas. One schema now: name · cases · crimeType · districts · cluster.
+    REF = "pipeline/reference"
+    tax = json.load(open(f"{REF}/crime-taxonomy.json", encoding="utf-8"))
+    submap = {s["crimeSubHeadId"]: s["name"] for s in tax["crimeSubHeads"]}
+    dmap = {d["districtId"]: d["name"] for d in json.load(open(f"{REF}/districts.json", encoding="utf-8"))["districts"]}
+    case_meta = {}
+    with open(f"{DATA}/cases.jsonl", encoding="utf-8") as f:
+        for line in f:
+            c = json.loads(line)
+            case_meta[c["caseMasterId"]] = (dmap.get(c.get("districtId")), submap.get(c.get("crimeMinorHeadId")))
+
+    # group accused (with an offender ref) by case; accumulate each offender's crime types + districts
     by_case = defaultdict(set)
+    off_crime = defaultdict(Counter)
+    off_dist = defaultdict(Counter)
     with open(f"{DATA}/accused.jsonl", encoding="utf-8") as f:
         for line in f:
             a = json.loads(line)
-            if a.get("offenderRef"):
-                by_case[a["caseMasterId"]].add(a["offenderRef"])
+            ref = a.get("offenderRef")
+            if not ref:
+                continue
+            cid = a["caseMasterId"]
+            by_case[cid].add(ref)
+            dist, ctype = case_meta.get(cid, (None, None))
+            if ctype:
+                off_crime[ref][ctype] += 1
+            if dist:
+                off_dist[ref][dist] += 1
 
     edge_w = Counter()
     for offs in by_case.values():
@@ -50,7 +75,11 @@ def main():
     top = [o for o in ranked if o["offenderId"] in keep]
 
     nodes = [{"id": o["offenderId"], "name": o["canonicalName"], "cases": o["caseCount"],
-              "cluster": cluster_of.get(o["offenderId"])} for o in top]
+              "cluster": cluster_of.get(o["offenderId"]),
+              "crimeType": (off_crime[o["offenderId"]].most_common(1)[0][0]
+                            if off_crime.get(o["offenderId"]) else None),
+              "districts": [d for d, _ in off_dist[o["offenderId"]].most_common(5)]}
+             for o in top]
     edges = [{"source": a, "target": b, "weight": w}
              for (a, b), w in edge_w.items() if a in keep and b in keep]
 

@@ -117,7 +117,8 @@ def _member(m, dmap, cs_type, submap, accused_by_case, priors):
         "language": m.get("language", "en"),
         "accused": accused,
         "forensic": forensic_for(m["crimeNo"], subhead, gravity, solved,
-                                 accused_name=(accused["name"] if accused else "")),
+                                 accused_name=(accused["name"] if accused else ""),
+                                 district=dmap[m["districtId"]]["name"]),
     }
 
 
