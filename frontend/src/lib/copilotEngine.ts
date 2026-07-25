@@ -155,7 +155,7 @@ function pendingDocDraft(prevNetra: string): boolean {
 }
 
 // True for greetings / small-talk / questions about the assistant — NOT data questions.
-const DATA_HINT = /(hotspot|forecast|next week|predict|patrol|serial|cluster|link|kingpin|ring|gang|network|cold|undetected|unsolved|worklist|district|clock|peak|rossmo|strike|arrest|clear|burglar|theft|fraud|snatch|murder|robber|chargesheet|\bfir\b|\bcase|draft|diagram|chart|\bmap\b|offender|detection|heinous|\bstat|\bsc\d{2}\b|\d{6,})/i;
+const DATA_HINT = /(hotspot|forecast|next week|predict|patrol|serial|cluster|link|kingpin|ring|gang|network|cold|undetected|unsolved|worklist|district|clock|peak|rossmo|strike|arrest|clear|burglar|theft|fraud|snatch|murder|robber|chargesheet|\bfir\b|\bcase|draft|diagram|chart|\bmap\b|offender|detection|heinous|\bstat|\bsc\d{2}\b|\d{6,}|guilt|guilty|innocent|culprit|convict|accused)/i;
 // A short follow-up that CONTINUES the prior topic ("tell me more", "aur batao", "why?", "go on",
 // Hinglish included). On its own it looks like small-talk; after a data answer it must stay on the
 // data path so the series/offender thread survives instead of collapsing to "I am here to help".
