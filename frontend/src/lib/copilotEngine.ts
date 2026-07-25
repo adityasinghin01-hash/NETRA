@@ -9,6 +9,7 @@ import { TOOLS, runTool, type UiAction } from "@/lib/copilotTools";
 import { preloadEmbedder } from "@/lib/embedMatch";
 import { recallMemory } from "@/lib/feedback";
 import { lookupFir } from "@/api/client";
+import { DISTRICTS } from "@/lib/auth";
 
 export interface NetraAnswer {
   text: string;
@@ -111,8 +112,23 @@ const ELABORATE = /\b(in detail|detailed|in depth|elaborate|expand|one by one|po
 
 // Document drafting intent — routed to the TOOL path so the draft renders as a document card,
 // never as raw text in a chat bubble.
-const DOC_NOUN = /(f\.?i\.?r\b|first information report|charge ?sheet|look-?out notice|summons|seizure memo|panchnama|case diary|court brief|daily summary|\bmemo\b|\bnotice\b|\bdocument\b|\breport\b)/i;
+const DOC_NOUN = /(f\.?i\.?r\b|first information report|charge ?sheet|look-?out notice|summons|seizure memo|panchnama|case diary|court brief|daily[ \w]*summary|crime summary|\bmemo\b|\bnotice\b|\bdocument\b|\breport\b)/i;
 const DOC_VERB = /\b(draft|generate|create|make|prepare|write|issue|produce|give me)\b/i;
+
+// Case-Search navigation intent + a crime-term → exact crimeSubHead map (the Cases table matches the
+// subhead exactly, so "burglary" must become "House-Breaking & Burglary"). Handled deterministically
+// because the model doesn't reliably call search_cases and free text wouldn't match the enum.
+const SEARCH_INTENT = /(\b(search|find|look ?up|pull up|list|show me all|open|filter)\b[^]{0,40}\b(cases?|firs?|register)\b)|\bcase search\b/i;
+const CRIME_ALIASES: [RegExp, string][] = [
+  [/burglar|house-?break/i, "House-Breaking & Burglary"],
+  [/\b(mv|motor[- ]?vehicle|vehicle|bike|two-?wheeler)\b[^]{0,10}theft/i, "Motor Vehicle Theft"],
+  [/otp|online[^]{0,10}fraud|\bupi\b|cyber/i, "Online Financial Fraud"],
+  [/cheat|\bfraud\b/i, "Cheating & Fraud"],
+  [/snatch|chain|\brobber/i, "Robbery"],
+  [/ndps|\bdrug|ganja/i, "NDPS (Drugs)"],
+  [/\bmurder/i, "Murder"],
+  [/theft|steal|\bstolen\b/i, "Theft (Ordinary)"],
+];
 // Diagram / re-draw intent — including CONVERT phrasings ("make it a timeline", "show as a chart")
 // that don't say "draw", so the model reliably calls make_diagram instead of refusing in prose.
 const DIAGRAM_INTENT = /\b(draw|chart|diagram|timeline|flow ?chart|org ?chart|link chart|mind ?map|visuali[sz]e|\bplot\b|make it (a|an|into)|convert (it )?(to|into)|turn it into|redraw|re-?draw|show (it |them )?as)\b/i;
@@ -283,6 +299,29 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
         follow: followDefault,
       };
     }
+  }
+
+  // Case-Search navigation: "search burglary cases in Davanagere" → open Case Search filtered.
+  // Deterministic so it always navigates (model wouldn't reliably call the tool) and the crime term
+  // is mapped to the exact crimeSubHead the Cases table expects.
+  if (!isDocIntent && SEARCH_INTENT.test(query)) {
+    const q = query.toLowerCase();
+    const district = DISTRICTS.find((dn) => q.includes(dn.toLowerCase()));
+    const crime = CRIME_ALIASES.find(([re]) => re.test(query))?.[1];
+    const status = /\b(unsolved|undetected|open|pending)\b/i.test(query) ? "Under Investigation"
+      : /\b(solved|charge-?sheet)/i.test(query) ? "Charge Sheeted" : undefined;
+    const qs = new URLSearchParams();
+    const applied: string[] = [];
+    if (crime) { qs.set("type", crime); applied.push(crime); }
+    if (district) { qs.set("district", district); applied.push(district); }
+    if (status) { qs.set("status", status); applied.push(status); }
+    const to = qs.toString() ? `/cases?${qs.toString()}` : "/cases";
+    return {
+      text: `Opening Case Search${applied.length ? ` filtered by ${applied.join(" · ")}` : ""}.`,
+      cites: [], cardIds: [], confidence: 1, grounded: true,
+      actions: [{ kind: "navigate", to, label: `Search: ${applied.join(" · ") || "cases"}` }],
+      trace: ["Case Search navigation (deterministic)"], follow: followDefault,
+    };
   }
 
   // Scope-aware retrieval: fold the prior data question into a continuation ("aur batao" → same
