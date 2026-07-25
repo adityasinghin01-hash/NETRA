@@ -13,7 +13,8 @@ import { HexagonLayer } from "@deck.gl/aggregation-layers";
 import { ScatterplotLayer, PathLayer, TextLayer } from "@deck.gl/layers";
 import { LightingEffect, AmbientLight, DirectionalLight } from "@deck.gl/core";
 import type { Layer } from "@deck.gl/core";
-import { KIND_COLOR, type PatrolPlan } from "@/lib/patrolPlan";
+import { KIND_COLOR, KIND_LABEL, KIND_HELP, type PatrolPlan, type PicketKind } from "@/lib/patrolPlan";
+import { snapToRoad, type Roads } from "@/lib/snapRoad";
 
 // Main base: OpenFreeMap dark (OSM vector — streets, labels, and 3D BUILDINGS on deep zoom),
 // themed to NETRA. CartoDB dark is the auto-fallback if the community tiles hiccup.
@@ -53,8 +54,11 @@ const SAT_STYLE: maplibregl.StyleSpecification = {
   ],
 };
 
-// Karnataka bounds → the map is locked to the state (deep zoom, can't wander off).
-const KA_BOUNDS: [[number, number], [number, number]] = [[73.4, 11.2], [78.9, 18.7]];
+// Pan bounds → keeps the camera on Karnataka + neighbours (can't wander to the far side of the
+// planet), but with enough margin that a TILTED overview never reveals a hard edge (which showed
+// as a blank/grey void beyond the state box). maxBounds constrain ignores pitch, so the box must
+// be looser than the state itself or the pitched horizon spills past it.
+const KA_BOUNDS: [[number, number], [number, number]] = [[71.0, 8.8], [82.0, 20.6]];
 
 // After each style load: add the vector source, 3D buildings, a glowing state border (so
 // Karnataka reads distinct from its neighbours), and tame POI labels at low zoom so the
@@ -345,6 +349,7 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
   const zoomBucket = useRef(6);
   const ptsRef = useRef<Pt[]>([]);
   const popupRef = useRef<maplibregl.Popup | null>(null);
+  const restoringRef = useRef(true); // true until the initial restore + container-resize settles → don't save the constrain-clamped camera over the good one
   const nav = useNavigate();
   const navRef = useRef(nav);
   navRef.current = nav;
@@ -354,6 +359,7 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
   useEffect(() => { focusRef.current = !!focus; }, [focus]);
   const [hover, setHover] = useState<{ x: number; y: number; name: string; count: number } | null>(null);
   const [pts, setPts] = useState<Pt[] | null>(null);
+  const [roads, setRoads] = useState<Roads | null>(null); // major-road network → snap pickets onto roads
   const [mode, setMode] = usePersistentState<Mode>("netra.map.mode", "hex");
   const [base, setBase] = usePersistentState<Base>("netra.map.base", "dark");
   const [z, setZ] = useState(6);
@@ -422,6 +428,14 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
       .catch(() => {});
   }, []);
 
+  // Major-road network for snapping patrol pickets onto real roads (loaded once, lazily).
+  useEffect(() => {
+    fetch(`${import.meta.env.BASE_URL}karnataka-roads.json`)
+      .then((r) => r.json())
+      .then((r: Roads) => setRoads(r))
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
     const cam = loadCam(); // restore the camera the officer left the map at (else state-wide default)
@@ -452,6 +466,20 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
     });
     let fellBack = false;
     setTimeout(() => { if (!fellBack && !map.isStyleLoaded()) { fellBack = true; map.setStyle(DARK_FALLBACK); } }, 7000);
+    // The card often lacks its final size at mount (esp. when navigating BACK to the page), so the
+    // canvas rendered smaller than its container → a blank strip "around" the map, and maxBounds
+    // constrain (which depends on aspect ratio) clamped the restored camera to a different overview
+    // each time → the flip-flop. Fix: resize the canvas to the container, then re-assert the exact
+    // restored camera ONCE, so returning always lands on the same view.
+    map.on("load", () => {
+      map.resize();
+      if (cam) map.jumpTo({ center: cam.center, zoom: cam.zoom, pitch: cam.pitch, bearing: cam.bearing });
+      map.once("idle", () => { restoringRef.current = false; }); // now genuine user moves get saved
+    });
+    // Keep the canvas matched to the card whenever the layout changes (sidebar toggle, window,
+    // returning to the page) — MapLibre only auto-tracks window resize, not container resize.
+    const ro = new ResizeObserver(() => map.resize());
+    if (containerRef.current) ro.observe(containerRef.current);
     const overlay = new MapboxOverlay({ interleaved: false, layers: [], effects: [LIGHTING], pickingRadius: 8 });
     map.addControl(overlay as unknown as maplibregl.IControl);
     // Deterministic picking: find the incident NEAREST the click in real coords, and show it
@@ -511,8 +539,9 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
       if (best) setHover({ x: e.point.x, y: e.point.y, name: best.name, count: best.caseCount });
     });
     map.on("mouseout", () => setHover(null));
-    // Persist the camera on every settle so returning to the map restores where you were.
-    map.on("moveend", () => saveCam(map));
+    // Persist the camera on every settle so returning to the map restores where you were — but not
+    // while the initial restore/constrain is settling, or it would overwrite the good saved camera.
+    map.on("moveend", () => { if (!restoringRef.current) saveCam(map); });
     // Zoom-adaptive: bucket zoom to 0.3 steps so layers refine as you go deep without thrashing.
     map.on("zoom", () => {
       const nz = map.getZoom();
@@ -526,6 +555,7 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (import.meta.env.DEV) (window as any).__netraMap = map;
     return () => {
+      ro.disconnect();
       map.getContainer().removeEventListener("click", onContainerClick);
       map.remove();
       mapRef.current = null;
@@ -561,6 +591,25 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
     focusMounted.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus]);
+  // Snap road-based pickets (naka-bandi checkpoint, Hoysala mobile beat) onto the nearest real
+  // road so they never land in a farm field — a naka-bandi belongs on a road. Plain-clothes/other
+  // tactics stay on the crime pocket (that's where they're meant to sit).
+  const focusForRender = useMemo(() => {
+    if (!focus) return null;
+    if (!roads) return focus;
+    // Tie the snap radius to the zone size so a snapped picket stays INSIDE the drawn zone (a naka
+    // on a road 5 km away would look disconnected). Where no road is that close — genuinely remote
+    // rural/forest pockets — keep the picket on the crime pocket (honest: "predicted zone").
+    const maxSnap = Math.min(3500, Math.max(2000, focus.radiusM + 900));
+    const pickets = focus.pickets.map((pk) => {
+      if (pk.kind === "naka" || pk.kind === "mobile") {
+        const s = snapToRoad(pk.lng, pk.lat, roads, maxSnap);
+        if (s) return { ...pk, lng: s[0], lat: s[1] };
+      }
+      return pk;
+    });
+    return { ...focus, pickets };
+  }, [focus, roads]);
   // Real incidents inside the focused pocket → light context under the plan.
   const focusCtx = useMemo(() => {
     if (!focus || !pts) return [];
@@ -570,15 +619,16 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
   useEffect(() => {
     if (!overlayRef.current || !pts) return;
     if (focus) {
-      // Patrol-focus mode replaces the density/incident layers with the deployment overlay.
-      overlayRef.current.setProps({ layers: focusLayers(focus, focusCtx), effects: [LIGHTING] });
+      // Patrol-focus mode replaces the density/incident layers with the deployment overlay
+      // (pickets snapped to real roads via focusForRender).
+      overlayRef.current.setProps({ layers: focusLayers(focusForRender ?? focus, focusCtx), effects: [LIGHTING] });
       return;
     }
     // Density hexbins are for the overview; past street zoom, show incident dots instead
     // (a single deep hexbin becomes a giant pillar that blocks the 3D buildings).
     const effMode: Mode = mode === "hex" && z > 12.5 ? "points" : mode;
     overlayRef.current.setProps({ layers: buildLayers(effMode, visible, z), effects: [LIGHTING] });
-  }, [visible, mode, z, pts, focus, focusCtx]);
+  }, [visible, mode, z, pts, focus, focusForRender, focusCtx]);
 
   // Keep a ref of points for the (once-bound) click handler.
   useEffect(() => { ptsRef.current = pts ?? []; }, [pts]);
@@ -666,7 +716,23 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
         .maplibregl-missing-css, .mapboxgl-missing-css { display: none !important; }
       `}</style>
 
-      {/* Legend */}
+      {/* Patrol-tactics legend (focus mode) — decodes the picket terms/colours for non-police viewers */}
+      {focus && (
+        <div className="card-hover pointer-events-auto absolute bottom-[4.75rem] left-3 z-[1000] max-w-[15rem] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]/90 p-2 text-[10px] text-[var(--color-text-dim)] backdrop-blur">
+          <div className="mb-1 font-medium text-[var(--color-text)]">Patrol tactics</div>
+          <div className="flex flex-col gap-1">
+            {[...new Set((focusForRender ?? focus).pickets.map((p) => p.kind))].map((k: PicketKind) => (
+              <span key={k} className="flex items-start gap-1.5 leading-tight">
+                <span className="mt-[3px] inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: `rgb(${KIND_COLOR[k].join(",")})` }} />
+                <span><span className="text-[var(--color-text)]">{KIND_LABEL[k]}</span> — {KIND_HELP[k]}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Legend (overview mode) */}
+      {!focus && (
       <div className="card-hover pointer-events-auto absolute bottom-[4.75rem] left-3 z-[1000] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]/90 p-2 text-[10px] text-[var(--color-text-dim)] backdrop-blur">
         <div className="mb-1 font-medium text-[var(--color-text)]">
           {mode === "points" ? "Incident type · click a dot" : "Crime density"}
@@ -690,6 +756,7 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
           </div>
         )}
       </div>
+      )}
 
       {/* Map-control cluster: joystick (pan) + buttons (zoom / rotate / tilt / home / time-lapse) */}
       <div className="absolute bottom-[4.75rem] right-3 z-[1000] flex items-end gap-2">

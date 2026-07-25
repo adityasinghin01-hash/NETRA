@@ -42,13 +42,22 @@ export interface PatrolPlan {
   grounded: boolean; // true = pickets sit on real incident pockets; false = ring fallback
 }
 
-const KIND_LABEL: Record<PicketKind, string> = {
+export const KIND_LABEL: Record<PicketKind, string> = {
   naka: "Naka-bandi checkpoint",
   mobile: "Hoysala mobile beat",
   plainclothes: "Plain-clothes watch",
   ksrp: "KSRP quick-reaction standby",
   pink: "Pink Hoysala women-safety beat",
   awareness: "Awareness camp / bank alert",
+};
+// One-line meaning for the on-map legend — the terms confuse non-police viewers.
+export const KIND_HELP: Record<PicketKind, string> = {
+  naka: "vehicle checkpoint on a road",
+  mobile: "roving patrol car covering the zone",
+  plainclothes: "officers in civil dress at the crime spot",
+  ksrp: "armed reserve on quick-reaction standby",
+  pink: "women-safety patrol with a woman officer",
+  awareness: "public/bank awareness drive",
 };
 export const KIND_COLOR: Record<PicketKind, [number, number, number]> = {
   naka: [239, 68, 68],
