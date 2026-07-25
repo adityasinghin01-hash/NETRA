@@ -5,7 +5,7 @@
 // ([lat, lng, crimeHead, crimeNo, district, date, crimeType]).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { usePersistentState } from "@/lib/usePersistentState";
+import { usePersistentState, nsKey } from "@/lib/usePersistentState";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { MapboxOverlay } from "@deck.gl/mapbox";
@@ -330,7 +330,7 @@ function CtrlBtn({ onClick, label, title, active }: { onClick: () => void; label
 
 // Remember the map camera across navigation. The page unmounts when you open a FIR in Case Search;
 // without this the map re-created at the default state-wide view and "refreshed" on the way back.
-const CAM_KEY = "netra.map.camera";
+const CAM_KEY = nsKey("netra.map.camera"); // versioned → resets with the rest of the view-state
 type Cam = { center: [number, number]; zoom: number; pitch: number; bearing: number };
 function loadCam(): Cam | null {
   try { const r = sessionStorage.getItem(CAM_KEY); return r ? (JSON.parse(r) as Cam) : null; } catch { return null; }
