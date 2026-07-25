@@ -21,7 +21,10 @@ function fail(res, where, err) {
 // Best-effort per-IP rate limit for the sovereign LLM proxy so a public caller can't burn the
 // GLM/VLM quota. In-memory → per function instance (not global), which is acceptable for a
 // prototype; a production deploy would use a shared store (Catalyst Cache/Data Store).
-const RL_WINDOW_MS = 60000, RL_MAX = 20; // 20 LLM calls / IP / minute
+const RL_WINDOW_MS = 60000, RL_MAX = 80; // LLM calls / IP / minute — one active officer's Copilot
+// turn fires several calls (retrieval ping + tool round-trip + any auto-repair), so 20 throttled a
+// single live user into the sovereign fallback. The Origin gate is the real anti-abuse control; this
+// is a generous secondary cap sized for a real session / demo.
 const rlHits = new Map();
 function rateLimited(req) {
   // Key on the trusted-proxy-appended IP, NOT the client-controllable LEFTMOST X-Forwarded-For
@@ -41,10 +44,30 @@ function rateLimited(req) {
   return arr.length > RL_MAX;
 }
 
+// The LLM proxy (/glm, /vlm) is anonymous by design — the client is a public browser app served
+// same-origin under the Catalyst domain, and any header baked into that public bundle would not be
+// a real secret. So instead of a shared secret we gate on the browser-set Origin/Referer: only the
+// hosted client (a *.catalystserverless.in origin, or an ALLOWED_ORIGINS host) may call it. This is
+// a SOFT control — a non-browser client (curl) can forge these headers — but it stops the two things
+// that actually happen in the wild: cross-origin browser abuse (another site scripting our endpoint)
+// and header-less drive-by scanners. It needs no frontend change because the app's same-origin POSTs
+// already carry these headers (no referrer policy strips them). A hard control would require real
+// authenticated function scope + a frontend rebuild; documented in docs/SECURITY-NOTES.md.
+const ALLOWED_ORIGINS = String(process.env.ALLOWED_ORIGINS || "")
+  .split(",").map((s) => s.trim()).filter(Boolean);
+function sameSiteOrigin(req) {
+  const src = req.headers.origin || req.headers.referer || "";
+  let host;
+  try { host = new URL(src).hostname; } catch { return false; } // no/garbage Origin+Referer → deny
+  return host.endsWith(".catalystserverless.in") || ALLOWED_ORIGINS.includes(host);
+}
+
 // ---- Sovereign LLM (Catalyst QuickML: GLM-4.7 + Qwen VLM) ----
 // Creds (refresh token) live in the Data Store Store table under a private '_llm_creds'
-// key — never in the repo. Seeded once over HTTPS via /llm-seed. The function mints
-// short-lived access tokens from the refresh token and proxies to QuickML.
+// key — never in the repo. They are seeded once out-of-band (Catalyst Data Store console),
+// NOT via any HTTP route: an open seed endpoint would let an unauthenticated caller inject
+// their own OAuth creds on a fresh/unseeded environment and hijack the LLM proxy. Rotation is
+// likewise a console operation. The function mints short-lived access tokens and proxies to QuickML.
 const QML_BASE = "https://api.catalyst.zoho.in/quickml/v1/project/55012000000013048";
 const QML_ORG = "60077866273";
 let _creds = null, _tok = null, _tokExp = 0;
@@ -78,20 +101,8 @@ async function callQml(req, pathSuffix, payload) {
   return { status: r.status, json: await r.json().catch(() => ({})) };
 }
 
-// One-time seed (trust-on-first-use): stores the refresh-token creds in Data Store if absent.
-app.post(/\/llm-seed$/, async (req, res) => {
-  try {
-    if (await loadCreds(req)) return res.status(409).json({ error: "already seeded" });
-    const { refresh_token, client_id, client_secret } = req.body || {};
-    if (!refresh_token || !client_id || !client_secret) return res.status(400).json({ error: "missing creds" });
-    const app_ = catalyst.initialize(req);
-    await app_.datastore().table("Store").insertRow({ rkey: "_llm_creds", rvalue: JSON.stringify({ refresh_token, client_id, client_secret }) });
-    _creds = null;
-    return res.json({ ok: true });
-  } catch (err) { return fail(res, "/llm-seed", err); }
-});
-
 app.post(/\/glm$/, async (req, res) => {
+  if (!sameSiteOrigin(req)) return res.status(403).json({ error: "forbidden" });
   if (rateLimited(req)) return res.status(429).json({ error: "rate limit exceeded — try again shortly" });
   try {
     const b = req.body || {};
@@ -107,6 +118,7 @@ app.post(/\/glm$/, async (req, res) => {
 });
 
 app.post(/\/vlm$/, async (req, res) => {
+  if (!sameSiteOrigin(req)) return res.status(403).json({ error: "forbidden" });
   if (rateLimited(req)) return res.status(429).json({ error: "rate limit exceeded — try again shortly" });
   try {
     const b = req.body || {};
