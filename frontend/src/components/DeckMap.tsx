@@ -5,6 +5,7 @@
 // ([lat, lng, crimeHead, crimeNo, district, date, crimeType]).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePersistentState } from "@/lib/usePersistentState";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { MapboxOverlay } from "@deck.gl/mapbox";
@@ -320,6 +321,20 @@ function CtrlBtn({ onClick, label, title, active }: { onClick: () => void; label
   );
 }
 
+// Remember the map camera across navigation. The page unmounts when you open a FIR in Case Search;
+// without this the map re-created at the default state-wide view and "refreshed" on the way back.
+const CAM_KEY = "netra.map.camera";
+type Cam = { center: [number, number]; zoom: number; pitch: number; bearing: number };
+function loadCam(): Cam | null {
+  try { const r = sessionStorage.getItem(CAM_KEY); return r ? (JSON.parse(r) as Cam) : null; } catch { return null; }
+}
+function saveCam(m: maplibregl.Map) {
+  try {
+    const c = m.getCenter();
+    sessionStorage.setItem(CAM_KEY, JSON.stringify({ center: [c.lng, c.lat], zoom: m.getZoom(), pitch: m.getPitch(), bearing: m.getBearing() }));
+  } catch { /* ignore */ }
+}
+
 export default function DeckMap({ districts, focus, onExitFocus }: { districts?: DistrictGeo[]; focus?: PatrolPlan | null; onExitFocus?: () => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -336,8 +351,8 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
   useEffect(() => { focusRef.current = !!focus; }, [focus]);
   const [hover, setHover] = useState<{ x: number; y: number; name: string; count: number } | null>(null);
   const [pts, setPts] = useState<Pt[] | null>(null);
-  const [mode, setMode] = useState<Mode>("hex");
-  const [base, setBase] = useState<Base>("dark");
+  const [mode, setMode] = usePersistentState<Mode>("netra.map.mode", "hex");
+  const [base, setBase] = usePersistentState<Base>("netra.map.base", "dark");
   const [z, setZ] = useState(6);
   const [timelapse, setTimelapse] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -406,16 +421,17 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
+    const cam = loadCam(); // restore the camera the officer left the map at (else state-wide default)
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: OFM_DARK,
-      center: [76.2, 14.9],
-      zoom: 5.9,
+      center: cam?.center ?? [76.2, 14.9],
+      zoom: cam?.zoom ?? 5.9,
       minZoom: 5.4,
       maxZoom: 18,
       maxBounds: KA_BOUNDS,
-      pitch: 48,
-      bearing: -12,
+      pitch: cam?.pitch ?? 48,
+      bearing: cam?.bearing ?? -12,
       attributionControl: false,
       dragRotate: true,
       fadeDuration: 0,            // tiles pop in instantly instead of a slow cross-fade
@@ -485,6 +501,8 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
       if (best) setHover({ x: e.point.x, y: e.point.y, name: best.name, count: best.caseCount });
     });
     map.on("mouseout", () => setHover(null));
+    // Persist the camera on every settle so returning to the map restores where you were.
+    map.on("moveend", () => saveCam(map));
     // Zoom-adaptive: bucket zoom to 0.3 steps so layers refine as you go deep without thrashing.
     map.on("zoom", () => {
       const nz = map.getZoom();
@@ -515,6 +533,7 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
   // Patrol focus: fly into the predicted pocket (satellite + street detail) so the plan sits on
   // the real ground; exiting flies back to the state overview and restores the previous base.
   const prevBase = useRef<Base>("dark");
+  const focusMounted = useRef(false); // skip the "fly back to overview" on initial mount
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -523,10 +542,13 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
       if (base !== "satellite") setBase("satellite");
       popupRef.current?.remove();
       map.easeTo({ center: [focus.lng, focus.lat], zoom: 13.2, pitch: 55, bearing: 0, duration: 1500 });
-    } else {
+    } else if (focusMounted.current) {
+      // Only fly back to the state overview when the user EXITS focus — NOT on the first mount,
+      // which would override the camera we just restored from the previous visit.
       map.easeTo({ center: [76.2, 14.9], zoom: 5.9, pitch: 48, bearing: -12, duration: 900 });
       if (prevBase.current !== base) setBase(prevBase.current);
     }
+    focusMounted.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus]);
   // Real incidents inside the focused pocket → light context under the plan.
