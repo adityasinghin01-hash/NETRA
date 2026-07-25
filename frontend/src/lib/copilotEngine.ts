@@ -241,7 +241,9 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
 
   // Conversational turn → natural GLM reply, no retrieval, no confidence gate. Elaboration
   // requests ("in detail", "one by one") get a fuller, organised answer instead of one clipped line.
-  if (isConversational(query, prevNetra) && !isContinuation) {
+  // A short diagram/re-draw request ("make it a timeline") has no data keyword and would otherwise
+  // be misread as small-talk and answered in prose — force it onto the grounded/diagram path.
+  if (isConversational(query, prevNetra) && !isContinuation && !DIAGRAM_INTENT.test(query)) {
     const detail = ELABORATE.test(query);
     try {
       const r = await glmChat(
