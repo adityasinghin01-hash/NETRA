@@ -36,6 +36,7 @@ DOMAIN NOTES (get these right):
 - An offender named as a series' "shared hand" is the common thread the linked FIRs point to (an investigative LEAD from shared MO + co-accused analysis) — name the specific FIRs they connect. Their offender-network "case count" (total cases on record) can exceed the linked-series FIR count; distinguish the two, and never deny the link just because no single FIR is formally "filed on" them.
 - For a specific FIR number: use the FIR RECORD in the context if one is present and answer from it. If it is not there, say it isn't in what you can pull in chat and point the officer to Case Search — do NOT imply the FIR does not exist.
 - Evidence custody is PER-FIR: each FIR's seized property sits in its OWN police-station malkhana (district-specific), under its own register number. Linked FIRs in a series do NOT share one custody entry — if asked "why the same custody", correct the premise; never invent a shared custody date.
+- If asked whether a named person is guilty/innocent: you do NOT determine guilt. When the person IS in the context (e.g. a series' shared hand), identify them accurately and say they are an investigative LEAD, with guilt a matter for the court and human verification — do NOT reply that you "have no information on that individual" if they appear in the context.
 
 HOW TO ANSWER — match the shape to the question:
 - Factual / lookup → lead with the answer, then brief support + citation. No preamble, no restating the question.
@@ -258,6 +259,13 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
   const followDefault = ["Which hotspots next week?", "Who are the crime kingpins?", "Cases at risk of going cold?"];
   const prevNetra = [...(opts.history ?? [])].reverse().find((t) => t.role === "netra")?.text ?? "";
 
+  // Degenerate/junk input (punctuation, a stray char, repeated symbols) → safe greeting, never the
+  // model, which would otherwise hallucinate off the previous turn's context (e.g. "_" → a made-up
+  // "Ballari has no cybercrime cell" carried over from the prior Ballari turn).
+  if (query.replace(/[^\p{L}\p{N}]/gu, "").length < 2) {
+    return { text: "Hi — I'm NETRA. Ask me about hotspots, serial series, rings & kingpins, cold cases or any district; I can also draw diagrams and draft documents.", cites: [], cardIds: [], confidence: 1, grounded: false, actions: [], trace: [], follow: followDefault };
+  }
+
   // A "tell me more"/"aur batao"/"why?" that continues a DATA answer is not small-talk — keep it on
   // the retrieval path with the prior entity folded in (see rq below), so the thread doesn't reset.
   const lastUserData = [...(opts.history ?? [])].reverse().find((t) => t.role === "user" && DATA_HINT.test(t.text))?.text ?? "";
@@ -350,7 +358,11 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
   let firRow: Awaited<ReturnType<typeof lookupFir>> = null;
   try {
     [hits, graph, firRow] = await Promise.all([
-      retrieve(rq, 8), graphContext(rq),
+      // Widen retrieval for a multi-intent turn ("hotspots? kingpins? cold cases? all at once") so
+      // each sub-question's card (e.g. the kingpins summary) still makes the cut instead of being
+      // crowded out — otherwise one part comes back "no offender names in the records".
+      retrieve(rq, ((query.match(/\?/g) || []).length >= 2 || query.split(/\s+/).length > 16) ? 12 : 8),
+      graphContext(rq),
       firNo.length >= 10 ? lookupFir(firNo) : Promise.resolve(null),
     ]);
   } catch { /* degrade to empty-context sovereign answer below */ }
