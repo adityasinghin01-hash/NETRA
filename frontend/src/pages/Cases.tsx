@@ -473,6 +473,17 @@ export default function Cases() {
     }
   }, [memberByCase, q, selected]);
 
+  // Re-sync filters when a NEW deep-link arrives. useState reads params only on first mount, so a
+  // second Copilot "search …" (navigating /cases?… while this page is already mounted) was ignored
+  // and kept showing the previous search. Depends on the raw param values, so manual dropdown
+  // changes (which don't touch the URL) never get clobbered.
+  const pQ = params.get("q") ?? "", pType = params.get("type") ?? "", pDistrict = params.get("district") ?? "";
+  const pStatus = params.get("status") ?? "", pGravity = params.get("gravity") ?? "";
+  useEffect(() => {
+    setQ(pQ); setType(pType); setDistrict(scope ?? pDistrict); setStatus(pStatus); setGravity(pGravity);
+    setPage(0); deepLink.current = !!pQ;
+  }, [pQ, pType, pDistrict, pStatus, pGravity, scope]);
+
   useEffect(() => {
     let alive = true;
     setLoading(true);
