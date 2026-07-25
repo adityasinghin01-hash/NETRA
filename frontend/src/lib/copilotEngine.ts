@@ -116,6 +116,18 @@ const DOC_VERB = /\b(draft|generate|create|make|prepare|write|issue|produce|give
 // Diagram / re-draw intent — including CONVERT phrasings ("make it a timeline", "show as a chart")
 // that don't say "draw", so the model reliably calls make_diagram instead of refusing in prose.
 const DIAGRAM_INTENT = /\b(draw|chart|diagram|timeline|flow ?chart|org ?chart|link chart|mind ?map|visuali[sz]e|\bplot\b|make it (a|an|into)|convert (it )?(to|into)|turn it into|redraw|re-?draw|show (it |them )?as)\b/i;
+
+// Map a request to a CORE diagram kind (built deterministically from real case data). Order matters:
+// specific kinds before the generic "link"/"chart" fallback.
+function coreDiagramKind(q: string): "link" | "org" | "timeline" | "money" | "mo" | null {
+  const s = q.toLowerCase();
+  if (/\btimeline\b/.test(s)) return "timeline";
+  if (/\b(org|organi[sz]ation|gang|hierarchy|kingpin|command)\b/.test(s)) return "org";
+  if (/\b(money|transaction|financial|cash|fund|trail)\b/.test(s)) return "money";
+  if (/\b(modus|\bmo\b|signature|method)\b/.test(s)) return "mo";
+  if (/\b(link|relationship|connection|network|chart)\b/.test(s)) return "link";
+  return null;
+}
 // A short affirmation/deferral continuing a task the assistant just offered ("you decide", "yes",
 // "go ahead", "all of them") — context matters, so it's evaluated against the previous reply.
 const DEFER = /^(you (decide|choose|pick|fill|do)|yes|yep|yeah|ok(ay)?|sure|go ahead|please do|do it|proceed|whatever|any(thing)?|all of (them|it))\b/i;
@@ -254,6 +266,22 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
   const resolvedCard = resolved.clusterId
     ? cards.find((c) => c.type === "cluster" && c.meta?.clusterId === resolved.clusterId)
     : undefined;
+
+  // Deterministic core-kind diagram: when the user asks to draw/convert to a core kind (timeline,
+  // org, link, money, mo) about a known cluster, build the action ourselves — the model sometimes
+  // "describes" a timeline in prose without calling make_diagram, leaving no card. This guarantees it
+  // renders. Free-form diagrams (kind='other', no cluster) still go through the model below.
+  if (!isDocIntent && DIAGRAM_INTENT.test(query) && resolved.clusterId) {
+    const kind = coreDiagramKind(query);
+    if (kind) {
+      const ui: UiAction = { kind: "diagram", diagram: kind, clusterId: resolved.clusterId };
+      return {
+        text: actionLead([ui]), cites: [], cardIds: [], confidence: 1, grounded: true, actions: [ui],
+        trace: [`Diagram (${kind}) for ${resolved.clusterId} — built deterministically from case data`],
+        follow: followDefault,
+      };
+    }
+  }
 
   // Scope-aware retrieval: fold the prior data question into a continuation ("aur batao" → same
   // series), the resolved entity's label/offender (so retrieval surfaces IT), and the district scope.
