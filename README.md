@@ -41,7 +41,7 @@ human-in-the-loop).
 ```
 React SPA  ──►  Catalyst Web Client Hosting            (the 6 screens)
    │
-   ├─ /server/netra_api  ──►  Catalyst Advanced I/O Function (Express)
+   ├─ functions/netra_api  ──►  Catalyst Advanced I/O Function (Express)
    │                              └─►  Catalyst Data Store  (Store + 50k Cases, ZCQL)
    └─ in-browser transformer (transformers.js) for semantic linkage
 
@@ -79,7 +79,7 @@ catalyst deploy --only functions                 # API → Advanced I/O Function
 frontend/     React app (6 screens) → Catalyst Web Client Hosting
 functions/    netra_api — Express API (ZCQL over Data Store) → Catalyst Function
 pipeline/     dataset generator, model training, benchmark, blind test (Python)
-docs/         system design, build plan, deck metrics, teammate guides
+docs/         system design, deck metrics, security notes, sovereign-model notes
 scripts/      deploy helpers
 ```
 
