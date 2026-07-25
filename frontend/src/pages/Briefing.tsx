@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePersistentState } from "@/lib/usePersistentState";
 import { Card, PageHeader, State } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { escapeHtml as e } from "@/lib/pdf";
@@ -20,9 +21,9 @@ interface Brief {
 export default function Briefing() {
   const [all, setAll] = useState<Record<string, Brief> | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [district, setDistrict] = useState<string>(getSession().district ?? "Bengaluru Urban");
-  const [lang, setLang] = useState<"en" | "kn">("en");
-  const [gender, setGender] = useState<"f" | "m">("f");
+  const [district, setDistrict] = usePersistentState<string>("netra.briefing.district", getSession().district ?? "Bengaluru Urban");
+  const [lang, setLang] = usePersistentState<"en" | "kn">("netra.briefing.lang", "en");
+  const [gender, setGender] = usePersistentState<"f" | "m">("netra.briefing.gender", "f");
   const [forecast, setForecast] = useState<{ hotspots: { district: string; crimeType: string; riskLevel: string; patrolWindow: string }[] } | null>(null);
   const [cold, setCold] = useState<{ districts: Record<string, { crimeNo: string; type: string; risk: number }[]> } | null>(null);
   const [speaking, setSpeaking] = useState(false);

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePersistentState } from "@/lib/usePersistentState";
 import {
   ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine,
 } from "recharts";
@@ -572,7 +573,7 @@ function NetworkTab() {
 
   // Click a node → offender profile: cases, ring, centrality rank, crime type/districts (via
   // Crime-DNA), and real co-offenders (from the co-offending edges). Makes the graph interrogatable.
-  const [selNode, setSelNode] = useState<NetNode | null>(null);
+  const [selNode, setSelNode] = usePersistentState<NetNode | null>("netra.analytics.selNode", null);
   const centralityRank = useMemo(() => {
     const m = new Map<number, number>();
     if (net) [...net.nodes].sort((a, b) => (b.centrality ?? 0) - (a.centrality ?? 0)).forEach((n, i) => m.set(n.id, i + 1));
@@ -755,7 +756,7 @@ function NetworkTab() {
 }
 
 export default function Analytics() {
-  const [tab, setTab] = useState<(typeof TABS)[number]>("Trends");
+  const [tab, setTab] = usePersistentState<(typeof TABS)[number]>("netra.analytics.tab", "Trends");
   const scope = getSession().district;
   const [da, setDa] = useState<DA | null>(null);
   const [risk, setRisk] = useState<RiskData | null>(null);

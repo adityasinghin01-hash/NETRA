@@ -1,4 +1,5 @@
 // Document Center — one hub to generate every NETRA report (all through the shared PDF
+import { usePersistentState } from "@/lib/usePersistentState";
 // engine, one letterhead). Flagship: the Serial-Crime Linkage & Evidence Report, built to
 // read court-familiar to KSP.
 import { useEffect, useState } from "react";
@@ -15,8 +16,8 @@ export default function DocumentCenter() {
   const [spatial, setSpatial] = useState<Record<string, any> | null>(null);
   const [briefs, setBriefs] = useState<Record<string, any> | null>(null);
   const [forecast, setForecast] = useState<any>(null);
-  const [cluster, setCluster] = useState("SC01");
-  const [dist, setDist] = useState(scope ?? "Bengaluru Urban");
+  const [cluster, setCluster] = usePersistentState("netra.docs.cluster", "SC01");
+  const [dist, setDist] = usePersistentState("netra.docs.dist", scope ?? "Bengaluru Urban");
 
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}crime-dna.json`).then((r) => r.json()).then(setDna).catch(() => {});

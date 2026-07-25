@@ -1,4 +1,5 @@
 // Anomaly & Alert Center — a standalone tool, not a widget. Mixed alert types, each with a
+import { usePersistentState } from "@/lib/usePersistentState";
 // "why flagged" statistic, and a New→Acknowledged→Assigned→Resolved lifecycle (a workflow an
 // officer works, not a list they read). Data: public/alerts-feed.json (build_alerts.py).
 // Clicking an alert opens its triggering FIR in Case Search with the alert-context panel.
@@ -29,7 +30,7 @@ function useClock() {
 export default function AlertCenter() {
   // District scoping now happens inside the shared store, so the bell and this page filter identically.
   const nav = useNavigate();
-  const [filter, setFilter] = useState<string>("all");
+  const [filter, setFilter] = usePersistentState<string>("netra.alerts.filter", "all");
   const now = useClock();
 
   // Feed, progressive arrival and workflow statuses all live in the shared store, so the nav bell

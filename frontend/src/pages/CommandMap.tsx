@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { usePersistentState } from "@/lib/usePersistentState";
 import { useSearchParams } from "react-router-dom";
 import { useApi, StatTile, Card, PageHeader, State, Badge, SpecularCard } from "@/components/ui";
 import DeckMap from "@/components/DeckMap";
@@ -62,8 +63,8 @@ export default function CommandMap() {
   const oc = useApi<{ name: string; chargesheeted: number; false: number; undetected: number }[]>("/stats/outcomes");
   const [forecast, setForecast] = useState<Forecast | null>(null);
   const [da, setDa] = useState<Record<string, { outcome: { detectionPct: number } }> | null>(null);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [focus, setFocus] = useState<PatrolPlan | null>(null);
+  const [selected, setSelected] = usePersistentState<number | null>("netra.map.selected", null);
+  const [focus, setFocus] = usePersistentState<PatrolPlan | null>("netra.map.focus", null);
   // Real FIR points [lat,lng,head,,district,...] → used to place pickets on actual crime pockets.
   const [inc, setInc] = useState<{ lat: number; lng: number; head: number; district: string }[]>([]);
   const [feedAlerts, setFeedAlerts] = useState<Alert[]>([]);

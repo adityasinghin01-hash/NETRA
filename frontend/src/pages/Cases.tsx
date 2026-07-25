@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { usePersistentState } from "@/lib/usePersistentState";
 import { useSearchParams } from "react-router-dom";
 import { useApi, Card, PageHeader, State, Badge } from "@/components/ui";
 import { searchCases, type CaseRow, type Forensic } from "@/api/client";
@@ -391,16 +392,16 @@ export default function Cases() {
   const scope = getSession().district; // district/station users locked to their district
   const districts = useApi<{ name: string }[]>("/geo/districts");
   const [params] = useSearchParams();
-  const [q, setQ] = useState(params.get("q") ?? ""); // deep-link from a map dot → search that FIR
+  const [q, setQ] = usePersistentState("netra.cases.q", params.get("q") ?? ""); // deep-link from a map dot → search that FIR
   const deepLink = useRef(!!params.get("q")); // arrived via ?q=<crimeNo> → auto-open that case file
   const alertId = params.get("alert"); // arrived from Alert Center → show the "why it fired" panel
   const [alertsFeed, setAlertsFeed] = useState<Record<string, AlertCtx>>({});
   // Deep-link filters (from the Copilot's search_cases action → /cases?type=&district=&status=).
   // A scoped officer stays locked to their own district regardless of the URL.
-  const [district, setDistrict] = useState(scope ?? params.get("district") ?? "");
-  const [type, setType] = useState(params.get("type") ?? "");
-  const [gravity, setGravity] = useState(params.get("gravity") ?? "");
-  const [status, setStatus] = useState(params.get("status") ?? "");
+  const [district, setDistrict] = usePersistentState("netra.cases.district", scope ?? params.get("district") ?? "");
+  const [type, setType] = usePersistentState("netra.cases.type", params.get("type") ?? "");
+  const [gravity, setGravity] = usePersistentState("netra.cases.gravity", params.get("gravity") ?? "");
+  const [status, setStatus] = usePersistentState("netra.cases.status", params.get("status") ?? "");
   const [page, setPage] = useState(0);
   const [rows, setRows] = useState<CaseRow[]>([]);
   const [hasMore, setHasMore] = useState(false);
@@ -480,6 +481,10 @@ export default function Cases() {
   const pQ = params.get("q") ?? "", pType = params.get("type") ?? "", pDistrict = params.get("district") ?? "";
   const pStatus = params.get("status") ?? "", pGravity = params.get("gravity") ?? "";
   useEffect(() => {
+    // Only override the (now persisted) filters when this is an actual deep-link — i.e. at least one
+    // param is present. A plain return to /cases with no params must KEEP the persisted filters
+    // instead of clearing them to "".
+    if (!(pQ || pType || pDistrict || pStatus || pGravity)) return;
     setQ(pQ); setType(pType); setDistrict(scope ?? pDistrict); setStatus(pStatus); setGravity(pGravity);
     setPage(0); deepLink.current = !!pQ;
   }, [pQ, pType, pDistrict, pStatus, pGravity, scope]);

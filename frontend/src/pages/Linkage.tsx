@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { usePersistentState } from "@/lib/usePersistentState";
 import { useNavigate } from "react-router-dom";
 import { useApi, Card, PageHeader, State, Badge } from "@/components/ui";
 import { matchFir, type MatchResult } from "@/api/client";
@@ -48,7 +49,7 @@ function saveConfirmed(m: ConfirmLedger) {
 export default function Linkage() {
   const nav = useNavigate();
   const { data, loading, error } = useApi<Cluster[]>("/linkage/clusters");
-  const [selected, setSelected] = useState<Cluster | null>(null);
+  const [selected, setSelected] = usePersistentState<Cluster | null>("netra.linkage.selected", null);
   const [query, setQuery] = useState("");
   const [result, setResult] = useState<MatchResult | null>(null);
   const [matching, setMatching] = useState(false);
