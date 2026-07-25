@@ -2,12 +2,13 @@
 // (hybrid dense+BM25) + a knowledge-graph subgraph, then GLM-4.7 composes a cited answer
 // constrained to that evidence. If the sovereign LLM is unavailable, a deterministic
 // template composer answers from the same cards — so it never hallucinates and never fails.
-import { retrieve, confidenceFrom, preloadRetrieval, type Retrieved } from "@/lib/retrieval";
+import { retrieve, confidenceFrom, preloadRetrieval, allCards, type Retrieved, type Card } from "@/lib/retrieval";
 import { graphContext, preloadGraph } from "@/lib/graph";
 import { glmChat, type ToolDef, type ToolCall, type LlmMsg } from "@/lib/llm";
 import { TOOLS, runTool, type UiAction } from "@/lib/copilotTools";
 import { preloadEmbedder } from "@/lib/embedMatch";
 import { recallMemory } from "@/lib/feedback";
+import { lookupFir } from "@/api/client";
 
 export interface NetraAnswer {
   text: string;
@@ -28,6 +29,12 @@ GROUNDING & HONESTY (non-negotiable):
 - Answer ONLY from the CONTEXT provided. If it is not there, say "I don't hold that in the records" — never invent facts, FIR numbers, names or statistics.
 - Cite sources inline with their [label]. Separate what the records SHOW (cite it) from what you INFER ("this suggests…", "likely…") and what you SUGGEST as a next step. Never present a guess as a record.
 - Predict places and patterns, never a person's guilt. Never profile by caste, religion or occupation.
+
+DOMAIN NOTES (get these right):
+- "High alert / most at-risk / where to focus enforcement" = the districts under the most crime PRESSURE — a rising trend, active alerts, or high forecast risk — NOT the district with the best detection rate. A high detection rate is good performance, not a reason to raise an alert.
+- An offender named as a series' "shared hand" is the common thread the linked FIRs point to (an investigative LEAD from shared MO + co-accused analysis) — name the specific FIRs they connect. Their offender-network "case count" (total cases on record) can exceed the linked-series FIR count; distinguish the two, and never deny the link just because no single FIR is formally "filed on" them.
+- For a specific FIR number: use the FIR RECORD in the context if one is present and answer from it. If it is not there, say it isn't in what you can pull in chat and point the officer to Case Search — do NOT imply the FIR does not exist.
+- Evidence custody is PER-FIR: each FIR's seized property sits in its OWN police-station malkhana (district-specific), under its own register number. Linked FIRs in a series do NOT share one custody entry — if asked "why the same custody", correct the premise; never invent a shared custody date.
 
 HOW TO ANSWER — match the shape to the question:
 - Factual / lookup → lead with the answer, then brief support + citation. No preamble, no restating the question.
@@ -115,6 +122,11 @@ function pendingDocDraft(prevNetra: string): boolean {
 
 // True for greetings / small-talk / questions about the assistant — NOT data questions.
 const DATA_HINT = /(hotspot|forecast|next week|predict|patrol|serial|cluster|link|kingpin|ring|gang|network|cold|undetected|unsolved|worklist|district|clock|peak|rossmo|strike|arrest|clear|burglar|theft|fraud|snatch|murder|robber|chargesheet|\bfir\b|\bcase|draft|diagram|chart|\bmap\b|offender|detection|heinous|\bstat|\bsc\d{2}\b|\d{6,})/i;
+// A short follow-up that CONTINUES the prior topic ("tell me more", "aur batao", "why?", "go on",
+// Hinglish included). On its own it looks like small-talk; after a data answer it must stay on the
+// data path so the series/offender thread survives instead of collapsing to "I am here to help".
+const CONTINUATION = /^(aur\s*(batao|bata|kya|dikhao|sunao)?|(tell me|show me|explain)( more| about (it|this|that|him|her|them))?|more|go on|continue|and (then|now|more)|iske|uske|why\b|how (come|so)|kyu+n?|kaise|elaborate|expand|in detail|detail|iska)\b/i;
+
 function isConversational(q: string, prevNetra = ""): boolean {
   const s = q.toLowerCase().trim();
   // A short "you decide / yes / go ahead" that continues a document the assistant just offered to
@@ -137,14 +149,83 @@ function isConversational(q: string, prevNetra = ""): boolean {
 type Turn = { role: "user" | "netra"; text: string };
 const toMsgs = (h: Turn[]): LlmMsg[] => h.slice(-6).map((t) => ({ role: t.role === "netra" ? "assistant" : "user", content: t.text }));
 
+// ── Active-entity resolution ──────────────────────────────────────────────────
+// The single source of truth for "which series/offender is this turn about". Without it, every
+// short follow-up ("this series", "which is it", "his cases", "draw it") re-retrieves from scratch
+// and lands on a random cluster — the root cause of the wrong-series jumps. Resolution is explicit
+// and deterministic: an SCxx id, a distinctive title token, or a known offender name in the CURRENT
+// query wins; a referential/continuation turn inherits the entity from recent history.
+const REFERENTIAL = /\b(this|that|these|those|the series|the ring|the above|it|its|same|which is it|his|her|their|them|him|he|she)\b/i;
+
+function resolveEntity(query: string, history: Turn[], cards: Card[], isCont: boolean): { clusterId?: string; offender?: string } {
+  const clusters = cards.filter((c) => c.type === "cluster" && c.meta?.clusterId);
+  // Distinctive title tokens: a word that appears in exactly ONE cluster title (so "shutter" → SC01,
+  // but generic words shared across titles never mis-resolve).
+  const tokenIds = new Map<string, Set<string>>();
+  for (const c of clusters) {
+    for (const w of String(c.title).toLowerCase().split(/[^a-z0-9]+/)) {
+      if (w.length < 5) continue;
+      (tokenIds.get(w) ?? tokenIds.set(w, new Set()).get(w)!).add(c.meta.clusterId as string);
+    }
+  }
+  const distinct = new Map([...tokenIds].filter(([, s]) => s.size === 1).map(([w, s]) => [w, [...s][0]]));
+
+  // explicitOnly=true drops the distinctive-title-token match, leaving only UNAMBIGUOUS references —
+  // an SCxx id or an offender's name. History inheritance uses it so an incidental narrative word
+  // (a FIR whose facts mention "farmhouse") can never resolve to a cluster ("Farmhouse dacoity gang").
+  const find = (text: string, explicitOnly = false): { clusterId?: string; offender?: string } => {
+    const s = text.toLowerCase();
+    const m = s.match(/\bsc\s*0*(\d{1,2})\b/);
+    if (m) { const id = "SC" + m[1].padStart(2, "0"); if (clusters.some((c) => c.meta.clusterId === id)) return { clusterId: id }; }
+    if (!explicitOnly) {
+      const words = new Set(s.split(/[^a-z0-9]+/));
+      for (const [w, id] of distinct) if (words.has(w)) return { clusterId: id };
+    }
+    for (const c of clusters) { const off = String(c.meta.offender ?? "").toLowerCase(); if (off && s.includes(off)) return { clusterId: c.meta.clusterId as string, offender: c.meta.offender as string }; }
+    return {};
+  };
+
+  // The CURRENT query may name the series any way (SCxx, a distinctive title token like "shutter", or
+  // the offender) — all deliberate, so use the full matcher.
+  const inQuery = find(query);
+  if (inQuery.clusterId) return inQuery;
+  // No entity named this turn → inherit the active one from history for a referential/continuation
+  // follow-up, but ONLY from explicit references (never incidental words), and allow longer phrasings
+  // ("…but earlier no FIR is filed on him — which is it?" is 16 words yet clearly referential).
+  if (isCont || (REFERENTIAL.test(query) && query.split(/\s+/).length < 25)) {
+    for (const t of [...history].reverse()) { const r = find(t.text, true); if (r.clusterId) return r; }
+  }
+  return {};
+}
+
+// The Copilot loses alert cards to the (higher-frequency) district card in ranked retrieval, so an
+// explicit alert question gets the best-matching alert card injected directly.
+function pickAlertCard(query: string, cards: Card[]): string {
+  if (!/\b(alert|spike|surge|anomal|flag|flagged|spotted|emerging)\b/i.test(query)) return "";
+  const words = query.toLowerCase().match(/[a-z]{4,}/g) || [];
+  let best: Card | null = null, bestScore = 0;
+  for (const c of cards) {
+    if (c.type !== "alert") continue;
+    const hay = `${c.title} ${c.text}`.toLowerCase();
+    let sc = 0; for (const w of words) if (hay.includes(w)) sc++;
+    if (sc > bestScore) { bestScore = sc; best = c; }
+  }
+  return best && bestScore >= 2 ? `[${best.cite}] ${best.title}: ${best.text}` : "";
+}
+
 export async function askNetra(query: string, scope: string | null, opts: { thinking?: boolean; history?: Turn[] } = {}): Promise<NetraAnswer> {
   const hist = toMsgs(opts.history ?? []);
   const followDefault = ["Which hotspots next week?", "Who are the crime kingpins?", "Cases at risk of going cold?"];
   const prevNetra = [...(opts.history ?? [])].reverse().find((t) => t.role === "netra")?.text ?? "";
 
+  // A "tell me more"/"aur batao"/"why?" that continues a DATA answer is not small-talk — keep it on
+  // the retrieval path with the prior entity folded in (see rq below), so the thread doesn't reset.
+  const lastUserData = [...(opts.history ?? [])].reverse().find((t) => t.role === "user" && DATA_HINT.test(t.text))?.text ?? "";
+  const isContinuation = CONTINUATION.test(query.trim()) && !!lastUserData && (/\[[^\]]+\]/.test(prevNetra) || DATA_HINT.test(prevNetra));
+
   // Conversational turn → natural GLM reply, no retrieval, no confidence gate. Elaboration
   // requests ("in detail", "one by one") get a fuller, organised answer instead of one clipped line.
-  if (isConversational(query, prevNetra)) {
+  if (isConversational(query, prevNetra) && !isContinuation) {
     const detail = ELABORATE.test(query);
     try {
       const r = await glmChat(
@@ -162,21 +243,65 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
   const isDocIntent = (DOC_VERB.test(query) && DOC_NOUN.test(query))
     || (DEFER.test(query.toLowerCase().trim()) && pendingDocDraft(prevNetra));
 
-  // Scope-aware retrieval: fold the user's district into the query when unstated.
-  const rq = scope && !query.toLowerCase().includes(scope.toLowerCase()) ? `${query} ${scope}` : query;
+  // Resolve the ACTIVE entity (series/offender) so referential follow-ups and tool calls stay on the
+  // subject in play instead of re-retrieving a random cluster each turn.
+  const cards = await allCards().catch(() => [] as Card[]);
+  const resolved = resolveEntity(query, opts.history ?? [], cards, isContinuation);
+  const resolvedCard = resolved.clusterId
+    ? cards.find((c) => c.type === "cluster" && c.meta?.clusterId === resolved.clusterId)
+    : undefined;
+
+  // Scope-aware retrieval: fold the prior data question into a continuation ("aur batao" → same
+  // series), the resolved entity's label/offender (so retrieval surfaces IT), and the district scope.
+  let base = isContinuation ? `${lastUserData} ${query}` : query;
+  if (resolvedCard) base = `${base} ${resolvedCard.title}${resolved.offender ? " " + resolved.offender : ""}`;
+  const rq = scope && !base.toLowerCase().includes(scope.toLowerCase()) ? `${base} ${scope}` : base;
+
+  // A specific FIR number in the query → pull the REAL record from the live Cases table (the cards
+  // hold only aggregates). Runs alongside retrieval so it adds no serial latency.
+  const firNo = (query.match(/\d[\d\s-]{8,}\d/)?.[0] ?? "").replace(/\D/g, "");
+
   // Retrieval/embedding can throw (model or index load failure). It must degrade, not propagate:
   // on failure we continue with an empty set so sovereignAnswer still returns a reply — honouring
   // the "never fails" contract instead of letting askNetra throw.
   let hits: Retrieved[] = [];
   let graph: Awaited<ReturnType<typeof graphContext>> = null;
+  let firRow: Awaited<ReturnType<typeof lookupFir>> = null;
   try {
-    [hits, graph] = await Promise.all([retrieve(rq, 8), graphContext(rq)]);
+    [hits, graph, firRow] = await Promise.all([
+      retrieve(rq, 8), graphContext(rq),
+      firNo.length >= 10 ? lookupFir(firNo) : Promise.resolve(null),
+    ]);
   } catch { /* degrade to empty-context sovereign answer below */ }
   const confidence = confidenceFrom(hits);
   const trace: string[] = [`Retrieved ${hits.length} grounded cards (hybrid dense+BM25)`];
   if (graph) trace.push(`Traversed knowledge graph: ${graph.entities.length} entities, ${graph.facts.length} relations`);
-  const context = buildContext(hits, graph?.facts ?? null);
   const actions: UiAction[] = [];
+
+  // Prepend the FIR record (or an explicit not-found note) when the officer asked about a specific
+  // FIR number — so the answer is grounded on the actual case, and we never imply a real FIR is fake.
+  let firCard = "";
+  if (firNo.length >= 10) {
+    if (firRow) {
+      const acc = (firRow.accused ?? []).map((a) => a.name).filter(Boolean).join(", ");
+      firCard = `[FIR ${firRow.crimeNo}] Case record — ${firRow.crimeSubHead} (${firRow.gravity}) in ${firRow.districtName}, registered ${firRow.registeredDate}, status ${firRow.status}. Brief facts: ${firRow.briefFacts}${acc ? ` Accused: ${acc}.` : ""}`;
+      actions.push({ kind: "navigate", to: `/cases?q=${firNo}`, label: `FIR ${firNo}` });
+      trace.push(`Fetched live FIR record ${firNo} from the Cases table`);
+    } else {
+      firCard = `[FIR lookup] FIR ${firNo} could not be pulled in chat. Do NOT say it does not exist — tell the officer to confirm it in Case Search.`;
+      trace.push(`FIR ${firNo} not returned by the Cases lookup`);
+    }
+  }
+
+  // Deterministically inject the resolved cluster card (it carries the member FIRs + shared hand, so
+  // "show me his cases" / "which FIRs" can be answered) and the best-matching alert card. These beat
+  // ranked retrieval, which was dropping both.
+  const entityCard = resolvedCard ? `[${resolvedCard.cite}] ${resolvedCard.title}: ${resolvedCard.text}` : "";
+  if (resolvedCard) trace.push(`Active entity: ${resolvedCard.title} (${resolved.clusterId})`);
+  const alertCard = pickAlertCard(query, cards);
+  if (alertCard) trace.push("Injected matching alert card");
+  const inject = [firCard, entityCard, alertCard].filter(Boolean).join("\n\n");
+  const context = (inject ? inject + "\n\n" : "") + buildContext(hits, graph?.facts ?? null);
 
   let text = "";
   let grounded = false;
@@ -194,7 +319,9 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
     const first = await glmChat(msgs, { tools: TOOLS as ToolDef[], thinking: opts.thinking, max_tokens: 700 });
     grounded = true;
     for (const tc of (first.toolCalls ?? []) as ToolCall[]) {
-      const { ui } = runTool(tc.function.name, safeArgs(tc.function.arguments), hits);
+      // Fall back to the RESOLVED cluster (not a random top hit) when the model omits clusterId —
+      // so "draw the link chart for this series" targets the series in play.
+      const { ui } = runTool(tc.function.name, safeArgs(tc.function.arguments), hits, resolved.clusterId);
       trace.push(`${tc.function.name}(${tc.function.arguments})`);
       if (ui) actions.push(ui);
     }
@@ -209,7 +336,7 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
   // Confidence gate → honest escalation, but ONLY on a genuine data lookup with no action. A meta
   // question or a document/diagram action should never carry a "not confident" warning or
   // irrelevant citations (issue #2 — the ⚠️ that appeared on "what can you do").
-  const isDataQ = DATA_HINT.test(query);
+  const isDataQ = DATA_HINT.test(query) || isContinuation || !!firNo;
   if (isDataQ && !actions.length && confidence < 0.12 && hits.length) {
     text = `⚠️ I'm not fully confident on this — here's the closest I found; please verify with a human.\n\n${text}`;
     trace.push(`Low confidence (${confidence.toFixed(2)}) → flagged for human review`);

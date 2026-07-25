@@ -95,6 +95,28 @@ export async function searchCases(
   return res.json();
 }
 
+// Look up ONE FIR by its crime number. The Copilot's knowledge-card corpus only holds aggregates
+// (clusters, districts, alerts…), not the 50k individual records — so to answer "tell me about FIR
+// <n>" it must query the live Cases table (the same source Case Search uses, backend ?q=<firNo>).
+// Returns null when not found, so the Copilot can say so honestly instead of implying it exists.
+export async function lookupFir(firNo: string): Promise<CaseRow | null> {
+  const num = String(firNo).replace(/\D/g, "");
+  if (num.length < 6) return null;
+  if (USE_MOCKS) {
+    const sample = ((seed as Record<string, unknown>)["cases/sample"] as CaseRow[]) ?? [];
+    return sample.find((c) => String(c.crimeNo) === num) ?? null;
+  }
+  try {
+    const res = await fetch(`/server/netra_api/cases?q=${encodeURIComponent(num)}`);
+    if (!res.ok) return null;
+    const body = await res.json();
+    const items: CaseRow[] = body.items ?? [];
+    return items.find((c) => String(c.crimeNo) === num) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // Live case-linkage match: POST a FIR narrative, get the best-matching serial cluster.
 export async function matchFir(text: string): Promise<MatchResult> {
   if (USE_MOCKS) {

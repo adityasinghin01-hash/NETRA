@@ -57,7 +57,7 @@ function linkMermaid(c: Dna): string {
   const ms = c.members.slice(0, 8);
   const L = ["flowchart LR", `  HAND["${san(c.offender || "Shared hand")}<br/>shared hand"]:::hand`];
   ms.forEach((m, i) => {
-    L.push(`  F${i}["FIR ..${String(m.caseNo).slice(-6)}<br/>${san(m.district)} · ${m.date || ""}"]:::${m.solved ? "solved" : "unsolved"}`);
+    L.push(`  F${i}["FIR ${san(m.caseNo)}<br/>${san(m.district)} · ${m.date || ""}"]:::${m.solved ? "solved" : "unsolved"}`);
     L.push(`  HAND --> F${i}`);
   });
   L.push("classDef hand fill:#1f2b45,stroke:#22d3ee,color:#e2e8f0;");
@@ -81,7 +81,7 @@ function orgMermaid(c: Dna, net: any): string {
 function timelineMermaid(c: Dna): string {
   const ms = [...c.members].sort((a, b) => (a.date || "").localeCompare(b.date || "")).slice(0, 10);
   const L = ["timeline", `  title ${san(c.label)} - case timeline`];
-  ms.forEach((m) => L.push(`  ${m.date || "?"} : FIR ..${String(m.caseNo).slice(-6)} ${san(m.district)}`));
+  ms.forEach((m) => L.push(`  ${m.date || "?"} : FIR ${san(m.caseNo)} ${san(m.district)}`));
   return L.join("\n");
 }
 function moneyMermaid(): string {

@@ -13,7 +13,7 @@ interface Outcome {
 interface TrendSeries { districtId: number; name: string; points: { month: string; count: number }[] }
 interface Fc { future: string[]; mean: number[]; lo: number[]; hi: number[]; sigma: number; bridge: { month: string; count: number } }
 interface TrendForecast { horizon: number; state: Fc; districts: Record<string, Fc> }
-interface NetNode { id: number; name: string; cases: number; cluster?: string | null; community?: number; centrality?: number; kingpin?: boolean; bridge?: number }
+interface NetNode { id: number; name: string; cases: number; cluster?: string | null; community?: number; centrality?: number; kingpin?: boolean; bridge?: number; crimeType?: string | null; districts?: string[] }
 interface NetEdge { source: number; target: number; weight: number; predicted?: boolean }
 interface Ring { id: number; label: string; size: number; kingpinId: number; kingpin: string }
 interface Pred { source: number; target: number; score: number; community: number; via: string[]; sourceName: string; targetName: string; reason: string }
@@ -595,7 +595,13 @@ function NetworkTab() {
     }
     const coNames = net.nodes.filter((n) => coIds.has(n.id)).map((n) => n.name);
     const ring = rings.find((r) => r.id === selNode.community);
-    const info = selNode.cluster ? dnaByLabel.get(selNode.cluster) : undefined;
+    // Prefer the offender node's own crime type / districts (now populated for EVERY offender, not
+    // just serial-cluster ones); fall back to the serial-cluster DNA for the shared-hand offenders.
+    const dnaInfo = selNode.cluster ? dnaByLabel.get(selNode.cluster) : undefined;
+    const info = {
+      crimeType: selNode.crimeType || dnaInfo?.crimeType || "",
+      districts: selNode.districts?.length ? selNode.districts : (dnaInfo?.districts ?? []),
+    };
     return { ring, info, coNames, rank: centralityRank.get(selNode.id) ?? null, total: net.nodes.length };
   }, [selNode, net, rings, dnaByLabel, centralityRank]);
 
@@ -689,8 +695,8 @@ function NetworkTab() {
             {[
               ["Cases", String(selNode.cases)],
               ["Influence rank", profile.rank ? `#${profile.rank} of ${profile.total}` : "—"],
-              ["Crime type", profile.info?.crimeType || selNode.cluster || "—"],
-              ["Active in", profile.info?.districts?.length ? `${profile.info.districts.length} district${profile.info.districts.length === 1 ? "" : "s"}` : "—"],
+              ["Crime type", profile.info.crimeType || selNode.cluster || "—"],
+              ["Active in", profile.info.districts.length ? `${profile.info.districts.length} district${profile.info.districts.length === 1 ? "" : "s"}` : "—"],
             ].map(([k, v]) => (
               <div key={k} className="rounded-md bg-[var(--color-bg)] px-2.5 py-1.5">
                 <div className="text-[10px] uppercase tracking-wide text-[var(--color-text-mute)]">{k}</div>
@@ -702,7 +708,7 @@ function NetworkTab() {
             <div className="text-[10px] uppercase tracking-wide text-[var(--color-text-mute)]">Co-offenders ({profile.coNames.length})</div>
             <div className="mt-0.5 text-xs text-[var(--color-text-dim)]">{profile.coNames.length ? profile.coNames.join(", ") : "No recorded co-offending links."}</div>
           </div>
-          {profile.info?.districts?.length ? <div className="mt-1.5 text-[10px] text-[var(--color-text-mute)]">Districts: {profile.info.districts.join(", ")}</div> : null}
+          {profile.info.districts.length ? <div className="mt-1.5 text-[10px] text-[var(--color-text-mute)]">Districts: {profile.info.districts.join(", ")}</div> : null}
         </Card>
       )}
       <Card className="p-4">

@@ -62,8 +62,10 @@ export const TOOLS: ToolDef[] = [
 ];
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export function runTool(name: string, args: any, hits: Retrieved[]): { result: string; ui?: UiAction } {
-  const clusterId = args.clusterId || (hits.find((h) => h.meta.clusterId)?.meta.clusterId as string | undefined);
+export function runTool(name: string, args: any, hits: Retrieved[], fallbackClusterId?: string): { result: string; ui?: UiAction } {
+  // Prefer the model's explicit clusterId; else the conversation's resolved active cluster; else the
+  // top retrieved cluster. The middle term keeps "draw/draft THIS series" on the series in play.
+  const clusterId = args.clusterId || fallbackClusterId || (hits.find((h) => h.meta.clusterId)?.meta.clusterId as string | undefined);
   switch (name) {
     case "show_on_map":
       return { result: `Highlighted ${args.district || clusterId || "the area"} on the Command Map.`,

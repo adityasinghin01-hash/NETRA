@@ -3,6 +3,9 @@
 # Usage: bash scripts/deploy-client.sh   (from repo root)
 set -euo pipefail
 cd "$(dirname "$0")/.."
+echo "→ re-embedding Copilot cards (keeps copilot-cards-embeddings.json in sync with copilot-cards.json;"
+echo "  the retrieval index reads the EMBEDDINGS file, so skipping this ships a stale corpus)…"
+( cd frontend && node scripts/embed-cards.mjs )
 echo "→ building frontend…"
 ( cd frontend && npm run build )
 echo "→ syncing build into client/…"

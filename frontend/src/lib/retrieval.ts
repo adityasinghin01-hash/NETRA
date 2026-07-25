@@ -17,6 +17,10 @@ interface Index { model: string; dim: number; idf: Record<string, number>; avgLe
 const getIndex = memoJson<Index>(() => `${import.meta.env.BASE_URL}copilot-cards-embeddings.json`);
 export function preloadRetrieval() { getIndex(); }
 
+// The full card corpus — used by the engine for deterministic entity resolution (which series /
+// offender / alert a turn is about), independent of the ranked retrieval.
+export async function allCards(): Promise<Card[]> { return (await getIndex()).cards; }
+
 const STOP = new Set("the a an and or of to in on at for with by from is was were are be been that this it as who what which where when how".split(" "));
 const tok = (s: string) => (s.toLowerCase().match(/[a-z0-9]{2,}/g) || []).filter((t) => !STOP.has(t));
 
