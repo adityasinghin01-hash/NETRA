@@ -17,7 +17,7 @@ from pipeline.generator.forensic import forensic_for
 DATA = "pipeline/data"
 REF = "pipeline/reference"
 OUT = "frontend/public/incident-points.json"
-N = 6000
+N = 4000
 SEED = 7
 
 

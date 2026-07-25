@@ -17,8 +17,11 @@ import { KIND_COLOR, type PatrolPlan } from "@/lib/patrolPlan";
 
 // Main base: OpenFreeMap dark (OSM vector — streets, labels, and 3D BUILDINGS on deep zoom),
 // themed to NETRA. CartoDB dark is the auto-fallback if the community tiles hiccup.
-const OFM_DARK = "https://tiles.openfreemap.org/styles/dark";
-const FALLBACK_DARK = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+// Primary basemap = CartoDB dark-matter (fast global CDN). OpenFreeMap's community server was the
+// main load bottleneck; it's kept as the fallback. 3D buildings + state/district borders come from a
+// separate vector source injected at style.load, so they render over either base.
+const DARK_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
+const DARK_FALLBACK = "https://tiles.openfreemap.org/styles/dark";
 const OMT_SOURCE: maplibregl.VectorSourceSpecification = { type: "vector", url: "https://tiles.openfreemap.org/planet" };
 const GLYPHS = "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf";
 
@@ -424,11 +427,13 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
     const cam = loadCam(); // restore the camera the officer left the map at (else state-wide default)
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: OFM_DARK,
+      style: DARK_STYLE,
       center: cam?.center ?? [76.2, 14.9],
       zoom: cam?.zoom ?? 5.9,
       minZoom: 5.4,
-      maxZoom: 18,
+      // Cap at 16: the vector tiles top out around z14, so 16 is the deepest zoom that's still crisp
+      // with buildings + streets clearly visible — beyond it you hit the "data not available" void.
+      maxZoom: 16,
       maxBounds: KA_BOUNDS,
       pitch: cam?.pitch ?? 48,
       bearing: cam?.bearing ?? -12,
@@ -438,10 +443,15 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
       maxTileCacheSize: 800,     // keep more tiles cached → snappy pan/zoom + repeat views
       refreshExpiredTiles: false,
     });
-    // 3D buildings after every style load; if OpenFreeMap is unreachable, fall back to CartoDB dark.
-    map.on("style.load", () => injectBuildings(map));
+    // 3D buildings + borders after every style load, but DEFERRED to idle so they don't block the
+    // first paint — the basemap shows immediately, the heavier vector detail fills in a beat later.
+    map.on("style.load", () => {
+      const run = () => injectBuildings(map);
+      const ric = (window as any).requestIdleCallback;
+      if (ric) ric(run, { timeout: 600 }); else setTimeout(run, 150);
+    });
     let fellBack = false;
-    setTimeout(() => { if (!fellBack && !map.isStyleLoaded()) { fellBack = true; map.setStyle(FALLBACK_DARK); } }, 7000);
+    setTimeout(() => { if (!fellBack && !map.isStyleLoaded()) { fellBack = true; map.setStyle(DARK_FALLBACK); } }, 7000);
     const overlay = new MapboxOverlay({ interleaved: false, layers: [], effects: [LIGHTING], pickingRadius: 8 });
     map.addControl(overlay as unknown as maplibregl.IControl);
     // Deterministic picking: find the incident NEAREST the click in real coords, and show it
@@ -506,7 +516,7 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
     // Zoom-adaptive: bucket zoom to 0.3 steps so layers refine as you go deep without thrashing.
     map.on("zoom", () => {
       const nz = map.getZoom();
-      if (Math.abs(nz - zoomBucket.current) >= 0.3) {
+      if (Math.abs(nz - zoomBucket.current) >= 0.6) { // coarser bucket → far fewer hexbin re-aggregations while zooming
         zoomBucket.current = nz;
         setZ(nz);
       }
@@ -527,7 +537,7 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    map.setStyle(base === "dark" ? OFM_DARK : SAT_STYLE);
+    map.setStyle(base === "dark" ? DARK_STYLE : SAT_STYLE);
   }, [base]);
 
   // Patrol focus: fly into the predicted pocket (satellite + street detail) so the plan sits on
