@@ -357,7 +357,14 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
   useEffect(() => { districtsRef.current = districts ?? []; }, [districts]);
   const focusRef = useRef(false);
   useEffect(() => { focusRef.current = !!focus; }, [focus]);
-  const [hover, setHover] = useState<{ x: number; y: number; name: string; count: number } | null>(null);
+  // For the district hover count: total & visible-in-window sample points per district, so the
+  // count tracks the timeline (scaled to the real district total) instead of showing a static
+  // all-time figure while the dots animate. Refs → read by the once-bound hover handler.
+  const distTotalRef = useRef<Record<string, number>>({});
+  const distVisRef = useRef<Record<string, number>>({});
+  const tlActiveRef = useRef(false);
+  const winLabelRef = useRef("");
+  const [hover, setHover] = useState<{ x: number; y: number; name: string; count: number; est?: boolean; win?: string } | null>(null);
   const [pts, setPts] = useState<Pt[] | null>(null);
   const [roads, setRoads] = useState<Roads | null>(null); // major-road network → snap pickets onto roads
   const [mode, setMode] = usePersistentState<Mode>("netra.map.mode", "hex");
@@ -536,7 +543,18 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
         const dx = d.lng - e.lngLat.lng, dy = d.lat - e.lngLat.lat, dd = dx * dx + dy * dy;
         if (dd < bestD) { bestD = dd; best = d; }
       }
-      if (best) setHover({ x: e.point.x, y: e.point.y, name: best.name, count: best.caseCount });
+      if (best) {
+        // In time-lapse: scale the real district total by the share of that district's sample in
+        // the visible window, so the number moves with the scrubber and stays true to the 50k total.
+        let count = best.caseCount, est = false;
+        if (tlActiveRef.current) {
+          const tot = distTotalRef.current[best.name] || 0;
+          const vis = distVisRef.current[best.name] || 0;
+          count = tot ? Math.round(best.caseCount * (vis / tot)) : 0;
+          est = true;
+        }
+        setHover({ x: e.point.x, y: e.point.y, name: best.name, count, est, win: winLabelRef.current });
+      }
     });
     map.on("mouseout", () => setHover(null));
     // Persist the camera on every settle so returning to the map restores where you were — but not
@@ -633,6 +651,21 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
   // Keep a ref of points for the (once-bound) click handler.
   useEffect(() => { ptsRef.current = pts ?? []; }, [pts]);
 
+  // Per-district sample totals (all-time) → denominator for the time-scaled hover count.
+  useEffect(() => {
+    const tot: Record<string, number> = {};
+    if (pts) for (const p of pts) tot[p.district] = (tot[p.district] || 0) + 1;
+    distTotalRef.current = tot;
+  }, [pts]);
+  // Per-district counts in the CURRENT time-lapse window + the window label, for the hover count.
+  useEffect(() => {
+    const vis: Record<string, number> = {};
+    for (const p of visible) vis[p.district] = (vis[p.district] || 0) + 1;
+    distVisRef.current = vis;
+    tlActiveRef.current = timelapse;
+    winLabelRef.current = `${tLabel(Math.max(0, curT - TL_WINDOW + 1))} – ${tLabel(curT)}`;
+  }, [visible, timelapse, curT]);
+
   // Clear popup on mode/base change.
   useEffect(() => { popupRef.current?.remove(); }, [mode, base]);
 
@@ -647,7 +680,8 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
           style={{ left: hover.x + 12, top: hover.y + 12 }}
         >
           <span className="font-medium text-[var(--color-text)]">{hover.name}</span>
-          <span className="tnum ml-1.5 text-[var(--color-accent)]">{hover.count.toLocaleString()} FIRs</span>
+          <span className="tnum ml-1.5 text-[var(--color-accent)]">{hover.est ? "~" : ""}{hover.count.toLocaleString()} FIRs</span>
+          {hover.est && <div className="text-[9px] text-[var(--color-text-mute)]">{hover.win}</div>}
         </div>
       )}
 
