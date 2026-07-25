@@ -323,7 +323,16 @@ export async function askNetra(query: string, scope: string | null, opts: { thin
       // so "draw the link chart for this series" targets the series in play.
       const { ui } = runTool(tc.function.name, safeArgs(tc.function.arguments), hits, resolved.clusterId);
       trace.push(`${tc.function.name}(${tc.function.arguments})`);
-      if (ui) actions.push(ui);
+      if (ui) {
+        // A "show on map" for a serial cluster needs a place to focus — resolve the cluster's lead
+        // district so the Command Map can zoom to it (was navigating to a blank state view).
+        if (ui.kind === "map" && !ui.district && ui.clusterId) {
+          const cc = cards.find((c) => c.type === "cluster" && c.meta?.clusterId === ui.clusterId);
+          const dists = cc?.meta?.districts as string[] | undefined;
+          if (dists?.length) ui.district = dists[0];
+        }
+        actions.push(ui);
+      }
     }
     text = first.text.trim() || actionLead(actions);
     if (!text.trim()) throw new Error("empty");

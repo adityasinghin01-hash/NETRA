@@ -236,7 +236,7 @@ export default function Copilot() {
                         <button key={k} onClick={() => { nav(act.to); setOpen(false); }} className="rounded-lg border border-[var(--color-accent-dim)] px-2.5 py-1.5 text-[11px] text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10">→ {act.label}</button>
                       );
                       if (act.kind === "map") return (
-                        <button key={k} onClick={() => { nav("/map"); setOpen(false); }} className="flex items-center gap-1.5 rounded-lg border border-[var(--color-accent-dim)] px-2.5 py-1.5 text-[11px] text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10">
+                        <button key={k} onClick={() => { nav(act.district ? `/map?focus=${encodeURIComponent(act.district)}` : "/map"); setOpen(false); }} className="flex items-center gap-1.5 rounded-lg border border-[var(--color-accent-dim)] px-2.5 py-1.5 text-[11px] text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10">
                           <svg className="w-3.5 h-3.5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
                             <line x1="9" x2="9" y1="3" y2="18" />

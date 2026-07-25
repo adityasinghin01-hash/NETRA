@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useApi, StatTile, Card, PageHeader, State, Badge, SpecularCard } from "@/components/ui";
 import DeckMap from "@/components/DeckMap";
 import LiveAlerts from "@/components/LiveAlerts";
@@ -130,6 +131,27 @@ export default function CommandMap() {
     setFocus(p);
     mapCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
+
+  // Deep-link from the Copilot's "Show on the Command Map" button: /map?focus=<district>. Build a
+  // focus zone on that district's real incident pockets and fly the map to it. Runs once the district
+  // geo + incident points have loaded; consumes the param so it doesn't re-fire on interaction.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const target = searchParams.get("focus");
+    if (!target) return;
+    const geo = (d.data ?? []).find((x) => x.name === target);
+    if (!geo) return; // geo not loaded yet (or unknown district) — effect re-runs when d.data lands
+    const local = inc.filter((p) => p.district === target);
+    const plan = buildPlan(
+      { district: target, crimeType: "All crime", head: undefined, projectedWeek: 1,
+        momentumPct: 0, riskLevel: "Elevated", patrolWindow: "—", lat: geo.lat, lng: geo.lng },
+      local, 1,
+    );
+    setFocus(plan);
+    mapCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setSearchParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, d.data, inc]);
   function dutyChart() {
     if (!opt) return;
     const rows = opt.alloc.map((a) => `<tr><td>${e(a.district)}</td><td>${a.units}</td><td>${e(a.crimeType)}</td><td>${e(a.tactic)}</td></tr>`).join("");
