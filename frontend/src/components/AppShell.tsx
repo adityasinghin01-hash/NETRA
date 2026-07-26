@@ -131,6 +131,16 @@ export default function AppShell() {
     prefetchPages();
   }, []);
 
+  // Mount the Copilot a beat after the page, not with it. Its chunk drags in embedMatch (519kB of
+  // transformers runtime), and measured on the live host that landed right on top of the Command
+  // Map's basemap tiles and incident data. 3s is long enough for the visible page to claim the
+  // connections and short enough that the assistant is there before anyone reaches for it.
+  const [copilotReady, setCopilotReady] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setCopilotReady(true), 3000);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
     <div className="relative flex h-screen overflow-hidden bg-[var(--color-bg)]">
       {/* Mobile backdrop overlay */}
@@ -309,9 +319,11 @@ export default function AppShell() {
           </PageBoundary>
         </main>
       </div>
-      <WidgetBoundary>
-        <Copilot />
-      </WidgetBoundary>
+      {copilotReady && (
+        <WidgetBoundary>
+          <Copilot />
+        </WidgetBoundary>
+      )}
     </div>
   );
 }

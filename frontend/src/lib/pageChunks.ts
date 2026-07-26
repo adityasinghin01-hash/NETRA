@@ -14,16 +14,37 @@ export const pageImports = {
   alerts: () => import("@/pages/AlertCenter"),
 };
 
-// Pull every remaining page chunk during idle time, once the first route is on screen.
-// Splitting alone would trade one slow load for seven possible ones — on a host that stalls cold
-// requests, a chunk fetched at click time is a chunk that can hang mid-demo. Prefetching on idle
-// means the chunk is already in cache before anyone touches the nav, so navigation stays as instant
-// as it was with the single bundle. Failures are swallowed: this is opportunistic, and React.lazy
-// fetches for real on navigation if a prefetch didn't land.
+// Warm the remaining page chunks so clicking a nav item never waits on the network — but STRICTLY
+// in the background, behind whatever the officer is actually looking at.
+//
+// Measured on the live host: firing all seven at once on idle made Analytics (494kB) take 16
+// SECONDS and starved the Command Map's own basemap tiles and incident data, which were competing
+// for the same few connections. Prefetching that fights the visible page is worse than no
+// prefetching. Two rules fix it:
+//   1. SEQUENTIAL — one chunk at a time, so at most one prefetch is ever in flight.
+//   2. LATE — a real delay after mount, so the current page's data lands first.
+// Order is cheapest-and-likeliest first; Analytics is last because it is by far the heaviest.
+const PREFETCH_ORDER = ["alerts", "cases", "linkage", "briefing", "documents", "map", "analytics"] as const;
+
+// How long to stay out of the way before warming anything. The map's tiles + JSON need roughly
+// this long on a cold load; starting sooner is what caused the contention above.
+const PREFETCH_DELAY_MS = 8000;
+
+let prefetched = false;
+
 export function prefetchPages() {
-  const run = () => {
-    for (const load of Object.values(pageImports)) load().catch(() => {});
+  if (prefetched) return; // shell can remount on navigation; warm once per page load
+  prefetched = true;
+
+  const run = async () => {
+    for (const key of PREFETCH_ORDER) {
+      // Sequential on purpose — `await` here is the whole point, not an oversight.
+      await pageImports[key]().catch(() => {});
+    }
   };
-  if (typeof requestIdleCallback === "function") requestIdleCallback(run, { timeout: 3000 });
-  else setTimeout(run, 1200);
+
+  setTimeout(() => {
+    if (typeof requestIdleCallback === "function") requestIdleCallback(() => void run(), { timeout: 4000 });
+    else void run();
+  }, PREFETCH_DELAY_MS);
 }

@@ -57,19 +57,19 @@ export default function Copilot() {
   const nav = useNavigate();
   const scope = getSession().district;
 
-  // Warm the retrieval index, graph and embedding model so the first question is fast — but only
-  // once the browser is idle. This kicks off a multi-megabyte model fetch, and firing it during
-  // mount put it in direct competition with the page's own data JSONs over the same handful of
-  // connections, which is what left maps and charts rendering empty on a slow link. Idle keeps the
-  // "first click is fast" benefit without stealing bandwidth from the screen the officer is on.
+  // Warm the retrieval index, graph and embedding model so the first question is fast — but stay
+  // out of the way until the visible page has finished loading. This pulls multi-megabyte model
+  // weights; measured on the live host it was taking ~12s and competing with the Command Map's own
+  // tiles and incident data, leaving the map half-drawn while nothing was even asking the Copilot
+  // a question. Two triggers, whichever comes first:
+  //   • the officer OPENS the Copilot — they are about to need it, and are watching a panel that
+  //     already shows a thinking state, so the fetch is no longer competing with a blank map;
+  //   • a long idle fallback, so a Copilot that is never opened still ends up warm eventually.
   useEffect(() => {
-    if (typeof requestIdleCallback === "function") {
-      const id = requestIdleCallback(() => preloadCopilot(), { timeout: 5000 });
-      return () => cancelIdleCallback(id);
-    }
-    const t = setTimeout(preloadCopilot, 2000);
+    if (open) { preloadCopilot(); return; }
+    const t = setTimeout(preloadCopilot, 15000);
     return () => clearTimeout(t);
-  }, []);
+  }, [open]);
   useEffect(() => { if (!open) stopSpeaking(); }, [open]);
   useEffect(() => { scrollRef.current?.scrollTo({ top: 9e9, behavior: "smooth" }); }, [msgs, thinking]);
 
