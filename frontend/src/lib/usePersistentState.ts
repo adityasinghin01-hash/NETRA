@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 // filters, AND the map camera — which uses nsKey too) is stored under this version, so changing it
 // makes the previous state invisible and the app opens at defaults again. Persistence within a
 // session still works normally. Bump it right before publishing a fresh demo/submission link.
-export const STORAGE_VERSION = "v2";
+export const STORAGE_VERSION = "v3";
 export const nsKey = (key: string) => `${STORAGE_VERSION}:${key}`;
 
 // A useState that SURVIVES route unmount/remount (React Router unmounts a page on navigation, which

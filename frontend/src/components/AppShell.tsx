@@ -1,12 +1,18 @@
-import { useEffect, useState } from "react";
+import { lazy, useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { gsap } from "gsap";
 import { IS_MOCK } from "@/api/client";
 import { getSession, clearSession } from "@/lib/auth";
 import { useAlertCounts } from "@/lib/useLiveAlerts";
 import { Badge } from "./ui";
-import Copilot from "./Copilot";
+import PageBoundary, { WidgetBoundary } from "./PageBoundary";
+import { prefetchPages } from "@/lib/pageChunks";
 import logoImg from "@/assets/logo.png";
+
+// Copilot is lazy because it is the ONLY eager path from the shell into @huggingface/transformers
+// (Copilot -> copilotEngine -> embedMatch), which alone accounted for most of the entry bundle.
+// It is a floating widget, so nothing above the fold waits on it.
+const Copilot = lazy(() => import("./Copilot"));
 
 const NAV = [
   { to: "/map", label: "Command Map", icon: "map" },
@@ -118,6 +124,12 @@ export default function AppShell() {
       setSidebarOpen(false);
     }
   }, [location.pathname]);
+
+  // Warm the remaining page chunks during idle time, so clicking a nav item never waits on the
+  // network. Runs once per shell mount; repeat import() calls resolve from the module cache.
+  useEffect(() => {
+    prefetchPages();
+  }, []);
 
   return (
     <div className="relative flex h-screen overflow-hidden bg-[var(--color-bg)]">
@@ -289,10 +301,17 @@ export default function AppShell() {
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
-          <Outlet />
+          {/* Suspense + error boundary for the lazy page chunks. Scoped HERE rather than around the
+              router so the sidebar, header and Copilot stay on screen while a page loads — and stay
+              usable if one fails outright. */}
+          <PageBoundary>
+            <Outlet />
+          </PageBoundary>
         </main>
       </div>
-      <Copilot />
+      <WidgetBoundary>
+        <Copilot />
+      </WidgetBoundary>
     </div>
   );
 }

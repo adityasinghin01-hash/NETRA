@@ -10,10 +10,20 @@ const MODEL = "Xenova/paraphrase-multilingual-MiniLM-L12-v2";
 
 // SOVEREIGNTY NOTE (see docs/SOVEREIGN-MODEL.md): hosting the model on-host was attempted but the
 // 112MB weights exceed Catalyst web hosting's single-file cap (HTTP 413), and Catalyst also rejects
-// the .wasm/.mjs paths (HTTP 400) so the runtime must stay Vite-bundled. Full sovereignty therefore
-// needs object storage (Catalyst Stratus) for the model — tracked separately. For now the model
-// loads from the open-weights host; the onnxruntime WASM is served from the Vite bundle (local).
+// the .wasm/.mjs paths (HTTP 400). Full sovereignty therefore needs object storage (Catalyst
+// Stratus) for the model — tracked separately. For now the model loads from the open-weights host.
 env.allowLocalModels = false; // model weights fetched from the model host (see note above)
+
+// Serve the onnxruntime WASM runtime from jsdelivr instead of our own bundle. Vite inlines the
+// 23.5MB ort-wasm-simd-threaded.asyncify.wasm as an asset, and Catalyst serves it at ~21KB/s —
+// measured, a cold fetch does not finish inside 5 minutes, which is what made Linkage/Cases look
+// hung. The weights already come from a remote host (allowLocalModels above), so moving the runtime
+// off-host concedes nothing extra in sovereignty terms.
+// The version MUST stay pinned to the exact onnxruntime-web build @huggingface/transformers
+// resolves to (see package-lock.json) — a mismatched runtime against these weights is the one way
+// this breaks. Verified present on jsdelivr, byte-identical to the bundled copy.
+env.backends.onnx.wasm!.wasmPaths =
+  "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0-dev.20260416-b7804b056c/dist/";
 
 interface ClusterVec extends Omit<ClusterMatch, "score"> {
   vector: number[];

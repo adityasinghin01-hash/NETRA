@@ -57,7 +57,19 @@ export default function Copilot() {
   const nav = useNavigate();
   const scope = getSession().district;
 
-  useEffect(() => { preloadCopilot(); }, []);
+  // Warm the retrieval index, graph and embedding model so the first question is fast — but only
+  // once the browser is idle. This kicks off a multi-megabyte model fetch, and firing it during
+  // mount put it in direct competition with the page's own data JSONs over the same handful of
+  // connections, which is what left maps and charts rendering empty on a slow link. Idle keeps the
+  // "first click is fast" benefit without stealing bandwidth from the screen the officer is on.
+  useEffect(() => {
+    if (typeof requestIdleCallback === "function") {
+      const id = requestIdleCallback(() => preloadCopilot(), { timeout: 5000 });
+      return () => cancelIdleCallback(id);
+    }
+    const t = setTimeout(preloadCopilot, 2000);
+    return () => clearTimeout(t);
+  }, []);
   useEffect(() => { if (!open) stopSpeaking(); }, [open]);
   useEffect(() => { scrollRef.current?.scrollTo({ top: 9e9, behavior: "smooth" }); }, [msgs, thinking]);
 
