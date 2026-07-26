@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { UiAction } from "@/lib/copilotTools";
 import { glmChat } from "@/lib/llm";
+import { fetchJson } from "@/lib/loader";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 interface Member { caseNo: string; district: string; date?: string; solved?: boolean }
@@ -130,8 +131,8 @@ export default function CopilotDiagram({ action }: { action: Extract<UiAction, {
 
   useEffect(() => {
     Promise.all([
-      fetch(`${import.meta.env.BASE_URL}crime-dna.json`).then((r) => r.json()).catch(() => ({})),
-      fetch(`${import.meta.env.BASE_URL}network-graph.json`).then((r) => r.json()).catch(() => ({})),
+      fetchJson(`${import.meta.env.BASE_URL}crime-dna.json`).catch(() => ({})),
+      fetchJson(`${import.meta.env.BASE_URL}network-graph.json`).catch(() => ({})),
     ]).then(([d, n]) => { setDna(d); setNet(n); });
   }, []);
 

@@ -8,6 +8,7 @@ import { PageHeader, SpecularCard } from "@/components/ui";
 import { openReport, escapeHtml as e } from "@/lib/pdf";
 import { DISTRICTS, getSession } from "@/lib/auth";
 import { type CrimeDna } from "@/components/CrimeDNA";
+import { fetchJson } from "@/lib/loader";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export default function DocumentCenter() {
@@ -20,10 +21,10 @@ export default function DocumentCenter() {
   const [dist, setDist] = usePersistentState("netra.docs.dist", scope ?? "Bengaluru Urban");
 
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}crime-dna.json`).then((r) => r.json()).then(setDna).catch(() => {});
-    fetch(`${import.meta.env.BASE_URL}spatial.json`).then((r) => r.json()).then(setSpatial).catch(() => {});
-    fetch(`${import.meta.env.BASE_URL}briefings.json`).then((r) => r.json()).then(setBriefs).catch(() => {});
-    fetch(`${import.meta.env.BASE_URL}forecast.json`).then((r) => r.json()).then(setForecast).catch(() => {});
+    fetchJson(`${import.meta.env.BASE_URL}crime-dna.json`).then(setDna).catch(() => {});
+    fetchJson(`${import.meta.env.BASE_URL}spatial.json`).then(setSpatial).catch(() => {});
+    fetchJson(`${import.meta.env.BASE_URL}briefings.json`).then(setBriefs).catch(() => {});
+    fetchJson(`${import.meta.env.BASE_URL}forecast.json`).then(setForecast).catch(() => {});
   }, []);
 
   function linkageReport() {

@@ -8,6 +8,7 @@ import { getSession } from "@/lib/auth";
 import { optimize, type Area } from "@/lib/optimizer";
 import { buildPlan, KIND_COLOR, type PatrolPlan } from "@/lib/patrolPlan";
 import { openReport, escapeHtml as e } from "@/lib/pdf";
+import { fetchJson } from "@/lib/loader";
 
 interface Summary {
   totalCases: number;
@@ -70,11 +71,10 @@ export default function CommandMap() {
   const [feedAlerts, setFeedAlerts] = useState<Alert[]>([]);
   const mapCardRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}forecast.json`).then((r) => r.json()).then(setForecast).catch(() => {});
-    fetch(`${import.meta.env.BASE_URL}district-analytics.json`).then((r) => r.json()).then((d) => setDa(d.districts)).catch(() => {});
-    fetch(`${import.meta.env.BASE_URL}alerts-feed.json`).then((r) => r.json()).then(setFeedAlerts).catch(() => {});
-    fetch(`${import.meta.env.BASE_URL}incident-points.json`)
-      .then((r) => r.json())
+    fetchJson(`${import.meta.env.BASE_URL}forecast.json`).then(setForecast).catch(() => {});
+    fetchJson(`${import.meta.env.BASE_URL}district-analytics.json`).then((d) => setDa(d.districts)).catch(() => {});
+    fetchJson(`${import.meta.env.BASE_URL}alerts-feed.json`).then(setFeedAlerts).catch(() => {});
+    fetchJson(`${import.meta.env.BASE_URL}incident-points.json`)
       .then((raw: [number, number, number, string, string][]) =>
         setInc(raw.map((p) => ({ lat: p[0], lng: p[1], head: p[2], district: p[4] }))))
       .catch(() => {});

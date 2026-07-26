@@ -3,6 +3,7 @@ import { usePersistentState } from "@/lib/usePersistentState";
 import { Card, PageHeader, State } from "@/components/ui";
 import { getSession } from "@/lib/auth";
 import { escapeHtml as e } from "@/lib/pdf";
+import { fetchJson } from "@/lib/loader";
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
@@ -30,12 +31,11 @@ export default function Briefing() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}briefings.json`)
-      .then((r) => r.json())
+    fetchJson(`${import.meta.env.BASE_URL}briefings.json`)
       .then(setAll)
       .catch(() => setErr("Could not load briefings"));
-    fetch(`${import.meta.env.BASE_URL}forecast.json`).then((r) => r.json()).then(setForecast).catch(() => {});
-    fetch(`${import.meta.env.BASE_URL}cold-cases.json`).then((r) => r.json()).then(setCold).catch(() => {});
+    fetchJson(`${import.meta.env.BASE_URL}forecast.json`).then(setForecast).catch(() => {});
+    fetchJson(`${import.meta.env.BASE_URL}cold-cases.json`).then(setCold).catch(() => {});
   }, []);
 
   const districtNames = useMemo(

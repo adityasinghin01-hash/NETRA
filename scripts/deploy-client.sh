@@ -22,4 +22,11 @@ cat > client/client-package.json <<'JSON'
 JSON
 echo "→ deploying to Catalyst…"
 catalyst deploy --only client
+
+# Prime the edge cache before anyone else hits it — Catalyst stalls on cold requests, so the first
+# visitor otherwise pays that cost live. Non-fatal: a deploy that warmed imperfectly is still a
+# good deploy, and the script can be re-run on its own.
+echo "→ warming the edge cache (see scripts/warm-cache.sh for why this exists)…"
+bash scripts/warm-cache.sh || echo "⚠ warm-up incomplete — re-run: bash scripts/warm-cache.sh"
+
 echo "✓ done"

@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, GeoJSON, LayersControl, useMap } from "react-l
 import L, { type Layer, type PathOptions } from "leaflet";
 import type { Feature, FeatureCollection } from "geojson";
 import "leaflet/dist/leaflet.css";
+import { fetchJson } from "@/lib/loader";
 
 interface DistrictDatum {
   name: string;
@@ -51,8 +52,8 @@ export default function CrimeMap({ districts, focusDistrict }: { districts: Dist
 
   useEffect(() => {
     const base = import.meta.env.BASE_URL;
-    fetch(`${base}karnataka-districts.geojson`).then((r) => r.json()).then(setGeo).catch(() => {});
-    fetch(`${base}incident-points.json`).then((r) => r.json()).then(setPts).catch(() => {});
+    fetchJson(`${base}karnataka-districts.geojson`).then(setGeo).catch(() => {});
+    fetchJson(`${base}incident-points.json`).then(setPts).catch(() => {});
   }, []);
 
   // Incident points → GeoJSON FeatureCollection (built once).

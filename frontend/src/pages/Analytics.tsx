@@ -6,6 +6,7 @@ import {
 import ForceGraph2D from "react-force-graph-2d";
 import { useApi, Card, PageHeader, State } from "@/components/ui";
 import { getSession } from "@/lib/auth";
+import { fetchJson } from "@/lib/loader";
 
 interface Outcome {
   districtId: number; name: string;
@@ -100,8 +101,8 @@ function TrendsTab({ scope, da }: { scope: string | null; da: DA | null }) {
   const [clock, setClock] = useState<{ state: number[][]; districts: Record<string, number[][]> } | null>(null);
   const [fc, setFc] = useState<TrendForecast | null>(null);
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}crime-clock.json`).then((r) => r.json()).then(setClock).catch(() => {});
-    fetch(`${import.meta.env.BASE_URL}trend-forecast.json`).then((r) => r.json()).then(setFc).catch(() => {});
+    fetchJson(`${import.meta.env.BASE_URL}crime-clock.json`).then(setClock).catch(() => {});
+    fetchJson(`${import.meta.env.BASE_URL}trend-forecast.json`).then(setFc).catch(() => {});
   }, []);
   const clockMatrix = scope ? clock?.districts[scope] : clock?.state;
   // Memoize so this array is referentially stable — otherwise the chartData useMemo below (which
@@ -402,12 +403,12 @@ function ClearanceByType({ rows }: { rows: ClearanceRow[] | undefined }) {
 
 function OutcomesTab({ scope, da, risk }: { scope: string | null; da: DA | null; risk: RiskData | null }) {
   const [stationData, setStationData] = useState<{ stations: StationRow[]; clearanceByType: ClearanceRow[]; minCases: number } | null>(null);
-  useEffect(() => { fetch(`${import.meta.env.BASE_URL}station-outcomes.json`).then((r) => r.json()).then(setStationData).catch(() => {}); }, []);
+  useEffect(() => { fetchJson(`${import.meta.env.BASE_URL}station-outcomes.json`).then(setStationData).catch(() => {}); }, []);
   const state = useApi<Outcome[]>(scope ? null : "/stats/outcomes");
   const rows = (state.data ?? []).slice().sort((a, b) => b.undetectedPct - a.undetectedPct);
   const riskByName = useMemo(() => new Map((risk?.districts ?? []).map((d) => [d.district, d.riskScore])), [risk]);
   const [coldData, setColdData] = useState<{ state: ColdCase[]; districts: Record<string, ColdCase[]> } | null>(null);
-  useEffect(() => { fetch(`${import.meta.env.BASE_URL}cold-cases.json`).then((r) => r.json()).then(setColdData).catch(() => {}); }, []);
+  useEffect(() => { fetchJson(`${import.meta.env.BASE_URL}cold-cases.json`).then(setColdData).catch(() => {}); }, []);
   const cold = scope ? (coldData?.districts[scope] ?? []) : (coldData?.state ?? []);
 
   // scoped: single district
@@ -520,7 +521,7 @@ function NetworkTab() {
   // (caseNo → cluster → offender), letting an officer type a raw FIR number and land on its ring.
   const [dna, setDna] = useState<Record<string, { offender: string; label: string; members: { caseNo: string }[] }> | null>(null);
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}network-graph.json`).then((r) => r.json())
+    fetchJson(`${import.meta.env.BASE_URL}network-graph.json`)
       .then((d) => {
         const predicted: NetEdge[] = (d.predictedLinks ?? []).map((p: Pred) => ({ source: p.source, target: p.target, weight: 1, predicted: true }));
         setNet({ nodes: d.nodes, links: [...d.edges, ...predicted] });
@@ -528,7 +529,7 @@ function NetworkTab() {
         setPreds(d.predictedLinks ?? []);
       })
       .catch(() => setNet(null));
-    fetch(`${import.meta.env.BASE_URL}crime-dna.json`).then((r) => r.json()).then(setDna).catch(() => {});
+    fetchJson(`${import.meta.env.BASE_URL}crime-dna.json`).then(setDna).catch(() => {});
   }, []);
   useEffect(() => {
     if (!ref.current) return;
@@ -761,8 +762,8 @@ export default function Analytics() {
   const [da, setDa] = useState<DA | null>(null);
   const [risk, setRisk] = useState<RiskData | null>(null);
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}district-analytics.json`).then((r) => r.json()).then(setDa).catch(() => {});
-    fetch(`${import.meta.env.BASE_URL}risk-scores.json`).then((r) => r.json()).then(setRisk).catch(() => {});
+    fetchJson(`${import.meta.env.BASE_URL}district-analytics.json`).then(setDa).catch(() => {});
+    fetchJson(`${import.meta.env.BASE_URL}risk-scores.json`).then(setRisk).catch(() => {});
   }, []);
   return (
     <div>

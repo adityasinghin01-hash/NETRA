@@ -3,6 +3,7 @@
 // deterministic templating (the honest, can't-hallucinate default; QuickML phrasing is an
 // optional future layer). Every answer names its sources.
 import { DISTRICTS } from "@/lib/auth";
+import { fetchJson } from "@/lib/loader";
 
 const B = import.meta.env.BASE_URL;
 
@@ -14,7 +15,7 @@ async function load() {
   if (cache) return cache;
   const files = ["forecast", "network-graph", "cold-cases", "crime-dna", "spatial", "crime-clock", "district-analytics", "briefings"];
   const got = await Promise.all(
-    files.map((f) => fetch(`${B}${f}.json`).then((r) => r.json()).catch(() => null))
+    files.map((f) => fetchJson(`${B}${f}.json`).catch(() => null))
   );
   cache = Object.fromEntries(files.map((f, i) => [f, got[i]]));
   return cache;

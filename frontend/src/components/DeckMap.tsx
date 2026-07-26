@@ -15,6 +15,7 @@ import { LightingEffect, AmbientLight, DirectionalLight } from "@deck.gl/core";
 import type { Layer } from "@deck.gl/core";
 import { KIND_COLOR, KIND_LABEL, KIND_HELP, type PatrolPlan, type PicketKind } from "@/lib/patrolPlan";
 import { snapToRoad, type Roads } from "@/lib/snapRoad";
+import { fetchJson } from "@/lib/loader";
 
 // Main base: OpenFreeMap dark (OSM vector — streets, labels, and 3D BUILDINGS on deep zoom),
 // themed to NETRA. CartoDB dark is the auto-fallback if the community tiles hiccup.
@@ -421,8 +422,7 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
   const home = () => mapRef.current?.easeTo({ center: [76.2, 14.9], zoom: 5.9, pitch: 48, bearing: -12, duration: 600 });
 
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}incident-points.json`)
-      .then((r) => r.json())
+    fetchJson(`${import.meta.env.BASE_URL}incident-points.json`)
       .then((raw: [number, number, number, string, string, string, string, string, string, string][]) =>
         setPts(
           raw.map(([lat, lng, head, crimeNo, district, date, crimeType, gravity, status, weapon]) => ({
@@ -437,8 +437,7 @@ export default function DeckMap({ districts, focus, onExitFocus }: { districts?:
 
   // Major-road network for snapping patrol pickets onto real roads (loaded once, lazily).
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}karnataka-roads.json`)
-      .then((r) => r.json())
+    fetchJson(`${import.meta.env.BASE_URL}karnataka-roads.json`)
       .then((r: Roads) => setRoads(r))
       .catch(() => {});
   }, []);

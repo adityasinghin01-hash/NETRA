@@ -6,6 +6,7 @@ import { matchFir, type MatchResult } from "@/api/client";
 import { embedMatch, preloadEmbedder, embedText, seriesCases, centroid, scanUnsolved, scoreByCrimeNo, hybridCases, type CaseVec, type HybridCase } from "@/lib/embedMatch";
 import CrimeDNA, { type CrimeDna } from "@/components/CrimeDNA";
 import SpatialTriad, { type SpatialRec } from "@/components/SpatialTriad";
+import { fetchJson } from "@/lib/loader";
 
 const EXAMPLES = [
   "Unknown persons cut the shutter lock of a mobile shop past midnight and decamped with cash and phones kept at the counter.",
@@ -71,9 +72,9 @@ export default function Linkage() {
 
   const [tx, setTx] = useState<Record<string, { en: string; kn: string }> | null>(null);
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}crime-dna.json`).then((r) => r.json()).then(setDnaMap).catch(() => {});
-    fetch(`${import.meta.env.BASE_URL}spatial.json`).then((r) => r.json()).then(setSpatialMap).catch(() => {});
-    fetch(`${import.meta.env.BASE_URL}case-translations.json`).then((r) => r.json()).then(setTx).catch(() => {});
+    fetchJson(`${import.meta.env.BASE_URL}crime-dna.json`).then(setDnaMap).catch(() => {});
+    fetchJson(`${import.meta.env.BASE_URL}spatial.json`).then(setSpatialMap).catch(() => {});
+    fetchJson(`${import.meta.env.BASE_URL}case-translations.json`).then(setTx).catch(() => {});
   }, []);
 
   // On a semantic match, load the series' member FIRs → surface how many are still UNSOLVED

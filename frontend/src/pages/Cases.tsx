@@ -7,6 +7,7 @@ import { getSession } from "@/lib/auth";
 import { type CrimeDna, type DnaMember } from "@/components/CrimeDNA";
 import { embedText, preloadEmbedder } from "@/lib/embedMatch";
 import { glmChat } from "@/lib/llm";
+import { fetchJson } from "@/lib/loader";
 
 interface CaseVec { crimeNo: string; district: string; date: string; crimeSubHead: string; clusterLabel: string; solved: boolean; facts: string; language: string; vector: number[] }
 function cosine(a: number[], b: number[]) { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; }
@@ -412,10 +413,10 @@ export default function Cases() {
   const [spatialMap, setSpatialMap] = useState<Record<string, { nextStrike: { district: string; window: string; timeWindow: string; cadenceDays?: number } }> | null>(null);
   const [caseTx, setCaseTx] = useState<Record<string, { en?: string; kn?: string }>>({});
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}crime-dna.json`).then((r) => r.json()).then(setDnaMap).catch(() => {});
-    fetch(`${import.meta.env.BASE_URL}spatial.json`).then((r) => r.json()).then(setSpatialMap).catch(() => {});
-    fetch(`${import.meta.env.BASE_URL}case-translations.json`).then((r) => r.json()).then(setCaseTx).catch(() => {});
-    fetch(`${import.meta.env.BASE_URL}alerts-feed.json`).then((r) => r.json())
+    fetchJson(`${import.meta.env.BASE_URL}crime-dna.json`).then(setDnaMap).catch(() => {});
+    fetchJson(`${import.meta.env.BASE_URL}spatial.json`).then(setSpatialMap).catch(() => {});
+    fetchJson(`${import.meta.env.BASE_URL}case-translations.json`).then(setCaseTx).catch(() => {});
+    fetchJson(`${import.meta.env.BASE_URL}alerts-feed.json`)
       .then((list: AlertCtx[]) => setAlertsFeed(Object.fromEntries(list.map((a) => [a.id, a])))).catch(() => {});
   }, []);
   // The alert that led here — shown only while its own triggering FIR is the open case.
@@ -441,7 +442,7 @@ export default function Cases() {
   const [semRes, setSemRes] = useState<{ crimeNo: string; score: number; district: string; date: string; crimeSubHead: string; clusterLabel: string; facts: string }[] | null>(null);
   const [semLoading, setSemLoading] = useState(false);
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}case-embeddings.json`).then((r) => r.json()).then((d) => setCaseVecs(d.cases)).catch(() => {});
+    fetchJson(`${import.meta.env.BASE_URL}case-embeddings.json`).then((d) => setCaseVecs(d.cases)).catch(() => {});
     preloadEmbedder();
   }, []);
   async function semanticSearch() {

@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import type { UiAction } from "@/lib/copilotTools";
 import { glmChat, vlmExtract } from "@/lib/llm";
 import { openReport } from "@/lib/pdf";
+import { fetchJson } from "@/lib/loader";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const LABEL: Record<string, string> = {
@@ -59,7 +60,7 @@ export default function CopilotDocument({ action }: { action: Extract<UiAction, 
   useEffect(() => {
     let alive = true;
     (async () => {
-      const dna = await fetch(`${import.meta.env.BASE_URL}crime-dna.json`).then((r) => r.json()).catch(() => ({}));
+      const dna = await fetchJson(`${import.meta.env.BASE_URL}crime-dna.json`).catch(() => ({}));
       const ctx = clusterFacts(dna, action.clusterId);
       ctxRef.current = ctx;
       try {
