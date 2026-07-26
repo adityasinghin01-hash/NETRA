@@ -46,6 +46,11 @@ COUNT=$((COUNT + 1))
 # warmed while the script still has the most time budget.
 if [ -d client/assets ]; then
   while IFS= read -r f; do
+    # Skip .wasm: the build still EMITS ort-wasm-simd-threaded.asyncify.wasm (23.5MB) because Vite
+    # resolves `new URL(..., import.meta.url)` statically, but embedMatch.ts points wasmPaths at
+    # jsdelivr so the browser never requests it. Warming it would spend ~9 minutes (3 x 180s
+    # timeouts at ~21KB/s) on a file no visitor will ever fetch.
+    case "$f" in *.wasm) continue ;; esac
     warm "/app/assets/$(basename "$f")" || FAILED=$((FAILED + 1))
     COUNT=$((COUNT + 1))
   done < <(ls -S client/assets)
